@@ -1435,14 +1435,16 @@ function shotCardsIn(cv, x0, y0, x1, y1, cw, minBright = 205, dbg = false, hMax 
   for (let x = 0; x < w; x++) if (col[x] > h * 0.8 && col[x] > cw * 1.3) col[x] = 0;
   const gap = Math.max(3, cw * 0.14), cards = [];
   let s = -1, last = -1;
-  const flush = () => {
-    if (s < 0) return; const ex = last; const wid = ex - s + 1;
+  const flush = () => { if (s < 0) return; addG(s, last); s = -1; };
+  const addG = (s, ex) => {
+    const wid = ex - s + 1;
+    // deux cartes collées (petites cartes du héros, cartes serrées) : on coupe au creux le plus net du milieu
+    if (wid > cw * 1.3) { let bx = -1, bv = 1e9; for (let x = Math.round(s + wid * 0.3); x <= Math.round(s + wid * 0.7); x++) if (col[x] < bv) { bv = col[x]; bx = x; } if (bx > s && bv <= Math.max(1, h * 0.08)) { let a = bx, c = bx; while (a > s && col[a - 1] <= bv) a--; while (c < ex && col[c + 1] <= bv) c++; addG(s, a - 1); addG(c + 1, ex); return; } }
     if (wid >= cw * 0.35) {
       let t = h, b = -1; for (let x = s; x <= ex; x++) { if (col[x]) { t = Math.min(t, top[x]); b = Math.max(b, bot[x]); } }
       if (dbg) cards.push({ s, ex, wid, h: b - t });
       else if (b - t >= cw * 0.6 && b - t <= (hMax || cw * 1.4)) cards.push({ x0: x0 + s, x1: x0 + ex, y0: y0 + t, y1: y0 + b });
     }
-    s = -1;
   };
   for (let x = 0; x < w; x++) { if (col[x] > 0) { if (s < 0) s = x; else if (x - last > gap) { flush(); s = x; } last = x; } }
   flush();
@@ -1505,7 +1507,8 @@ function shotRankText(s) {
   const m = /[AKQJ98765432T]/.exec(s.replace(/1(?!0)/, '')); return m ? m[0] : null;
 }
 // ---------- outils texte ----------
-const shotNum = (s) => { const m = /(\d+(?:[.,]\d+)?)/.exec(String(s).replace(/(\d)\s+(?=[.,]?\d)/g, '$1')); return m ? parseFloat(m[1].replace(',', '.')) : null; };
+// montants Betclic : au plus 1 décimale ; « 1,38BB » = « 1,3 BB » avec le « B » lu « 8 »
+const shotNum = (s) => { const m = /(\d+)(?:[.,](\d+))?/.exec(String(s).replace(/(\d)\s+(?=[.,]?\d)/g, '$1')); return m ? parseFloat(m[1] + (m[2] ? '.' + m[2].slice(0, 1) : '')) : null; };
 function shotLev(a, b) { a = a.toLowerCase(); b = b.toLowerCase(); const m = a.length, n = b.length; if (!m) return n; if (!n) return m; let prev = Array.from({ length: n + 1 }, (_, j) => j); for (let i = 1; i <= m; i++) { const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; } return prev[n]; }
 function shotAction(s) {
   const t = String(s).replace(/\b8B\b|\bB8\b|\b88\b/g, 'BB').replace(/([A-Za-z])(\d)/, '$1 $2');
@@ -1589,7 +1592,7 @@ async function readBetclicShots(images, ocr, progress) {
         const c = shotCardsIn(cv, W * 0.55, L.yc - th * 2, W * 0.997, L.yc + th * 2, cw, 205, false, cw * 2.2);
         if (hk >= 0 || (c.length >= 3 && c.length <= 5)) L.cards = c;
       }
-      if (/\bM[ao]i?[nmr]\s*\d+/i.test(t) && L.segs[0].x0 > W * 0.25 && !cards.heroLine) { cards.heroLine = L; L.cards = shotCardsIn(cv, W * 0.75, L.y0 - th * 1.5, W * 0.999, L.y1 + th * 2.2, cw); }
+      if (/\bM[ao]i?[nmr]\s*\d+/i.test(t) && L.segs.some(sg => /\bM[ao]i?[nmr]\b/i.test(sg.t) && sg.x0 > W * 0.25) && !cards.heroLine) { cards.heroLine = L; L.cards = shotCardsIn(cv, W * 0.75, L.y0 - th * 1.5, W * 0.999, L.y1 + th * 2.2, cw); }
     }
     { const hs = lines.filter(l => l.cards && l.cards.length >= 3).flatMap(l => l.cards.map(c => c.y1 - c.y0)).sort((a, b) => a - b); if (hs.length >= 3) cw = hs[Math.floor(hs.length / 2)] * 1.02; }
     if ((!cards.heroLine || !(cards.heroLine.cards && cards.heroLine.cards.length >= 2)) && k === 0) { const idL = lines.find(l => /\bID\b|main:/i.test(l.t)), yMax = idL ? idL.y0 : Math.min(cv.height * 0.2, th * 14); const c = shotCardsIn(cv, W * 0.75, 0, W * 0.995, yMax, cw); if (c.length >= 2) cards.heroTop = c.slice(-2); }
@@ -1725,7 +1728,16 @@ function shotBuild(pages, cardsMeta) {
     if (st > 3) continue;
     // nom et action : deux blocs, ou un seul bloc si l'OCR les a collés
     let nameT = L.segs[0].t, actT = L.segs.length >= 2 ? L.segs[L.segs.length - 1].t : '';
-    if (L.segs.length < 2) { const m = /^(.*?\S)\s+((?:Fold|Check|Che?ck|Call|Cal|Bet|Bat|Raise|Relance|All[\s-]*i?n)\b.*)$/i.exec(L.t); if (!m) continue; nameT = m[1]; actT = m[2]; }
+    if (L.segs.length < 2) {
+      const m = /^(.*?\S)\s+((?:Fold|Check|Che?ck|Call|Cal|Bet|Bat|Raise|Relance|All[\s-]*i?n)\b.*)$/i.exec(L.t);
+      if (!m) {
+        // pseudo seul, action illisible (« Fold » souvent perdu) : action inconnue, déduite plus tard
+        const w0 = matchName(L.t); if (w0 < 0 || L.segs[0].x0 > L.W * 0.3 || !posFromHdr) continue;
+        const o0 = ORD[st === 0 ? 0 : 1], e0 = nextActor(o0), p0 = e0 >= 0 && nameDist(L.t, e0) <= 0.5 ? e0 : w0;
+        H.streets[st].push({ p: p0, t: 'Q', v: 0 }); bgAct[p0].push(L.bg); ptr = (o0.indexOf(p0) + 1) % Math.max(1, o0.length); continue;
+      }
+      nameT = m[1]; actT = m[2];
+    }
     if (L.segs[0].x0 > L.W * 0.3) continue;
     if (/Reconnect|D[ée]connect|Sit\s*-?\s*out|Absent|Time\s*bank|Temps/i.test(actT || L.t)) continue; // ligne d'état, pas une action
     let act = shotAction(actT);
@@ -1745,9 +1757,9 @@ function shotBuild(pages, cardsMeta) {
           for (let guard = 0; guard < n0 && exp >= 0 && exp !== who; guard++) {
             const open = H.streets[st].some(a => a.t === 'K' || a.t === 'R' || a.t === 'AI') || (st === 0 && H.seats[exp].pos !== 'BB');
             // pas de mise en cours mais le joueur suivant paie : la ligne manquante était une mise (montant déduit du pot)
-            const ty = open ? (act.t === 'C' && H.streets[st].some(a => a.p === who && (a.t === 'K' || a.t === 'R')) ? 'R' : 'C') : act.t === 'C' || act.t === 'R' ? 'K' : 'X';
+            const ty = open ? 'Q' : act.t === 'C' || act.t === 'R' ? 'K' : 'X';
             H.streets[st].push({ p: exp, t: ty, v: 0, auto: true });
-            warn.push(`${['Préflop', 'Flop', 'Turn', 'River'][st]} : ligne de ${H.seats[exp].n} non lue, ${ty === 'C' ? 'call' : ty === 'K' ? 'mise' : ty === 'R' ? 'relance' : 'check'} supposé${ty === 'K' || ty === 'R' ? 'e' : ''}.`);
+            if (ty !== 'Q') warn.push(`${['Préflop', 'Flop', 'Turn', 'River'][st]} : ligne de ${H.seats[exp].n} non lue, ${ty === 'K' ? 'mise supposée' : 'check supposé'}.`);
             ptr = (o.indexOf(exp) + 1) % o.length; exp = nextActor(o);
           }
         } else who = exp;
@@ -1877,6 +1889,11 @@ function shotRepair(H) {
     for (const a of H.streets[s2]) {
       const i = a.p; if (i < 0 || i >= n || S.folded[i]) continue;
       const left = st0[i] - S.put[i], mx = Math.max(...S.sp);
+      if (a.t === 'Q') { // action illisible : le joueur rejoue plus tard ou va à l'abattage → il a suivi ; sinon il s'est couché
+        const idx = H.streets[s2].indexOf(a), later = H.streets[s2].slice(idx + 1).some(b => b.p === i && b.t !== 'Q') || H.streets.slice(s2 + 1).some(l => l.some(b => b.p === i)) || (H.sdSeen && H.sdSeen.includes(i)) || (H.sdCards && H.sdCards[i]);
+        const facing = mx > S.sp[i] + 1e-9; a.t = later ? (facing ? 'C' : 'X') : (facing ? 'F' : 'X');
+        if (live) W(`${SN[s2]} : action de ${H.seats[i].n} illisible, ${a.t === 'F' ? 'fold' : a.t === 'C' ? 'call' : 'check'} supposé.`);
+      }
       if (a.t === 'F') { S.folded[i] = true; continue; }
       if (a.t === 'X') continue;
       if (a.t === 'U' && live) { // action illisible : déduite du montant
@@ -1936,7 +1953,7 @@ function shotRepair(H) {
         const add = Math.min(st0[i] - S.put[i], mx - S.sp[i]);
         // ligne manquante : call ou fold ? (absent de l'abattage, ou pot affiché à la rue suivante)
         const target = s2 < 3 ? H.pots[s2 + 1] : H.pots[4];
-        const potWith = (extra) => { const q = S.put.slice(); q[i] += extra; const t = q.reduce((a, b) => a + b, 0), o = q.slice().sort((a, b) => b - a); return t - (o[0] - (o[1] || 0)); };
+        const potWith = (extra) => { const q = S.put.slice(); q[i] += extra; const t = q.reduce((a, b) => a + b, 0), o = q.slice().sort((a, b) => b - a); return s2 < 3 && H.pots[s2 + 1] ? t : t - (o[0] - (o[1] || 0)); };
         const absentSd = H.sdSeen && H.sdSeen.length >= 2 && !H.sdSeen.includes(i);
         const potFold = target && Math.abs(potWith(0) - target) + 0.05 < Math.abs(potWith(add) - target);
         const potCall = target && Math.abs(potWith(add) - target) + 0.05 < Math.abs(potWith(0) - target);
@@ -1948,19 +1965,21 @@ function shotRepair(H) {
     return S;
   };
   // pot réel en fin de rue (la part non suivie d'une mise revient à son auteur)
-  const potOf = (S) => { const t = S.put.reduce((a, b) => a + b, 0), o = S.put.slice().sort((a, b) => b - a); return t - (o[0] - (o[1] || 0)); };
+  // pot affiché en tête de rue : mise non suivie comprise ; pot de l'abattage : sans elle
+  const potOf = (S, sd) => { const t = S.put.reduce((a, b) => a + b, 0), o = S.put.slice().sort((a, b) => b - a); return sd ? t - (o[0] - (o[1] || 0)) : t; };
   for (let s2 = 0; s2 < 4; s2++) {
     const S0 = clone(state);
     let S = run(s2, clone(S0), true);
     // montants déduits du pot affiché à la rue suivante (montant illisible ou mal lu)
     const target = s2 < 3 ? H.pots[s2 + 1] : H.pots[4];
-    if (target && H.streets[s2].length && Math.abs(potOf(S) - target) > 0.11) {
+    const isSd = s2 === 3 || !H.pots[s2 + 1];
+    if (target && H.streets[s2].length && Math.abs(potOf(S, isSd) - target) > 0.11) {
       const cands = H.streets[s2].filter(a => (a.t === 'K' || a.t === 'R') && (!(a.v > 0) || a.weak)); // seulement les montants illisibles ou incohérents
       for (const c of cands) {
-        const keep = c.v, f = (x) => { c.v = x; return potOf(run(s2, clone(S0), false)); };
+        const keep = c.v, f = (x) => { c.v = x; return potOf(run(s2, clone(S0), false), isSd); };
         let lo = 0.1, hi = Math.max(...st0) + 1, ok = null;
         for (let it = 0; it < 40; it++) { const mid = (lo + hi) / 2, v = f(mid); if (Math.abs(v - target) <= 0.11) { ok = mid; break; } if (v < target) lo = mid; else hi = mid; }
-        if (ok !== null) { const x = Math.round(ok * 10) / 10; c.v = x; if (Math.abs(potOf(run(s2, clone(S0), false)) - target) > 0.11) c.v = ok; W(`${SN[s2]} : montant de ${H.seats[c.p].n} ${keep ? `corrigé de ${keep} à` : 'déduit :'} ${r1(c.v)} BB d'après le pot affiché (${target} BB).`); S = run(s2, clone(S0), false); break; }
+        if (ok !== null) { const x = Math.round(ok * 10) / 10; c.v = x; if (Math.abs(potOf(run(s2, clone(S0), false), isSd) - target) > 0.11) c.v = ok; W(`${SN[s2]} : montant de ${H.seats[c.p].n} ${keep ? `corrigé de ${keep} à` : 'déduit :'} ${r1(c.v)} BB d'après le pot affiché (${target} BB).`); S = run(s2, clone(S0), false); break; }
         c.v = keep;
       }
     }
@@ -2093,7 +2112,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 15</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 16</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -2142,7 +2161,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 15</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 16</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et vérifié : positions, ordre de parole, montants, pots de chaque rue, pot final et résultat correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
@@ -2768,7 +2787,7 @@ vwLoad(location.hash);
   for (const k of keys) {
     const t = T[k]; let diff = [];
     try {
-      const img = await createImageBitmap(await (await fetch('img/' + k + '.png')).blob());
+      const img = await createImageBitmap(await (await fetch('img/' + (t.file || k + '.png'))).blob());
       const H = await readBetclicShots([img], imOcr, () => {});
       const ph = shotToHand(H), bb = ph.bb, r1 = (v) => Math.round(v * 10) / 10;
       const seats = ph.seats.map(s => ({ n: s.n, st: s.st / bb, pos: ph.seats.length === 2 ? (s.btn || s.sb ? 'SB' : 'BB') : s.btn ? 'BTN' : s.sb ? 'SB' : 'BB', hero: s.hero, c: s.c ? s.c.map(intToCard).join(' ') : null }));
