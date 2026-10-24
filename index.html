@@ -1624,7 +1624,7 @@ function shotBuild(pages, cardsMeta) {
     const who = matchName(L.segs[0].t); if (who < 0) continue;
     if (L.cards && L.cards.length === 2 && L.cards.every(c => c.rank)) H.sdCards[who] = L.cards.map(c => shotCard(c.rank, c.suit));
     const tail = lines.slice(i, i + 3).map(x => x.t).join(' ');
-    if (/Perdu/i.test(tail)) H.seats[who].lost = true;
+    if (/Perdu/i.test(tail)) H.seats[who].lost = true; else if (/Gagn|Remport|Won/i.test(tail)) H.seats[who].won = true;
   }
   // board : la rangée la plus complète (river > turn > flop)
   const rows = H.boardRows || {};
@@ -1651,6 +1651,8 @@ function shotBuild(pages, cardsMeta) {
   for (const s of H.seats) { const cnt = new Map(); for (const a of s.alias) { const k = a.replace(/[^\w.\-À-ſ]+$/g, '').trim().split(/\s+/)[0]; if (k) cnt.set(k, (cnt.get(k) || 0) + 1); } const best = [...cnt.entries()].sort((a, b) => b[1] - a[1] || shotLev(a[0], s.n) - shotLev(b[0], s.n))[0]; if (best) s.n = best[0].replace(/\(.*/, ''); }
   if (!H.seats.some(s => s.hero) && H.heroCards) { for (const [k, cs] of Object.entries(H.sdCards)) if (cs.join() === H.heroCards.join()) H.seats[k].hero = true; }
   if (!H.bb) warn.push('Blinds non lues : vérifie SB / BB.');
+  { const fd = new Set(H.streets.flat().filter(a => a.t === 'F').map(a => a.p)); const liveK = H.seats.map((x, k) => k).filter(k => !fd.has(k));
+    if (liveK.length > 1) for (const k of liveK) if (!H.seats[k].hero && !H.sdCards[k]) warn.push(`Cartes de ${H.seats[k].n} non lues à l’abattage : choisis-les ci-dessous.`); }
   H.warn = warn;
   shotRepair(H);
   return H;
@@ -1753,8 +1755,13 @@ function shotToHand(H) {
     const val = live.map(i => evalCards([...ph.seats[i].c, ...ph.board])), best = Math.max(...val);
     winners = live.filter((i, k) => val[k] === best);
   } else if (live.length > 1) {
-    const notLost = live.filter(i => !seats[i].lost);
-    if (notLost.length) winners = notLost;
+    // cartes adverses non lues : on se fie au résultat affiché (« Gagné », « Perdu », +/- BB du héros)
+    const won = live.filter(i => seats[i].won), notLost = live.filter(i => !seats[i].lost);
+    const hI = ph.seats.findIndex(s => s.hero);
+    if (won.length === 1) winners = won;
+    else if (hI >= 0 && live.includes(hI) && H.result !== null && H.result !== undefined && Math.abs(H.result) > 0.01) winners = H.result > 0 ? [hI] : live.filter(i => i !== hI);
+    else if (notLost.length && notLost.length < live.length) winners = notLost;
+    if (winners.length > 1) ph.warn.push('Gagnant non lu : vérifie qui remporte le pot (cartes adverses à choisir).');
   }
   for (const w of winners) ph.won[w] = Math.floor(pot / winners.length);
   ph.won[winners[0]] += pot - Math.floor(pot / winners.length) * winners.length;
@@ -1797,7 +1804,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 6</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 7</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -1825,15 +1832,17 @@ function imEdit(H) {
   const M = {
     sb: H.sb || 10, bb: H.bb || 20, buyin: H.buyin || '',
     seats: H.seats.map((s, k) => ({ n: s.n, st: s.bbStack, pos: s.pos, hero: !!s.hero, c: H.sdCards[k] || (s.hero ? H.heroCards : null) || null })),
-    streets: H.streets.map(l => l.map(a => ({ ...a }))), board: H.board.slice(),
+    streets: H.streets.map(l => l.map(a => ({ ...a }))), board: H.board.slice(), win: '',
   };
+  // gagnant proposé : celui trouvé à la lecture s'il est unique
+  if (ph0.won && ph0.seats) { const ws = ph0.won.map((w, i) => w > 0 ? i : -1).filter(i => i >= 0); if (ws.length === 1) { const k = H.seats.findIndex(x => x.n === ph0.seats[ws[0]].n); if (k >= 0) M.win = String(k); } else if (ws.length > 1 && ph0.sd) M.win = 'split'; }
   if (M.seats.length < 2) M.seats = [['BTN', 25], ['SB', 25], ['BB', 25]].map(([pos, st], k) => ({ n: 'Joueur ' + (k + 1), st, pos, hero: k === 2, c: null }));
   if (M.seats.length && !M.seats.some(s => s.hero)) M.seats[M.seats.length - 1].hero = true;
-  const warn = [...(H.warn || []), ...(ph0.potErr || [])];
+  const warn = [...(H.warn || []), ...(ph0.potErr || []), ...(ph0.warn || [])];
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. · version 6</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. · version 7</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et les pots affichés correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
@@ -1848,6 +1857,7 @@ function imEdit(H) {
           <select class="sel" data-f="t">${ACT.map(([v, l]) => `<option value="${v}" ${a.t === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
           <input class="inp" data-f="v" type="number" step="0.1" value="${a.v || ''}" placeholder="BB"><button class="ghost xs2" data-del>✕</button></div>`).join('')}
         <button class="ghost xs2" data-add="${st}">+ action</button></div>`).join('')}
+      <div class="imgrid" style="margin-top:12px"><label>Qui remporte le pot ? <select class="sel" id="im_win"><option value="" ${M.win === '' ? 'selected' : ''}>— à choisir —</option>${M.seats.map((s, k) => `<option value="${k}" ${M.win === String(k) ? 'selected' : ''}>${esc(s.n)}</option>`).join('')}<option value="split" ${M.win === 'split' ? 'selected' : ''}>Partage du pot</option></select></label></div>
       <div class="shrow" style="justify-content:flex-end;margin-top:12px"><button class="bigbtn" id="im_ok">Voir le replayer ▶</button></div>
       <details class="imhelp" style="margin-top:10px" ${H.raw && H.raw.length ? '' : 'open'}><summary class="mini">Texte lu sur l’image (pour signaler un souci)</summary><pre class="shtxt">${esc((H.raw || []).join('\n') || '(aucun texte lu)')}\n\n${esc(imDiag.slice(-4).join('\n'))}</pre></details></div>`;
     $('#im_back').onclick = () => vwImport();
@@ -1857,7 +1867,7 @@ function imEdit(H) {
     $('#im_ok').onclick = () => { read(); imFinish(M).catch(e => { console.error(e); alert('Impossible de construire la main : vérifie les actions et les montants.'); }); };
   };
   const read = () => {
-    M.sb = +$('#im_sb').value || M.sb; M.bb = +$('#im_bb').value || M.bb; M.buyin = +$('#im_bi').value || '';
+    M.win = $('#im_win').value; M.sb = +$('#im_sb').value || M.sb; M.bb = +$('#im_bb').value || M.bb; M.buyin = +$('#im_bi').value || '';
     $$('tr[data-seat]').forEach(tr => { const s = M.seats[+tr.dataset.seat]; s.n = $('[data-f="n"]', tr).value.trim() || s.n; s.pos = $('[data-f="pos"]', tr).value; s.st = +$('[data-f="st"]', tr).value || s.st; s.hero = $('input[type=radio]', tr).checked; const a = imReadCard($('[data-ck$="a"]', tr)), b = imReadCard($('[data-ck$="b"]', tr)); s.c = a !== null && b !== null ? [a, b] : null; });
     for (let i = 0; i < 5; i++) { const el = $(`[data-ck="b${i}"]`); if (el) M.board[i] = imReadCard(el); }
     $$('.imact').forEach(el => { const a = M.streets[+el.dataset.st][+el.dataset.j]; a.p = +$('[data-f="p"]', el).value; a.t = $('[data-f="t"]', el).value; a.v = +$('[data-f="v"]', el).value || 0; });
@@ -1866,7 +1876,7 @@ function imEdit(H) {
 }
 async function imFinish(M) {
   const H = { sb: M.sb, bb: M.bb, buyin: M.buyin || null, pots: [], warn: [], heroCards: null,
-    seats: M.seats.map(s => ({ n: s.n, bbStack: s.st, pos: s.pos, hero: s.hero, lost: false })),
+    seats: M.seats.map((s, k) => ({ n: s.n, bbStack: s.st, pos: s.pos, hero: s.hero, won: M.win === String(k), lost: M.win !== '' && M.win !== 'split' && M.win !== String(k) })),
     streets: M.streets, board: M.board.filter(c => c !== null && c !== undefined), sdCards: {} };
   M.seats.forEach((s, k) => { if (s.c) H.sdCards[k] = s.c; });
   const ph = shotToHand(H);
@@ -2188,7 +2198,7 @@ function vtLayout(n, portrait) {
   }
   const L = { W: 900, H: 560, cx: 450, cy: 270, rx: 400, ry: 206, cw: 60, ch: 84, bw: 64, bh: 90, pw: 184, ph: 62, fn: 19, fs: 17, fb: 16, fp: 19 };
   L.seats = n === 2 ? [{ x: 450, y: 512, k: 'b' }, { x: 450, y: 42, k: 't' }] : [{ x: 450, y: 512, k: 'b' }, { x: 165, y: 82, k: 'l' }, { x: 735, y: 82, k: 'r' }];
-  L.bet = { b: [450, 380], t: [450, 200], l: [255, 245], r: [645, 245] };
+  L.bet = { b: [450, 345], t: [560, 190], l: [270, 205], r: [630, 205] }; L.side = true;
   return L;
 }
 function vtCard(x, y, w, h, c, cls = '') {
@@ -2268,13 +2278,19 @@ function vtRender(ph, s, o) {
     if (bub) {
       const bg = eq !== null && !lab ? '#ffffff' : /Fold/.test(lab) ? '#4a5170' : /Gagne/.test(lab) ? '#18b562' : /All-in/.test(lab) ? '#e5263c' : /Raise|Bet/.test(lab) ? '#ff7a1a' : '#2f6fe0';
       const fg = eq !== null && !lab ? '#11131c' : '#fff';
-      const by2 = sp.k === 'b' ? py - ch - 12 : py + L.ph + ch + 20;
-      g += `<g class="vtbub">${vtPill(sp.x, Math.max(16, Math.min(L.H - 14, by2)), bub, bg, fg, 'middle', L.fb)}</g>`;
+      if (sp.k !== 'b' && L.side) { // PC : bulle à côté des cartes, côté centre de la table
+        const right = sp.k !== 'r', bx2 = right ? sp.x + cw * 1.1 + 10 : sp.x - cw * 1.1 - 10;
+        g += `<g class="vtbub">${vtPill(bx2, cy0 + ch / 2, bub, bg, fg, right ? 'start' : 'end', L.fb)}</g>`;
+      } else {
+        const by2 = sp.k === 'b' ? py - ch - 4 : py + L.ph + ch + 20;
+        g += `<g class="vtbub">${vtPill(sp.x, Math.max(16, Math.min(L.H - 14, by2)), bub, bg, fg, 'middle', L.fb)}</g>`;
+      }
     }
     // mise
     if (s.bets[i]) {
       const [x, y] = L.bet[sp.k];
-      g += `<g class="vtbet"><circle cx="${x - 30}" cy="${y}" r="9" fill="#ffcc33" stroke="#fff" stroke-width="2" stroke-dasharray="3 3"/>${vtPill(x - 18, y, amt(s.bets[i]), 'rgba(0,0,0,.55)', '#fff', 'start', L.fb)}</g>`;
+      const rr = L.side && sp.k === 'r';
+      g += `<g class="vtbet"><circle cx="${rr ? x + 30 : x - 30}" cy="${y}" r="9" fill="#ffcc33" stroke="#fff" stroke-width="2" stroke-dasharray="3 3"/>${vtPill(rr ? x + 18 : x - 18, y, amt(s.bets[i]), 'rgba(0,0,0,.55)', '#fff', rr ? 'end' : 'start', L.fb)}</g>`;
     }
   });
   return g + '</svg>';
