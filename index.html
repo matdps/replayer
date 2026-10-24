@@ -1500,7 +1500,7 @@ function shotAction(s) {
   const K = [['fold', 'F'], ['check', 'X'], ['call', 'C'], ['raise', 'R'], ['bet', 'K'], ['all-in', 'AI'], ['allin', 'AI']];
   let best = null, bd = 9; for (const [k, v] of K) { const dd = shotLev(w, k); if (dd < bd) { bd = dd; best = v; } }
   if (bd > (w.length <= 3 ? 1 : 2)) return null;
-  return { t: best, v: best === 'F' || best === 'X' ? 0 : shotNum(t.slice(w.length)) };
+  return { t: best, v: best === 'F' || best === 'X' ? 0 : shotNum(t.slice(w.length)), raw: t.slice(w.length) };
 }
 /** titre de rue : 0 préflop, 1 flop, 2 turn, 3 river, 4 abattage, 9 = « Pot » sans nom lisible, -1 = pas un titre */
 function shotHdr(L, W) {
@@ -1524,8 +1524,8 @@ async function readBetclicShots(images, ocr, progress) {
     const lines = shotLines(shotWords(tsv), W);
     // texte gris du haut (« Spin & Rush • Buy-in 50€ ») : seuil plus bas sur le haut de l'image
     if (k === 0 && !lines.some(l => /Buy-?in/i.test(l.t))) {
-      const top = document.createElement('canvas'); top.width = W; top.height = Math.round(cv.height * 0.2); top.getContext('2d').drawImage(cv, 0, 0);
-      const t2 = shotLines(shotWords(await ocr(shotBinarize(top, 105), { psm: 11 })), W).find(l => /Buy-?in/i.test(l.t));
+      const ts = Math.min(1, 2 / scale), top = document.createElement('canvas'); top.width = Math.round(W * ts); top.height = Math.round(cv.height * 0.2 * ts); top.getContext('2d').drawImage(cv, 0, 0, W, cv.height * 0.2, 0, 0, top.width, top.height);
+      const t2 = shotLines(shotWords(await ocr(shotBinarize(top, 105), { psm: 11 })), top.width).find(l => /Buy-?in/i.test(l.t));
       if (t2) meta.buyinLine = t2.t;
     }
     const th = lines.length ? lines.map(l => l.h).sort((a, b) => a - b)[Math.floor(lines.length / 2)] : 30;
@@ -1772,6 +1772,13 @@ function shotToHand(H) {
       const i = idx(a.p); if (i < 0) continue;
       const left = st0[i] - put[i], maxSp = Math.max(...sp);
       let t = a.t, v = Math.round((a.v || 0) * bb);
+      // « Bet 1 BB » lu « Bet 188 » : une mise qui dépasse le tapis sans être annoncée All-in est une erreur de lecture
+      if ((t === 'K' || t === 'R') && v >= left + (t === 'R' ? sp[i] : 0) && a.raw) {
+        const digs = String(a.raw).replace(/[^\d.,]/g, '').replace(',', '.'), cands = [];
+        for (let k = digs.length - 1; k >= 1; k--) { const x = parseFloat(digs.slice(0, k)); if (x > 0) cands.push(Math.round(x * bb)); }
+        const ok = cands.find(x => x < left + (t === 'R' ? sp[i] : 0) && (t !== 'R' || x > maxSp));
+        if (ok) { potErr.push(`${ph.seats[i].n} : montant « ${String(a.raw).trim()} » relu ${Math.round(ok / bb * 10) / 10} BB, vérifie-le.`); v = ok; a.v = ok / bb; a.raw = String(a.v); }
+      }
       if (t === 'AI') { const add = left; t = sp[i] + add > maxSp ? (maxSp > 0 ? 'R' : 'K') : 'C'; v = add; }
       if (t === 'F') { folded[i] = true; ph.acts.push({ st: s, p: i, t: 'F', a: 0, ai: false }); continue; }
       if (t === 'X') { ph.acts.push({ st: s, p: i, t: 'X', a: 0, ai: false }); continue; }
@@ -1848,7 +1855,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 10</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 11</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -1889,7 +1896,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 10</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 11</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et les pots affichés correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
