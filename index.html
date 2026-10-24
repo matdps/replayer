@@ -1471,9 +1471,9 @@ async function readBetclicShots(images, ocr, progress) {
       const y = Math.round(L.yc), xs = [Math.round(W * 0.1), Math.round(W * 0.5)];
       let br = 0; for (const x of xs) { const px = ctx.getImageData(x, y, 1, 1).data; br += (px[0] + px[1] + px[2]) / 3; } L.bg = br / xs.length;
     }
-    all.push({ lines, W, th, k }); if (typeof window !== 'undefined') window.__shotDbg = { lines: lines.map(l => ({ t: l.t, y0: l.y0, y1: l.y1, x0: l.segs[0].x0, cards: l.cards })), th, W, heroTop: cards.heroTop };
+    all.push({ lines, W, th, k }); cards.raw = (cards.raw || []).concat(lines.map(l => l.t)); if (typeof window !== 'undefined') window.__shotDbg = { lines: lines.map(l => ({ t: l.t, y0: l.y0, y1: l.y1, x0: l.segs[0].x0, cards: l.cards })), th, W, heroTop: cards.heroTop };
   }
-  cards.buyinLine = meta.buyinLine; return shotBuild(all, cards);
+  cards.buyinLine = meta.buyinLine; const H = shotBuild(all, cards); H.raw = cards.raw || []; return H;
 }
 /** reconstruit la main à partir des lignes lues */
 function shotBuild(pages, cardsMeta) {
@@ -1497,6 +1497,8 @@ function shotBuild(pages, cardsMeta) {
   if (H.bb && !H.sb) H.sb = H.bb / 2; if (H.sb && !H.bb) H.bb = H.sb * 2;
   if (H.seats.length === 2) { for (const s of H.seats) if (!s.pos) s.pos = H.seats.some(x => x.pos === 'BB') ? 'SB' : 'BB'; }
   if (H.seats.length === 3) { const miss = ['BTN', 'SB', 'BB'].filter(p => !H.seats.some(s => s.pos === p)); for (const s of H.seats) if (!s.pos && miss.length) s.pos = miss.shift(); }
+  // positions incohérentes (doublon, manquante) : ordre d'affichage Betclic = Dealer, SB, BB
+  { const ord = H.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB']; const ps = H.seats.map(x => x.pos); if (H.seats.length <= 3 && (ps.some(p => !ord.includes(p)) || new Set(ps).size !== ps.length)) { warn.push('Positions mal lues : remises dans l’ordre Dealer, SB, BB, vérifie-les.'); H.seats.forEach((x, k) => { x.pos = ord[k] || null; }); } }
   // héros = ligne en surbrillance
   if (H.seats.length) { const mx = Math.max(...H.seats.map(s => s.bg)); const mn = Math.min(...H.seats.map(s => s.bg)); if (mx - mn > 8) H.seats.find(s => s.bg === mx).hero = true; }
   const matchName = (txt) => {
@@ -1550,6 +1552,7 @@ function shotToHand(H) {
   const bb = H.bb || 20, sb = H.sb || bb / 2, n = H.seats.length;
   const order = n === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const seats = order.map(p => H.seats.find(s => s.pos === p)).filter(Boolean);
+  for (const s of H.seats) if (!seats.includes(s)) seats.push(s); // jamais de joueur perdu
   const idx = (s) => seats.indexOf(H.seats[s]);
   const ph = {
     game: 'Spin & Rush', mult: 0, buyin: H.buyin || 0, prize: 0, ts: 0, sb, bb, board: H.board.slice(0, 5), sd: false, won: [], fin: [], warn: [],
@@ -1656,13 +1659,14 @@ async function imRun(files) {
 }
 /** formulaire de vérification : tout ce qui a été lu, modifiable */
 function imEdit(H) {
-  const ph0 = shotToHand(H);
+  let ph0 = {}; try { ph0 = shotToHand(H); } catch (e) { console.error(e); (H.warn = H.warn || []).push('Main incomplète : complète les champs.'); }
   // modèle simple et éditable
   const M = {
     sb: H.sb || 10, bb: H.bb || 20, buyin: H.buyin || '',
     seats: H.seats.map((s, k) => ({ n: s.n, st: s.bbStack, pos: s.pos, hero: !!s.hero, c: H.sdCards[k] || (s.hero ? H.heroCards : null) || null })),
     streets: H.streets.map(l => l.map(a => ({ ...a }))), board: H.board.slice(),
   };
+  if (M.seats.length < 2) M.seats = [['BTN', 25], ['SB', 25], ['BB', 25]].map(([pos, st], k) => ({ n: 'Joueur ' + (k + 1), st, pos, hero: k === 2, c: null }));
   if (M.seats.length && !M.seats.some(s => s.hero)) M.seats[M.seats.length - 1].hero = true;
   const warn = [...(H.warn || []), ...(ph0.potErr || [])];
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
@@ -1683,12 +1687,13 @@ function imEdit(H) {
           <select class="sel" data-f="t">${ACT.map(([v, l]) => `<option value="${v}" ${a.t === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
           <input class="inp" data-f="v" type="number" step="0.1" value="${a.v || ''}" placeholder="BB"><button class="ghost xs2" data-del>✕</button></div>`).join('')}
         <button class="ghost xs2" data-add="${st}">+ action</button></div>`).join('')}
-      <div class="shrow" style="justify-content:flex-end;margin-top:12px"><button class="bigbtn" id="im_ok">Voir le replayer ▶</button></div></div>`;
+      <div class="shrow" style="justify-content:flex-end;margin-top:12px"><button class="bigbtn" id="im_ok">Voir le replayer ▶</button></div>
+      ${H.raw && H.raw.length ? `<details class="imhelp" style="margin-top:10px"><summary class="mini">Texte lu sur l’image (pour signaler un souci)</summary><pre class="shtxt">${esc(H.raw.join('\n'))}</pre></details>` : ''}</div>`;
     $('#im_back').onclick = () => vwImport();
     $$('[data-add]').forEach(b => b.onclick = () => { read(); const st = +b.dataset.add; M.streets[st].push({ p: 0, t: 'X', v: 0 }); draw(); });
     $$('[data-del]').forEach(b => b.onclick = () => { read(); const el = b.closest('.imact'); M.streets[+el.dataset.st].splice(+el.dataset.j, 1); draw(); });
     $$('.imcard [data-cs]').forEach(s => s.onchange = () => { s.className = s.value ? 'su-' + s.value : ''; });
-    $('#im_ok').onclick = () => { read(); imFinish(M); };
+    $('#im_ok').onclick = () => { read(); imFinish(M).catch(e => { console.error(e); alert('Impossible de construire la main : vérifie les actions et les montants.'); }); };
   };
   const read = () => {
     M.sb = +$('#im_sb').value || M.sb; M.bb = +$('#im_bb').value || M.bb; M.buyin = +$('#im_bi').value || '';
