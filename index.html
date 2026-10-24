@@ -597,6 +597,11 @@ html{background:var(--vt-bg)}body{background:radial-gradient(1200px 700px at 50%
   .vt-ctl{position:fixed;left:8px;right:8px;bottom:8px;z-index:20;box-shadow:0 10px 30px rgba(0,0,0,.6);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
   .vt-btns button{width:42px;height:42px}.vt-btns button.play{width:52px;height:52px}
 }
+
+.vt-miss{margin-bottom:14px;padding:12px;border-radius:12px;background:rgba(255,190,60,.08);border:1px solid rgba(255,190,60,.35);font-size:13px}
+.vt-miss b{color:#ffd76a}.vt-miss p{margin:6px 0 10px;color:#c9d2f2;line-height:1.4}
+.vt-missrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px}.vt-missrow span{font-weight:700;min-width:80px}
+.vt-miss .vt-btn{width:100%}.vt-misserr{color:#ff6b7a;margin-top:6px;font-size:12px}
 </style></head><body>
 <div id="vw"><div class="vwempty"><p>Chargement de la main…</p></div></div>
 <script>
@@ -1804,7 +1809,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 7</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 8</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -1842,7 +1847,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. · version 7</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. · version 8</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et les pots affichés correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
@@ -2296,7 +2301,7 @@ function vtRender(ph, s, o) {
   return g + '</svg>';
 }
 
-/* global vwImport, decodeShare, buildSteps, shareText, shTitle, vtRender, rpAmt, intToCard, VT_SUIT */
+/* global imCardSel, imReadCard, encodeShare, handChips, evalCards, vwImport, decodeShare, buildSteps, shareText, shTitle, vtRender, rpAmt, intToCard, VT_SUIT */
 // Lecteur public d'une main partagée : la main est entièrement contenue dans le lien (#code).
 const S = { settings: { rpUnit: 'bb' }, cls: () => 'x' };
 const $ = (s, el = document) => el.querySelector(s);
@@ -2353,6 +2358,36 @@ function vwTimeline() {
   });
   return html;
 }
+/** adversaires encore en jeu à la fin dont les cartes sont inconnues */
+function vwMissing() {
+  const ph = VW.ph; if (!ph) return [];
+  const folded = new Set(ph.acts.filter(a => a.t === 'F').map(a => a.p)), live = ph.seats.map((p, i) => i).filter(i => !folded.has(i));
+  return live.length > 1 ? live.filter(i => !ph.seats[i].hero && !(ph.seats[i].c && ph.seats[i].c.length === 2)) : [];
+}
+async function vwSetMissing() {
+  const ph = VW.ph, err = $('#vt_misserr'); err.textContent = '';
+  const used = new Set([...ph.board, ...ph.seats.flatMap(p => p.c || [])]);
+  const pick = {};
+  for (const row of $$('.vt-missrow')) {
+    const i = +row.dataset.i, a = imReadCard($('[data-ck$="a"]', row)), b = imReadCard($('[data-ck$="b"]', row));
+    if (a === null || b === null) { err.textContent = `Choisis les deux cartes de ${ph.seats[i].n}.`; return; }
+    if (a === b || used.has(a) || used.has(b)) { err.textContent = 'Une de ces cartes est déjà sur la table.'; return; }
+    used.add(a); used.add(b); pick[i] = [a, b];
+  }
+  for (const [i, c] of Object.entries(pick)) ph.seats[+i].c = c;
+  const folded = new Set(ph.acts.filter(a => a.t === 'F').map(a => a.p)), live = ph.seats.map((p, i) => i).filter(i => !folded.has(i));
+  if (live.every(i => ph.seats[i].c)) {
+    ph.sd = true;
+    if (ph.board.length === 5) { // gagnant d'après les cartes
+      const pot = ph.won.reduce((x, y) => x + y, 0), val = live.map(i => evalCards([...ph.seats[i].c, ...ph.board])), best = Math.max(...val);
+      const ws = live.filter((i, k) => val[k] === best); ph.won = ph.seats.map(() => 0);
+      ws.forEach(w => { ph.won[w] = Math.floor(pot / ws.length); }); ph.won[ws[0]] += pot - Math.floor(pot / ws.length) * ws.length;
+    }
+  }
+  const hero = ph.seats.findIndex(p => p.hero), net = hero >= 0 ? handChips(ph).net[hero] : 0;
+  const code = await encodeShare(ph, { ...VW.d, net, ev: net }, { anon: false, allCards: true });
+  location.hash = code;
+}
 async function vwLoad(code) {
   if (!code || code.replace(/^.*#/, '').length < 8) { vwImport(); return; }
   let x;
@@ -2366,7 +2401,7 @@ async function vwLoad(code) {
       <div class="vt-acts"><button class="vt-btn pri" id="vw_link">🔗 Copier le lien</button><button class="vt-btn" id="vw_disc">Discord</button><button class="vt-btn" id="vw_new">＋ Ma main</button></div></header>
     <div class="vt-main">
       <div class="vt-stage"><div id="vt_table" class="vt-table"></div><div class="vt-msg" id="vt_msg"></div></div>
-      <aside class="vt-side"><div class="vt-sidehd">Déroulé de la main</div><div class="vt-log" id="vt_log">${vwTimeline()}</div>
+      <aside class="vt-side">${vwMissing().length ? `<div class="vt-miss" id="vt_miss"><b>Cartes adverses inconnues</b><p>Elles n’ont pas été lues sur le screenshot. Choisis-les pour les voir au moment du tapis payé : le lien sera mis à jour.</p>${vwMissing().map(i => `<div class="vt-missrow" data-i="${i}"><span>${esc(ph.seats[i].n)}</span>${imCardSel(null, 'm' + i + 'a')}${imCardSel(null, 'm' + i + 'b')}</div>`).join('')}<button class="vt-btn pri" id="vt_missok">Afficher ses cartes</button><div class="vt-misserr" id="vt_misserr"></div></div>` : ''}<div class="vt-sidehd">Déroulé de la main</div><div class="vt-log" id="vt_log">${vwTimeline()}</div>
         <div class="vt-opts">
           <div><span>Mes cartes</span><div class="vt-seg" data-o="hero"><button data-v="1">Visibles</button><button data-v="0">Cachées</button></div></div>
           <div><span>Cartes adverses</span><div class="vt-seg" data-o="vil"><button data-v="sd">À l’abattage</button><button data-v="all">Toujours</button><button data-v="none">Jamais</button></div></div>
@@ -2397,6 +2432,8 @@ async function vwLoad(code) {
   });
   const bindLog = () => $$('.vtl-item').forEach(b => b.onclick = () => { vwStop(); vwGo(+b.dataset.k); });
   bindLog(); segSync();
+  $$('#vt_miss [data-cs]').forEach(x => x.onchange = () => { x.className = x.value ? 'su-' + x.value : ''; });
+  if ($('#vt_missok')) $('#vt_missok').onclick = () => vwSetMissing().catch(e => { console.error(e); $('#vt_misserr').textContent = 'Impossible de mettre à jour la main.'; });
   $('#vt_first').onclick = () => { vwStop(); vwGo(0); };
   $('#vt_last').onclick = () => { vwStop(); vwGo(VW.steps.length - 1); };
   $('#vt_prev').onclick = () => { vwStop(); vwGo(VW.step - 1); };
