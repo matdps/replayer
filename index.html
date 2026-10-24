@@ -1510,7 +1510,7 @@ function shotAction(s) {
   const K = [['fold', 'F'], ['check', 'X'], ['call', 'C'], ['raise', 'R'], ['bet', 'K'], ['all-in', 'AI'], ['allin', 'AI']];
   let best = null, bd = 9; for (const [k, v] of K) { const dd = shotLev(w, k); if (dd < bd) { bd = dd; best = v; } }
   if (bd > (w.length <= 3 ? 1 : 2)) return null;
-  const num = t.slice(w.length).replace(/\bBB\b/gi, ' ').replace(/[S$§]/g, '5').replace(/[Oo]/g, '0').replace(/[Il|!]/g, '1').replace(/[Z]/g, '2');
+  const num = t.slice(w.length).replace(/\bBB\b/gi, ' ').replace(/(\d|S)\$/g, '$1').replace(/[S$§]/g, '5').replace(/[Oo]/g, '0').replace(/[Il|!]/g, '1').replace(/[Z]/g, '2');
   return { t: best, v: best === 'F' || best === 'X' ? 0 : shotNum(num), raw: num };
 }
 /** titre de rue : 0 préflop, 1 flop, 2 turn, 3 river, 4 abattage, 9 = « Pot » sans nom lisible, -1 = pas un titre */
@@ -1541,24 +1541,39 @@ async function readBetclicShots(images, ocr, progress) {
     const lines = shotLines(shotWords(tsv), W);
     // texte gris du haut (« Spin & Rush • Buy-in 50€ ») : seuil plus bas sur le haut de l'image
     if (k === 0 && !lines.some(l => /B[uv]y\W{0,2}[i1l][nm]|Buy|Spin\s*&/i.test(l.t))) {
-      const ts = Math.min(1, 2 / scale), top = document.createElement('canvas'); top.width = Math.round(W * ts); top.height = Math.round(cv.height * 0.2 * ts); top.getContext('2d').drawImage(cv, 0, 0, W, cv.height * 0.2, 0, 0, top.width, top.height);
+      const idL = lines.find(l => /\bID\b|main\s*:/i.test(l.t)), topH = idL ? Math.min(cv.height, idL.y0 + 4) : cv.height * 0.2;
+      const ts = Math.min(1, 2 / scale), top = document.createElement('canvas'); top.width = Math.round(W * ts); top.height = Math.round(topH * ts); top.getContext('2d').drawImage(cv, 0, 0, W, topH, 0, 0, top.width, top.height);
       const t2 = shotLines(shotWords(await ocr(shotBinarize(top, 105), { psm: 11 })), top.width).find(l => /B[uv]y\W{0,2}[i1l][nm]|Buy|Spin\s*&/i.test(l.t));
       if (t2) meta.buyinLine = t2.t;
     }
     const th = lines.length ? lines.map(l => l.h).sort((a, b) => a - b)[Math.floor(lines.length / 2)] : 30;
-    // pseudos : relecture de chaque nom seul, en plus grand (bien plus fiable que la lecture de la page entière)
+    // relecture bloc par bloc, en plus grand et à deux seuils : pseudos, montants, actions, pots (bien plus fiable que la page entière)
     {
-      const nameLines = []; for (const L of lines) { if (shotHdr(L, W) === 0 || /Pre-?\s*flop/i.test(L.t)) break; if (L.segs[0].x0 < W * 0.3 && /\(/.test(L.segs[0].t)) nameLines.push(L); }
-      for (const L of nameLines.concat(lines.filter(l => !nameLines.includes(l) && l.segs.length >= 2 && shotAction(l.segs[l.segs.length - 1].t) && l.segs[0].x0 < W * 0.3).slice(0, 12))) {
-        if (progress) progress('Lecture des pseudos…');
-        const sg = L.segs[0], pad = Math.round(th * 0.35), x0 = Math.max(0, sg.x0 - pad), y0 = Math.max(0, L.y0 - pad), w = Math.min(W, sg.x1 + pad) - x0, h = Math.min(cv.height, L.y1 + pad) - y0;
-        if (w < 8 || h < 8) continue;
+      const reread = async (L, x0s, x1s) => {
+        const pad = Math.round(th * 0.35), x0 = Math.max(0, x0s - pad), y0 = Math.max(0, L.y0 - pad), w = Math.min(W, x1s + pad) - x0, h = Math.min(cv.height, L.y1 + pad) - y0;
+        if (w < 8 || h < 8) return [];
         const sc = Math.max(1, Math.min(3, 64 / h)), big = document.createElement('canvas'); big.width = Math.round(w * sc) + 40; big.height = Math.round(h * sc) + 40;
         const bx = big.getContext('2d', { willReadFrequently: true }); bx.fillStyle = '#000'; bx.fillRect(0, 0, big.width, big.height); bx.imageSmoothingQuality = 'high'; bx.drawImage(cv, x0, y0, w, h, 20, 20, w * sc, h * sc);
+        const out = [];
         // seuil élevé = traits plus fins : évite les « s » lus « e » sur la police Betclic
-        L.nameAlts = [];
-        for (const thr of [160, 185]) { try { const t = shotWords(await ocr(shotBinarize(big, thr), { psm: 7 })).map(x => x.t).join(' ').trim(); if (t) L.nameAlts.push(t); } catch (e) { /* relecture facultative */ } }
-        L.nameAlt = L.nameAlts[0];
+        for (const thr of [160, 185]) { try { const t = shotWords(await ocr(shotBinarize(big, thr), { psm: 7 })).map(x => x.t).join(' ').trim(); if (t) out.push(t); } catch (e) { /* relecture facultative */ } }
+        return out;
+      };
+      let pre = -1; for (let q = 0; q < lines.length; q++) if (shotHdr(lines[q], W) === 0 || /Pre-?\s*flop/i.test(lines[q].t)) { pre = q; break; }
+      let nNames = 0;
+      for (let q = 0; q < lines.length; q++) {
+        const L = lines[q], s0 = L.segs[0]; if (!s0 || s0.x0 > W * 0.3) continue;
+        const last = L.segs[L.segs.length - 1], hk = shotHdr(L, W);
+        if (progress) progress('Vérification des pseudos et des montants…');
+        if (pre >= 0 && q < pre) { // en-tête : joueur (tapis) … position (blinde)
+          if (!/\(/.test(s0.t) && !(L.segs.length > 1 && /D[eé]a?l|\b[SB][B8]\b/.test(last.t))) continue;
+          L.nameAlts = await reread(L, s0.x0, s0.x1); L.nameAlt = L.nameAlts[0];
+          if (L.segs.length > 1) L.rightAlts = await reread(L, last.x0, last.x1);
+        } else if (hk >= 0) { L.hdrAlts = await reread(L, s0.x0, s0.x1); if (hk === 4) break; }
+        else if (q > pre) {
+          if (L.segs.length >= 2) { L.actAlts = await reread(L, last.x0, last.x1); if (nNames++ < 10) { L.nameAlts = await reread(L, s0.x0, s0.x1); L.nameAlt = L.nameAlts[0]; } }
+          else L.lineAlts = await reread(L, s0.x0, s0.x1);
+        }
       }
     }
     const cw = th * 1.75; // largeur approximative d'une carte
@@ -1571,7 +1586,7 @@ async function readBetclicShots(images, ocr, progress) {
         const c = shotCardsIn(cv, W * 0.55, L.yc - th * 1.4, W * 0.997, L.yc + th * 1.4, cw);
         if (hk >= 0 || (c.length >= 3 && c.length <= 5)) L.cards = c;
       }
-      if (/\bM[ao]i?[nmr]\s*\d+/i.test(t) && L.segs[0].x0 > W * 0.25 && !cards.heroLine) { cards.heroLine = L; L.cards = shotCardsIn(cv, W * 0.78, L.y0 - th * 1.5, W * 0.99, L.y1 + th * 2.2, cw); }
+      if (/\bM[ao]i?[nmr]\s*\d+/i.test(t) && L.segs[0].x0 > W * 0.25 && !cards.heroLine) { cards.heroLine = L; L.cards = shotCardsIn(cv, W * 0.75, L.y0 - th * 1.5, W * 0.999, L.y1 + th * 2.2, cw); }
     }
     if ((!cards.heroLine || !(cards.heroLine.cards && cards.heroLine.cards.length >= 2)) && k === 0) { const idL = lines.find(l => /\bID\b|main:/i.test(l.t)), yMax = idL ? idL.y0 : Math.min(cv.height * 0.2, th * 14); const c = shotCardsIn(cv, W * 0.75, 0, W * 0.995, yMax, cw); if (c.length >= 2) cards.heroTop = c.slice(-2); }
     // abattage : chaque nom de joueur suivi de ses 2 cartes à gauche
@@ -1579,8 +1594,8 @@ async function readBetclicShots(images, ocr, progress) {
     if (sdIdx >= 0) {
       const after = lines.slice(sdIdx + 1);
       for (let j = 0; j < after.length; j++) {
-        const L = after[j]; if (L.segs[0].x0 > W * 0.35 || !/[A-Za-z]{3,}/.test(L.segs[0].t)) continue;
-        const nxt = after.slice(j + 1).find(x => x.segs[0].x0 < W * 0.35 && /[A-Za-z]{3,}/.test(x.segs[0].t) && x.yc > L.yc + th * 1.5);
+        const L = after[j]; if (L.segs[0].x0 > W * 0.35 || !(/[A-Za-z]/.test(L.segs[0].t) && /[A-Za-z0-9_]{3,}/.test(L.segs[0].t))) continue;
+        const nxt = after.slice(j + 1).find(x => x.segs[0].x0 < W * 0.35 && (/[A-Za-z]/.test(x.segs[0].t) && /[A-Za-z0-9_]{3,}/.test(x.segs[0].t)) && x.yc > L.yc + th * 1.5);
         const y1c = Math.min(nxt ? nxt.y0 - th * 0.1 : 1e9, L.y1 + th * 3.2);
         const sx0 = Math.max(W * 0.02, L.segs[0].x0 - th * 0.3);
         let c = shotCardsIn(cv, sx0, L.y1 + th * 0.08, W * 0.32, y1c, cw);
@@ -1609,20 +1624,23 @@ async function readBetclicShots(images, ocr, progress) {
     for (const c of allCards) {
       if (progress) progress('Lecture des cartes…');
       const crop = shotRankCrop(cv, c, cw);
-      c.f = shotRankBits(crop); const m = shotRankMatch(c.f); if (m) { c.rank = m.r; c.how = 'tpl'; continue; }
+      c.f = shotRankBits(crop); const m = shotRankMatch(c.f); if (m) { c.rank = m.r; c.how = 'tpl'; c.d = m.d; continue; }
       for (const psm of [8, 10, 7, 13]) { const r = shotWords(await ocr(crop, { psm, whitelist: 'AKQJ1098765432' })).map(w => w.t).join(''); c.rank = shotRankText(r); if (c.rank) break; }
     }
     // surbrillance de la ligne du héros (fond plus clair)
     const ctx = cv.getContext('2d');
     for (const L of lines) {
-      const y = Math.round(L.yc), xs = [Math.round(W * 0.1), Math.round(W * 0.5)];
-      let br = 0; for (const x of xs) { const px = ctx.getImageData(x, y, 1, 1).data; br += (px[0] + px[1] + px[2]) / 3; } L.bg = br / xs.length;
+      // fond médian de la ligne, texte exclu
+      const vals = []; for (const dy of [-0.3, 0, 0.3]) { const y = Math.max(0, Math.min(cv.height - 1, Math.round(L.yc + dy * th))); const d = ctx.getImageData(Math.round(W * 0.05), y, Math.round(W * 0.9), 1).data; for (let k = 0; k < d.length; k += 12) { if (Math.min(d[k], d[k + 1], d[k + 2]) < 140) vals.push((d[k] + d[k + 1] + d[k + 2]) / 3); } }
+      vals.sort((a, b) => a - b); L.bg = vals.length ? vals[Math.floor(vals.length / 2)] : 0;
     }
     if (typeof window !== 'undefined') { const fx = (c) => ({ b: c.f ? Array.from(c.f.bits).map(v => Math.round(v * 9)).join('') : '', r: c.f ? c.f.ratio : 0, suit: c.suit, rank: c.rank, how: c.how, h: c.y1 - c.y0 }); window.__cardsDbg = (window.__cardsDbg || []).concat(lines.filter(l => l.cards && l.cards.length).map(l => ({ t: l.t, cards: l.cards.map(fx) })), cards.heroTop ? [{ t: 'HEROTOP', cards: cards.heroTop.map(fx) }] : [], (cards.sdPairs || []).map(pr => ({ t: 'SDPAIR', y: pr.y, cards: pr.cards.map(fx) }))); }
     all.push({ lines, W, th, k }); cards.raw = (cards.raw || []).concat(lines.map(l => l.t)); if (typeof window !== 'undefined') window.__shotDbg = { lines: lines.map(l => ({ t: l.t, y0: l.y0, y1: l.y1, x0: l.segs[0].x0, cards: l.cards })), th, W, heroTop: cards.heroTop };
   }
   cards.buyinLine = meta.buyinLine; const H = shotBuild(all, cards); H.raw = cards.raw || []; return H;
 }
+/** valeur la plus fréquente ; à égalité, la première de la liste (les relectures passent avant la page) */
+function shotVote(arr) { const c = new Map(); arr.forEach((v, k) => { if (v === null || v === undefined || v === '') return; const key = String(v); const e = c.get(key) || { v, n: 0, first: k }; e.n++; c.set(key, e); }); const best = [...c.values()].sort((a, b) => b.n - a.n || a.first - b.first)[0]; return best ? best.v : null; }
 /** reconstruit la main à partir des lignes lues */
 function shotBuild(pages, cardsMeta) {
   const lines = []; for (const pg of pages) for (const L of pg.lines) { const prev = lines[lines.length - 1]; if (prev && prev.t === L.t && pg.k > 0) continue; lines.push({ ...L, W: pg.W }); }
@@ -1643,14 +1661,16 @@ function shotBuild(pages, cardsMeta) {
   for (const L of seatLines) {
     // pseudo (tapis BB) ; si le tapis est illisible, on garde le joueur quand même (tapis déduit plus tard)
     const m = /^(.*?)\s*\(\s*(\d+(?:[.,]\d+)?)\s*[B8]/.exec(L.segs[0].t) || /^(.*?)\s*\(?\s*(\d+(?:[.,]\d+)?)?\s*[B8]{0,2}\s*\)?\s*$/.exec(L.segs[0].t.replace(/[^\w.\-À-ſ (),]+/g, ' ').trim()); if (!m || (!m[1] && !m[2])) continue; // pseudo illisible : retrouvé plus tard dans les lignes d'action
-    if (!m[2]) warn.push(`Tapis de ${m[1].trim()} illisible : vérifie-le.`);
+    if (!m[2] && !(L.nameAlts || []).some(x => /\(\s*\d/.test(x))) warn.push(`Tapis de ${m[1].trim()} illisible : vérifie-le.`);
     const right = L.segs.length > 1 ? L.segs[L.segs.length - 1].t : '';
-    const hasD = /D[eé]a?l[eo]r/i.test(right), hasSB = /\bS[B8]\b/.test(right), hasBB = /\b[B8][B8]\b/.test(right.replace(/\(.*$/, ''));
-    const pos = hasSB ? 'SB' : hasBB ? 'BB' : hasD ? 'BTN' : null;
-    const blindV = /\(\s*(\d+(?:[.,]\d+)?)\s*\)/.exec(right), blind = blindV ? shotNum(blindV[1]) : null;
+    const rights = [...(L.rightAlts || []).slice().reverse(), right];
+    const stackV = shotVote([...(L.nameAlts || []).slice().reverse(), L.segs[0].t].map(x => { const q = /\(\s*(\d+(?:[.,]\d+)?)\s*[B8]/.exec(x); return q ? parseFloat(q[1].replace(',', '.')) : null; }));
+    const hasD = rights.some(r => /D[eé]a?l[eo]r/i.test(r));
+    const pos = shotVote(rights.map(r => /\bS[B8]\b/.test(r) ? 'SB' : /\b[B8][B8]\b/.test(r.replace(/\(.*$/, '')) ? 'BB' : null)) || (hasD ? 'BTN' : null);
+    const blind = shotVote(rights.map(r => { const q = /\(\s*(\d+(?:[.,]\d+)?)\s*\)/.exec(r); return q ? shotNum(q[1]) : null; }));
     if (pos === 'SB' && blind) H.sb = blind; if (pos === 'BB' && blind) H.bb = blind;
     const alts = (L.nameAlts || []).map(a => (/^(.*?)\s*\(/.exec(a) || [0, a])[1].trim()).filter(Boolean);
-    H.seats.push({ n: m[1].replace(/[^\w.\-À-ſ ]+/g, '').trim(), bbStack: m[2] ? parseFloat(m[2].replace(',', '.')) : null, pos, dealer: hasD, blind, bg: L.bg, alias: [m[1].trim()].concat(alts, alts, alts), nSeat: 1 + alts.length * 3 });
+    H.seats.push({ n: m[1].replace(/[^\w.\-À-ſ ]+/g, '').trim(), bbStack: stackV !== null ? stackV : m[2] ? parseFloat(m[2].replace(',', '.')) : null, pos, dealer: hasD, blind, bg: L.bg, alias: [m[1].trim()].concat(alts, alts, alts), nSeat: 1 + alts.length * 3 });
   }
   // heads-up : le Dealer est la SB ; les montants des blindes départagent en cas de doute
   if (H.seats.length === 2) {
@@ -1670,8 +1690,10 @@ function shotBuild(pages, cardsMeta) {
   { const ord = H.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB']; const ps = H.seats.map(x => x.pos); if (H.seats.length <= 3 && (ps.some(p => !ord.includes(p)) || new Set(ps).size !== ps.length)) { warn.push('Positions mal lues : remises dans l’ordre Dealer, SB, BB, vérifie-les.'); H.seats.forEach((x, k) => { x.pos = ord[k] || null; }); } }
   // héros = ligne en surbrillance
   if (H.seats.length) { const mx = Math.max(...H.seats.map(s => s.bg)); const mn = Math.min(...H.seats.map(s => s.bg)); if (mx - mn > 8) H.seats.find(s => s.bg === mx).hero = true; }
+  const bgAct = H.seats.map(() => []);
   const nrm = (x) => String(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  const nameDist = (txt, k) => { const t = nrm(String(txt).replace(/[^\w.\-À-ſ ]+/g, ' ').trim().split(/\s+/)[0] || ''), n = nrm(H.seats[k].n); return t ? shotLev(t, n) / Math.max(3, n.length) : 1; };
+  // pseudo lu dans une ligne d'action, suivi d'icônes parasites (« Tié Fada 8 ») : on compare le début du texte au pseudo complet
+  const nameDist = (txt, k) => { const t = nrm(String(txt)), n = nrm(H.seats[k].n); if (!t || !n) return 1; let best = 1e9; for (const L2 of [n.length - 1, n.length, n.length + 1]) if (L2 > 0) best = Math.min(best, shotLev(t.slice(0, L2), n)); return best / Math.max(3, n.length); };
   const matchName = (txt) => { let best = -1, bd = 1e9; H.seats.forEach((x, k) => { const d = nameDist(txt, k); if (d < bd) { bd = d; best = k; } }); return bd < 0.5 ? best : -1; };
   // ordre de parole : préflop BTN, SB, BB (SB, BB en HU) ; après le flop SB, BB, BTN (BB, SB en HU)
   const n0 = H.seats.length, idxOf = (p) => H.seats.findIndex(x => x.pos === p);
@@ -1686,7 +1708,7 @@ function shotBuild(pages, cardsMeta) {
     if (hk >= 0 && !(hk === 9 && st < 0)) {
       const nc = L.cards ? L.cards.length : 0;
       const k = hk !== 9 ? hk : nc === 3 ? 1 : nc === 4 ? 2 : nc === 5 ? 3 : Math.min(4, st + 1);
-      const pm = /Pot\s*([\d.,]+)/i.exec(t); if (pm) H.pots[k] = shotNum(pm[1]); st = k; ptr = 0;
+      const potV = shotVote([...(L.hdrAlts || []).slice().reverse(), t].map(x => { const q = /P[o0]t\s*([\d.,]+)/i.exec(x); return q ? shotNum(q[1]) : null; })); if (potV !== null) H.pots[k] = potV; st = k; ptr = 0;
       if (L.cards && L.cards.length && k >= 1 && k <= 3) H.boardRows = Object.assign(H.boardRows || {}, { [k]: L.cards });
       if (k === 4) break;
       continue;
@@ -1697,7 +1719,10 @@ function shotBuild(pages, cardsMeta) {
     let nameT = L.segs[0].t, actT = L.segs.length >= 2 ? L.segs[L.segs.length - 1].t : '';
     if (L.segs.length < 2) { const m = /^(.*?\S)\s+((?:Fold|Check|Che?ck|Call|Cal|Bet|Bat|Raise|Relance|All[\s-]*i?n)\b.*)$/i.exec(L.t); if (!m) continue; nameT = m[1]; actT = m[2]; }
     if (L.segs[0].x0 > L.W * 0.3) continue;
+    if (/Reconnect|D[ée]connect|Sit\s*-?\s*out|Absent|Time\s*bank|Temps/i.test(actT || L.t)) continue; // ligne d'état, pas une action
     let act = shotAction(actT);
+    // relectures du bloc « action montant » : vote (type + montant)
+    { const cands = [...(L.actAlts || []).slice().reverse().map(x => shotAction(x)), act].filter(Boolean); if (cands.length) { const key = shotVote(cands.map(c => `${c.t}|${c.v === null || c.v === undefined ? '' : c.v}`)); act = cands.find(c => `${c.t}|${c.v === null || c.v === undefined ? '' : c.v}` === key) || act; } }
     if (!act && L.segs.length >= 2 && /\d/.test(actT) && /[B8]{2}|\d[.,]\d/.test(actT)) { const v = shotNum(actT.replace(/\b[B8][B8]\b/g, ' ').replace(/[S$]/g, '5').replace(/[Oo]/g, '0').replace(/[Il|]/g, '1')); if (v > 0) act = { t: 'U', v, raw: actT }; }
     if (!act) { if (/[A-Za-z]{3,}/.test(nameT)) warn.push(`Ligne non comprise : « ${t} »`); continue; }
     const o = ORD[st === 0 ? 0 : 1];
@@ -1724,12 +1749,14 @@ function shotBuild(pages, cardsMeta) {
     if (act.t === 'F' || act.t === 'AI') gone.add(who);
     ptr = (o.indexOf(who) + 1) % Math.max(1, o.length);
     H.seats[who].alias.push(nameT); for (const a of L.nameAlts || []) if (nameDist(a, who) <= 0.4) H.seats[who].alias.push(a, a);
-    H.streets[st].push({ p: who, ...act });
+    H.streets[st].push({ p: who, ...act }); bgAct[who].push(L.bg);
   }
   // positions d'après l'ordre de parole préflop, seulement si l'en-tête était illisible
   if (!posFromHdr) { const ord = H.seats.length === 2 ? ['SB', 'BB'] : H.seats.length === 3 ? ['BTN', 'SB', 'BB'] : null; const seen = []; for (const a of H.streets[0]) if (!seen.includes(a.p)) seen.push(a.p);
     if (ord && seen.length) { for (let k = 0; k < H.seats.length; k++) if (!seen.includes(k)) seen.push(k); seen.forEach((k, j) => { H.seats[k].pos = ord[j]; }); } }
   else { const w = warn.findIndex(x => /Positions mal lues/.test(x)); if (w >= 0) warn.splice(w, 1); }
+  // héros confirmé par les lignes d'action (ses lignes sont aussi en surbrillance)
+  { const avg = H.seats.map((x, k) => { const a = [x.bg, ...bgAct[k]]; return a.reduce((p, q) => p + q, 0) / a.length; }); const mx = Math.max(...avg), mn = Math.min(...avg); if (mx - mn > 8) { H.seats.forEach(x => { x.hero = false; }); H.seats[avg.indexOf(mx)].hero = true; } }
   // abattage
   for (; i < lines.length; i++) {
     const L = lines[i]; if (L.segs[0].x0 > L.W * 0.35) continue;
@@ -1742,14 +1769,14 @@ function shotBuild(pages, cardsMeta) {
   // board : la rangée la plus complète (river > turn > flop)
   const rows = H.boardRows || {};
   H.board = [];
-  for (let k = 0; k < 5; k++) { let card = null; for (const r of [3, 2, 1]) { const c = rows[r] && rows[r][k]; if (c && c.rank) { card = shotCard(c.rank, c.suit); break; } } if (card === null) { if ((rows[3] || rows[2] || rows[1] || []).length > k) warn.push(`Carte ${k + 1} du board illisible : choisis-la.`); else break; } H.board.push(card); }
+  for (let k = 0; k < 5; k++) { let card = null; { const sc = new Map(); for (const r of [3, 2, 1]) { const c = rows[r] && rows[r][k]; if (c && c.rank) { const key = c.rank + c.suit, e = sc.get(key) || { n: 0, d: 9, c }; e.n++; e.d = Math.min(e.d, c.d !== undefined ? c.d : 0.15); sc.set(key, e); } } const best = [...sc.values()].sort((a, b) => b.n - a.n || a.d - b.d)[0]; if (best) card = shotCard(best.c.rank, best.c.suit); } /* même carte lue sur le flop, le turn et la river : vote */ if (card === null) { if ((rows[3] || rows[2] || rows[1] || []).length > k) warn.push(`Carte ${k + 1} du board illisible : choisis-la.`); else break; } H.board.push(card); }
   for (const [k, n] of [[1, 3], [2, 4], [3, 5]]) if (rows[k] && rows[k].length !== n) warn.push(`${['', 'Flop', 'Turn', 'River'][k]} : ${rows[k].length} cartes lues au lieu de ${n}.`);
   // cartes du héros (en haut à droite)
   const hl = cardsMeta.heroLine && cardsMeta.heroLine.cards; const hc = (hl && hl.length >= 2 ? hl : cardsMeta.heroTop) || null;
   if (hc && hc.slice(-2).every(c => c.rank)) H.heroCards = hc.slice(-2).map(c => shotCard(c.rank, c.suit));
   // cartes du héros à l'abattage (plus grandes, donc plus sûres) : complètent ou corrigent la petite icône du haut
   { const hk = H.seats.findIndex(x => x.hero), part = H.sdPart && H.sdPart[hk], top = hc && hc.length >= 2 ? hc.slice(-2) : null;
-    if (hk >= 0 && !H.sdCards[hk] && part) { const cs = part.map((c, j) => { const t = top && (top.find(x => x.suit === c.suit && x !== top[1 - j]) || top[j]); const r = c.rank || (t && t.rank); return r ? shotCard(r, c.suit) : null; }); if (cs.every(x => x !== null) && cs[0] !== cs[1]) { H.sdCards[hk] = cs; H.heroCards = cs; } }
+    if (hk >= 0 && !H.sdCards[hk] && part && part.some(c => c.rank)) { const cs = part.map((c, j) => { const t = top && (top.find(x => x.suit === c.suit && x !== top[1 - j]) || top[j]); const r = c.rank || (t && t.rank); return r ? shotCard(r, c.suit) : null; }); if (cs.every(x => x !== null) && cs[0] !== cs[1]) { H.sdCards[hk] = cs; H.heroCards = cs; } }
     if (hk >= 0 && H.sdCards[hk]) H.heroCards = H.sdCards[hk]; }
   // paires de cartes trouvées sous l'abattage sans nom : celle qui ressemble le plus aux cartes du héros est à lui, les autres aux adversaires encore en jeu
   {
@@ -1765,7 +1792,17 @@ function shotBuild(pages, cardsMeta) {
     for (const cs of pairs) { const v = H.seats.findIndex((x, k) => !x.hero && !folded.has(k) && !H.sdCards[k]); if (v >= 0) H.sdCards[v] = cs; }
   }
   // noms : orthographe la plus fréquente parmi toutes les lectures
-  for (const s of H.seats) { const cnt = new Map(); s.alias.forEach((a, j) => { const k = a.replace(/[^\w.\-À-ſ]+$/g, '').trim().split(/\s+/)[0]; if (k) cnt.set(k, (cnt.get(k) || 0) + (j < (s.nSeat || 0) ? 3 : 1)); }); const best = [...cnt.entries()].sort((a, b) => b[1] - a[1] || shotLev(a[0], s.n) - shotLev(b[0], s.n))[0]; if (best) s.n = best[0].replace(/\(.*/, ''); }
+  // pseudo final : lectures de la ligne du joueur dans l'en-tête (texte avant la parenthèse, espaces compris) ; lignes d'action en secours
+  const cleanName = (a) => String(a).replace(/\(.*/, '').replace(/[^\w.\-À-ſ ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const s of H.seats) {
+    const cnt = new Map(), seatA = s.alias.slice(0, s.nSeat || 0).map(cleanName).filter(Boolean);
+    if (seatA.length) seatA.forEach((k, j) => cnt.set(k, (cnt.get(k) || 0) + (j === 0 ? 1 : 1)));
+    else s.alias.forEach(a => { const k = cleanName(a).split(' ')[0]; if (k) cnt.set(k, (cnt.get(k) || 0) + 1); });
+    // départage : la variante la plus proche des lectures des lignes d'action
+    const act = s.alias.slice(s.nSeat || 0).map(a => nrm(a));
+    const score = (k) => act.reduce((x, a) => x + (a.startsWith(nrm(k)) ? 1 : 0), 0);
+    const best = [...cnt.entries()].sort((a, b) => b[1] - a[1] || score(b[0]) - score(a[0]))[0]; if (best) s.n = best[0];
+  }
   if (!H.seats.some(s => s.hero) && H.heroCards) { for (const [k, cs] of Object.entries(H.sdCards)) if (cs.join() === H.heroCards.join()) H.seats[k].hero = true; }
   if (!H.bb) warn.push('Blinds non lues : vérifie SB / BB.');
   { const fd = new Set(H.streets.flat().filter(a => a.t === 'F').map(a => a.p)); const liveK = H.seats.map((x, k) => k).filter(k => !fd.has(k));
@@ -1777,9 +1814,12 @@ function shotBuild(pages, cardsMeta) {
     const totBB = 1500 / H.bb, miss = H.seats.filter(x => !(x.bbStack > 0)), sum = H.seats.reduce((a, x) => a + (x.bbStack || 0), 0);
     if (miss.length === 1) { const v = Math.round((totBB - sum) * 10) / 10; if (v > 0) { miss[0].bbStack = v; const w = warn.findIndex(x => x.startsWith('Tapis de')); if (w >= 0) warn.splice(w, 1); warn.push(`Tapis de ${miss[0].n} déduit : ${v} BB (total 1500 jetons).`); } }
     else if (!miss.length && Math.abs(sum - totBB) > 0.25) {
-      const fix = H.seats.map(x => { const v = Math.round((totBB - (sum - x.bbStack)) * 10) / 10, a = String(x.bbStack).replace('.', ''), b = String(v).replace('.', ''); return v > 0 && (b.startsWith(a) || a.startsWith(b) || shotLev(a, b) <= 1) ? v : null; });
-      const ks = fix.map((v, k) => v === null ? -1 : k).filter(k => k >= 0);
-      if (ks.length === 1) { const x = H.seats[ks[0]]; warn.push(`Tapis de ${x.n} relu ${fix[ks[0]]} BB au lieu de ${x.bbStack} (total 1500 jetons).`); x.bbStack = fix[ks[0]]; }
+      // tapis confirmés par un « All-in » (le montant du tapis = tout ce que le joueur a mis)
+      const spent = (k) => { let tot = H.seats[k].pos === 'SB' ? 0.5 : H.seats[k].pos === 'BB' ? 1 : 0, ai = false; H.streets.forEach((l, s2) => { let sp = s2 === 0 ? tot : 0; const t0 = sp; for (const a of l) if (a.p === k) { if (a.t === 'R') sp = Math.max(sp, a.v || 0); else if (a.t === 'K' || a.t === 'C') sp += a.v || 0; else if (a.t === 'AI') { sp += a.v || 0; ai = true; } } tot += sp - t0; }); return ai ? tot : null; };
+      const trusted = H.seats.map((x, k) => { const e = spent(k); return e !== null && Math.abs(e - x.bbStack) <= 0.15; });
+      const un = H.seats.map((x, k) => k).filter(k => !trusted[k]);
+      if (un.length === 1) { const x = H.seats[un[0]], v = Math.round((totBB - (sum - x.bbStack)) * 10) / 10; if (v > 0) { warn.push(`Tapis de ${x.n} relu ${v} BB au lieu de ${x.bbStack} (total 1500 jetons).`); x.bbStack = v; } }
+      else warn.push(`Les tapis lus font ${Math.round(sum * 10) / 10} BB au lieu de ${Math.round(totBB * 10) / 10} BB (1500 jetons) : vérifie les tapis.`);
     }
   }
   // tapis illisible : déduit des mises (tapis complet s'il est parti à tapis)
@@ -1816,7 +1856,11 @@ function shotRepair(H) {
       if (a.t === 'F') { S.folded[i] = true; continue; }
       if (a.t === 'X') continue;
       if (a.t === 'U' && live) { // action illisible : déduite du montant
-        const v = a.v || 0; a.t = Math.abs(v - left) <= 0.15 || v >= left ? 'AI' : mx > S.sp[i] && Math.abs(v - (mx - S.sp[i])) <= 0.1 ? 'C' : mx > 0 ? 'R' : 'K';
+        const v0 = a.v || 0, cs = [v0].concat(Number.isInteger(v0) && v0 >= 10 ? [v0 / 10] : []), toCall = mx - S.sp[i];
+        const vc = cs.find(x => toCall > 0 && (Math.abs(x - toCall) <= 0.15 || (x > 0 && x <= mx + 1e-9 && x < left))), va = cs.find(x => Math.abs(x - left) <= 0.15);
+        const v = vc !== undefined ? vc : va !== undefined ? va : cs.find(x => x < left) !== undefined ? cs.find(x => x < left) : v0;
+        a.v = v; a.t = vc !== undefined ? 'C' : (va !== undefined || v >= left) ? 'AI' : mx > 0 ? 'R' : 'K';
+        if (a.t === 'C' && Math.abs(v - toCall) > 0.05) { a.shown = v; const bi = S.sp.indexOf(mx); const ba = H.streets[s2].filter(x => x.p === bi && (x.t === 'K' || x.t === 'R')).pop(); if (ba) ba.weak = true; }
         a.weak = a.t === 'R' || a.t === 'K';
         W(`${SN[s2]} : action de ${H.seats[i].n} illisible, « ${{ AI: 'All-in', C: 'Call', R: 'Raise', K: 'Bet' }[a.t]} ${v} BB » supposé.`);
       }
@@ -1830,6 +1874,8 @@ function shotRepair(H) {
           const prevSp = r1(mx - shown);
           if (prevSp > 0 && prevSp < mx) { const d = prevSp - S.sp[i]; W(`${SN[s2]} : mise de ${H.seats[i].n} recalculée à ${prevSp} BB d'après son call de ${shown} BB.`); if (prevA.t === 'K') prevA.v = r1((prevA.v || 0) + d); else prevA.v = prevSp; S.sp[i] += d; S.put[i] += d; }
         }
+        // le call affiché ne correspond pas à la mise : la mise de l'adversaire est peut-être mal lue (le pot tranchera)
+        if (live && shown > 0 && shown < left - 1e-9 && !(prevA && (prevA.t === 'K' || prevA.t === 'R')) && Math.abs(shown - (mx - S.sp[i])) > 0.05) { const bi = S.sp.indexOf(mx); const ba = H.streets[s2].filter(x => x.p === bi && (x.t === 'K' || x.t === 'R')).pop(); if (ba) ba.weak = true; }
         add = Math.max(0, Math.min(st0[i] - S.put[i], mx - S.sp[i])); if (live) a.v = r1(add);
       } else if (a.t === 'AI') {
         // « All-in 5,5 BB » alors qu'il restait 6,5 : il avait déjà mis 1 BB dans la rue → sa mise précédente était mal lue
@@ -1846,7 +1892,10 @@ function shotRepair(H) {
         const cap = a.t === 'K' ? left : left + S.sp[i];
         if (live && (a.v || 0) >= cap - 1e-9 && a.raw) {
           const digs = String(a.raw).replace(/[^\d.,]/g, '').replace(',', '.'); let fixed = null;
-          for (let k = digs.length - 1; k >= 1 && fixed === null; k--) { const x = parseFloat(digs.slice(0, k)); if (x > 0 && x < cap && (a.t === 'K' || x > mx)) fixed = x; }
+          const tries = []; if (/88$|8$/.test(digs) && digs.length > 2) tries.push(parseFloat(digs.replace(/8?8$/, ''))); // « BB » lu « 88 »
+          if (/^\d+$/.test(digs)) tries.push(parseFloat(digs) / 10, parseFloat(digs) / 100); // virgule perdue (« 2,5 » lu « 25 »)
+          for (let k = digs.length - 1; k >= 1; k--) tries.push(parseFloat(digs.slice(0, k)));
+          for (const x of tries) if (fixed === null && x > 0 && x < cap && (a.t === 'K' || x > mx)) fixed = x;
           if (fixed !== null) { W(`${SN[s2]} : montant « ${String(a.raw).trim()} » de ${H.seats[i].n} relu ${fixed} BB.`); a.v = fixed; a.raw = String(fixed); }
         }
         if (live && a.t === 'R' && (a.v || 0) <= mx + 1e-9) a.weak = true; // relance plus petite que la mise : montant faux
@@ -1998,7 +2047,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 12</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 13</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -2047,7 +2096,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 12</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 13</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et vérifié : positions, ordre de parole, montants, pots de chaque rue, pot final et résultat correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
@@ -2079,7 +2128,7 @@ function imEdit(H) {
   };
   draw();
 }
-function imKnownNames() { try { return JSON.parse(localStorage.getItem('imNames') || '[]'); } catch (e) { return []; } }
+function imKnownNames() { let k = []; try { k = JSON.parse(localStorage.getItem('imNames') || '[]'); } catch (e) { /* */ } return k.concat(['Nemesys', 'Verodu13'].filter(x => !k.includes(x))); }
 function imRemember(names) { try { const k = imKnownNames().filter(x => !names.includes(x)); localStorage.setItem('imNames', JSON.stringify(names.concat(k).slice(0, 400))); } catch (e) { /* */ } }
 async function imFinish(M) {
   imRemember(M.seats.map(s => s.n).filter(Boolean));
