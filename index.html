@@ -1,7 +1,9 @@
 <!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
 <meta property="og:title" content="Replayer Betclic · SpinScope"><meta property="og:description" content="Rejoue une main Betclic depuis son screenshot, et partage-la en un lien.">
 <title>Replayer SpinScope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <style>:root{
   --bg:#0a0a0b; --side:#0f0f11; --panel:#151517; --panel2:#1b1b1e; --panel3:#222226; --border:#26262b; --border2:#33333a;
   --text:#f4f4f5; --muted:#9b9ba3; --dim:#6b6b73;
@@ -503,7 +505,7 @@ b.gmup{color:#4ade80}b.gmdown{color:#f87171}
 :root{color-scheme:dark}
 html,body{height:auto;background:var(--bg);color:var(--text)}
 body{overflow:auto;padding-inline:16px;padding-block:20px 28px;font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif}
-#vw{max-width:1040px;margin:0 auto}
+#vw{max-width:1280px;margin:0 auto}
 .vwrp{width:100%;max-height:none;overflow:visible}
 .vwfit{overflow:visible;padding-bottom:6px}
 .vwtxt{margin-top:14px;border-top:1px solid var(--border);padding-top:10px}
@@ -533,6 +535,68 @@ button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid 
 .imcard select.su-h{color:#dc2626}.imcard select.su-d{color:#2563eb}.imcard select.su-c{color:#16a34a}
 .imst{border-top:1px solid var(--border);padding:8px 0}.imsth{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .imact{display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap}.imact .inp{width:80px}.imact .sel{min-width:110px}
+/* ======== replayer v2 ======== */
+:root{--vt-bg:#080a14;--vt-panel:#11152a;--vt-panel2:#171c36;--vt-line:#262d50;--vt-text:#eef1fb;--vt-muted:#8f98c0;--vt-red:#ff3b52;--vt-gold:#ffd76a}
+html{background:var(--vt-bg)}body{background:radial-gradient(1200px 700px at 50% -10%,#1a2148 0%,var(--vt-bg) 60%) fixed;color:var(--vt-text)}
+.vt{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:14px;font-family:"Inter",system-ui,sans-serif}
+.vt svg text{font-family:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif}
+.vt-hd{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.vt-tt{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;flex:1;min-width:0}
+.vt-tt h1{margin:0;font:700 22px/1.2 "Barlow Semi Condensed",system-ui,sans-serif;letter-spacing:.2px}
+.vt-tt span{color:var(--vt-muted);font-size:12.5px}
+.vt-brand{display:inline-flex;align-items:center;gap:6px;font:800 12px/1 "Barlow Semi Condensed",sans-serif;letter-spacing:1.5px;text-transform:uppercase;color:#fff;background:var(--vt-red);padding:5px 9px;border-radius:6px;align-self:center}
+.vt-brand i{width:7px;height:7px;border-radius:50%;background:#fff;animation:vtpulse 1.6s infinite}
+@keyframes vtpulse{50%{opacity:.3}}
+.vt-acts{display:flex;gap:8px;flex-wrap:wrap}
+.vt-btn{background:var(--vt-panel2);border:1px solid var(--vt-line);color:var(--vt-text);border-radius:10px;padding:8px 13px;font-weight:600;font-size:13px}
+.vt-btn:hover{border-color:#3d4780}.vt-btn.pri{background:var(--vt-red);border-color:var(--vt-red);color:#fff}.vt-btn.pri:hover{filter:brightness(1.08)}
+.vt-main{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start}
+.vt-stage{background:linear-gradient(180deg,#10142a,#0b0e1d);border:1px solid var(--vt-line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.vt-table{width:100%}.vtsvg{width:100%;height:auto;display:block}
+.vt-msg{align-self:center;background:rgba(255,255,255,.05);border:1px solid var(--vt-line);border-radius:999px;padding:7px 16px;font-size:14px;text-align:center;max-width:100%}
+.vt-msg .pos{color:#3ee08a}.vt-msg .neg{color:#ff6b7a}
+.vt-side{background:var(--vt-panel);border:1px solid var(--vt-line);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.vt-sidehd{font:700 13px "Barlow Semi Condensed",sans-serif;letter-spacing:1px;text-transform:uppercase;color:var(--vt-muted)}
+.vt-log{flex:1;min-height:180px;max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:3px;padding-right:4px}
+.vtl-st{display:flex;align-items:center;gap:8px;margin:8px 0 3px;font:700 13px "Barlow Semi Condensed",sans-serif;color:var(--vt-gold);letter-spacing:.5px;text-transform:uppercase}
+.vtl-st span{display:flex;gap:3px}
+.vtl-c{font-style:normal;font:700 12px "Barlow Semi Condensed",sans-serif;color:#fff;padding:2px 5px;border-radius:4px;background:#262b38}.vtl-c.h{background:#d92b45}.vtl-c.d{background:#2d62e6}.vtl-c.c{background:#1c9a55}
+.vtl-item{text-align:left;background:none;border:0;border-left:3px solid transparent;color:#c9cfe8;padding:6px 9px;border-radius:0 8px 8px 0;font-size:13px}
+.vtl-item:hover{background:rgba(255,255,255,.04)}.vtl-item.on{background:rgba(255,59,82,.12);border-left-color:var(--vt-red);color:#fff;font-weight:600}
+.vt-opts{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--vt-line);padding-top:10px}
+.vt-opts>div{display:flex;flex-direction:column;gap:4px}.vt-opts span{font-size:11.5px;color:var(--vt-muted)}
+.vt-seg{display:flex;background:#0b0e1d;border:1px solid var(--vt-line);border-radius:9px;padding:2px;gap:2px}
+.vt-seg button{flex:1;background:none;border:0;color:var(--vt-muted);font-size:12px;font-weight:600;padding:6px 4px;border-radius:7px}
+.vt-seg button.on{background:var(--vt-panel2);color:#fff;box-shadow:inset 0 0 0 1px #3a4370}
+.vt-ctl{background:var(--vt-panel);border:1px solid var(--vt-line);border-radius:16px;padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.vt-prog{position:relative;height:8px;background:#232946;border-radius:99px}
+.vt-prog #vt_bar{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#ff3b52,#ff8a3d);border-radius:99px;transition:width .25s}
+.vt-prog input{position:absolute;inset:-8px 0;width:100%;opacity:0;cursor:pointer;margin:0}
+.vt-btns{display:flex;align-items:center;justify-content:center;gap:10px}
+.vt-btns button{width:44px;height:44px;border-radius:50%;border:1px solid var(--vt-line);background:var(--vt-panel2);color:#fff;font-size:15px}
+.vt-btns button:hover{border-color:#4a5490}
+.vt-btns button.play{width:58px;height:58px;font-size:20px;background:var(--vt-red);border:0;box-shadow:0 6px 22px rgba(255,59,82,.4)}
+.vt-btns select{background:var(--vt-panel2);border:1px solid var(--vt-line);color:#fff;border-radius:10px;padding:8px 6px;font-weight:600}
+.vt-txt{background:var(--vt-panel);border:1px solid var(--vt-line);border-radius:14px;padding:10px 14px}.vt-txt summary{cursor:pointer;color:var(--vt-muted);font-size:13px}
+.vt-txt pre{white-space:pre-wrap;font-size:12px;color:#c9cfe8;margin:8px 0 0}
+.vt-foot{text-align:center;color:#6f78a0;font-size:12px;padding-bottom:8px}.vt-foot b{color:var(--vt-red)}.vt-foot a{color:#a9b3e0}
+/* animations des cartes */
+.vtc{transform-box:fill-box;transform-origin:center}
+.vtc.deal{animation:vtdeal .4s cubic-bezier(.2,.8,.2,1)}
+.vtc.flip{animation:vtflip .45s ease-out}
+@keyframes vtdeal{from{opacity:0;transform:translateY(-18px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes vtflip{from{transform:scaleX(.05)}to{transform:scaleX(1)}}
+.vtbub,.vtbet{animation:vtfade .25s ease-out}@keyframes vtfade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.vtc.deal,.vtc.flip,.vtbub,.vtbet,.vt-brand i{animation:none}}
+/* téléphone */
+@media (max-width:900px){.vt-main{grid-template-columns:1fr}.vt-log{max-height:260px}}
+@media (max-width:700px){
+  body{padding-inline:10px;padding-block:12px 140px}
+  .vt-tt h1{font-size:18px}.vt-acts{width:100%}.vt-acts .vt-btn{flex:1;padding:9px 6px}
+  .vt-stage{padding:8px;border-radius:14px}
+  .vt-ctl{position:fixed;left:8px;right:8px;bottom:8px;z-index:20;box-shadow:0 10px 30px rgba(0,0,0,.6);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+  .vt-btns button{width:42px;height:42px}.vt-btns button.play{width:52px;height:52px}
+}
 </style></head><body>
 <div id="vw"><div class="vwempty"><p>Chargement de la main…</p></div></div>
 <script>
@@ -1457,7 +1521,7 @@ async function readBetclicShots(images, ocr, progress) {
     }
     if (!lines.some(l => /\bMain\s*\d+/i.test(l.t)) && k === 0) { const c = shotCardsIn(cv, W * 0.78, 0, W * 0.99, th * 8, cw); if (c.length >= 2) cards.heroTop = c; }
     // abattage : chaque nom de joueur suivi de ses 2 cartes à gauche
-    const sdIdx = lines.findIndex(l => /Showdown/i.test(l.t));
+    let sdIdx = lines.findIndex(l => /Sh[o0]w\s*d[o0]wn/i.test(l.t) || shotHdr(l, W) === 4);
     if (sdIdx >= 0) {
       const after = lines.slice(sdIdx + 1);
       for (let j = 0; j < after.length; j++) {
@@ -1467,8 +1531,24 @@ async function readBetclicShots(images, ocr, progress) {
         if (c.length >= 2) L.cards = c.slice(0, 2);
       }
     }
+    // repli : paires de cartes à gauche sous l'abattage (ou sous la dernière rue), même sans nom lu
+    {
+      let yStart = sdIdx >= 0 ? lines[sdIdx].y1 : 0;
+      if (sdIdx < 0) { for (const L of lines) { const hk = shotHdr(L, W); if (hk >= 1 && hk <= 3 || hk === 9) yStart = Math.max(yStart, L.y1 + th * 4); } }
+      if (yStart > 0) {
+        const x0 = Math.round(W * 0.04), x1 = Math.round(W * 0.33), y0 = Math.round(yStart), y1 = cv.height;
+        const dd = cv.getContext('2d').getImageData(x0, y0, x1 - x0, y1 - y0).data, w = x1 - x0, rowsW = [];
+        for (let y = 0; y < y1 - y0; y++) { let k = 0; for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; if (Math.min(dd[i], dd[i + 1], dd[i + 2]) >= 205) k++; } rowsW.push(k); }
+        let b0 = -1; const bands = [];
+        for (let y = 0; y <= rowsW.length; y++) { const on = y < rowsW.length && rowsW[y] > 0; if (on && b0 < 0) b0 = y; if (!on && b0 >= 0) { bands.push([b0, y]); b0 = -1; } }
+        // fusionne les bandes proches (hauteur et symbole d'une même carte)
+        const merged = []; for (const b of bands) { const m = merged[merged.length - 1]; if (m && b[0] - m[1] < th * 0.5) m[1] = b[1]; else merged.push(b.slice()); }
+        cards.sdPairs = cards.sdPairs || [];
+        for (const [a, b] of merged) if (b - a >= cw * 0.7) { const c = shotCardsIn(cv, x0, y0 + a - 2, x1, y0 + b + 2, cw); if (c.length >= 2) cards.sdPairs.push({ y: y0 + a, cards: c.slice(0, 2) }); }
+      }
+    }
     // hauteurs des cartes : OCR caractère par caractère
-    const allCards = lines.flatMap(l => l.cards || []).concat(cards.heroTop || []);
+    const allCards = lines.flatMap(l => l.cards || []).concat(cards.heroTop || [], (cards.sdPairs || []).flatMap(p => p.cards));
     for (const c of allCards) {
       if (progress) progress('Lecture des cartes…');
       const crop = shotRankCrop(cv, c, cw);
@@ -1554,12 +1634,72 @@ function shotBuild(pages, cardsMeta) {
   // cartes du héros (en haut à droite)
   const hl = cardsMeta.heroLine && cardsMeta.heroLine.cards; const hc = (hl && hl.length >= 2 ? hl : cardsMeta.heroTop) || null;
   if (hc && hc.slice(-2).every(c => c.rank)) H.heroCards = hc.slice(-2).map(c => shotCard(c.rank, c.suit));
+  // paires de cartes trouvées sous l'abattage sans nom : celle qui ressemble le plus aux cartes du héros est à lui, les autres aux adversaires encore en jeu
+  {
+    const known = new Set(Object.values(H.sdCards).map(x => x.slice().sort((a, b) => a - b).join()));
+    let pairs = (cardsMeta.sdPairs || []).filter(pr => pr.cards.every(c => c.rank)).map(pr => pr.cards.map(c => shotCard(c.rank, c.suit))).filter(cs => !known.has(cs.slice().sort((a, b) => a - b).join()));
+    const heroK = H.seats.findIndex(x => x.hero);
+    if (heroK >= 0 && !H.sdCards[heroK] && pairs.length && H.heroCards) {
+      const score = (cs) => cs.reduce((a, c) => a + (H.heroCards.includes(c) ? 2 : H.heroCards.some(h => (h & 3) === (c & 3)) ? 0.5 : 0), 0);
+      const best = pairs.slice().sort((a, b) => score(b) - score(a))[0];
+      if (score(best) >= 2.5) { H.sdCards[heroK] = best; H.heroCards = best; pairs = pairs.filter(x => x !== best); }
+    }
+    const folded = new Set(H.streets.flat().filter(a => a.t === 'F').map(a => a.p));
+    for (const cs of pairs) { const v = H.seats.findIndex((x, k) => !x.hero && !folded.has(k) && !H.sdCards[k]); if (v >= 0) H.sdCards[v] = cs; }
+  }
   // noms : orthographe la plus fréquente parmi toutes les lectures
   for (const s of H.seats) { const cnt = new Map(); for (const a of s.alias) { const k = a.replace(/[^\w.\-À-ſ]+$/g, '').trim().split(/\s+/)[0]; if (k) cnt.set(k, (cnt.get(k) || 0) + 1); } const best = [...cnt.entries()].sort((a, b) => b[1] - a[1] || shotLev(a[0], s.n) - shotLev(b[0], s.n))[0]; if (best) s.n = best[0].replace(/\(.*/, ''); }
   if (!H.seats.some(s => s.hero) && H.heroCards) { for (const [k, cs] of Object.entries(H.sdCards)) if (cs.join() === H.heroCards.join()) H.seats[k].hero = true; }
   if (!H.bb) warn.push('Blinds non lues : vérifie SB / BB.');
   H.warn = warn;
+  shotRepair(H);
   return H;
+}
+/** répare les lignes manquantes ou mal lues grâce aux règles du poker et aux pots affichés :
+ *  - un call vaut toujours ce qu'il faut pour suivre (le montant lu est ignoré) ;
+ *  - si la main continue (rue suivante, abattage) et qu'un joueur n'a pas suivi la mise, son call manquant est ajouté ;
+ *  - une mise suivie d'un call est recalée sur la différence entre les deux pots affichés. */
+function shotRepair(H) {
+  const n = H.seats.length; if (n < 2) return;
+  const bb = 1, sbv = H.sb && H.bb ? H.sb / H.bb : 0.5;
+  const st0 = H.seats.map(x => x.bbStack || 0), put = new Array(n).fill(0), folded = new Array(n).fill(false), allin = new Array(n).fill(false);
+  const sbI = H.seats.findIndex(x => x.pos === 'SB'), bbI = H.seats.findIndex(x => x.pos === 'BB');
+  let sp = new Array(n).fill(0);
+  if (sbI >= 0) { sp[sbI] = put[sbI] = Math.min(sbv, st0[sbI]); } if (bbI >= 0) { sp[bbI] = put[bbI] = Math.min(bb, st0[bbI]); }
+  const BN = [3, 4, 5], sdKnown = Object.keys(H.sdCards || {}).length >= 2;
+  const continues = (s2) => H.streets.slice(s2 + 1).some(l => l.length) || (s2 < 3 && H.board.filter(c => c !== null && c !== undefined).length >= BN[s2]) || (s2 === 3 && (sdKnown || H.pots[4]));
+  const r1 = (v) => Math.round(v * 100) / 100;
+  for (let s2 = 0; s2 < 4; s2++) {
+    if (s2 > 0) sp = new Array(n).fill(0);
+    const potStart = put.reduce((a, b) => a + b, 0);
+    for (const a of H.streets[s2]) {
+      const i = a.p; if (i < 0 || i >= n || folded[i]) continue;
+      const left = st0[i] - put[i], mx = Math.max(...sp);
+      if (a.t === 'F') { folded[i] = true; continue; }
+      if (a.t === 'X') continue;
+      let add = 0;
+      if (a.t === 'C') { add = Math.min(left, Math.max(0, mx - sp[i])); a.v = r1(add); }
+      else if (a.t === 'AI') add = left;
+      else if (a.t === 'K') add = Math.min(left, mx > 0 ? (a.v || 0) : (a.v || 0));
+      else if (a.t === 'R') add = Math.min(left, Math.max(0, (a.v || 0) - sp[i]));
+      sp[i] += add; put[i] += add; if (put[i] >= st0[i] - 1e-9) allin[i] = true;
+    }
+    if (continues(s2)) {
+      const mx = Math.max(...sp);
+      for (let i = 0; i < n; i++) if (!folded[i] && !allin[i] && sp[i] < mx - 1e-9) {
+        const add = Math.min(st0[i] - put[i], mx - sp[i]);
+        H.streets[s2].push({ p: i, t: 'C', v: r1(add), auto: true }); sp[i] += add; put[i] += add; if (put[i] >= st0[i] - 1e-9) allin[i] = true;
+        (H.warn = H.warn || []).push(`${['Préflop', 'Flop', 'Turn', 'River'][s2]} : call de ${H.seats[i].n} ajouté (ligne non lue).`);
+      }
+    }
+    // mise + call recalés sur les pots affichés
+    const L = H.streets[s2].filter(a => a.t !== 'X');
+    if (s2 >= 1 && L.length === 2 && L[0].t === 'K' && L[1].t === 'C' && H.pots[s2] && H.pots[s2 + 1]) {
+      const inf = r1((H.pots[s2 + 1] - H.pots[s2]) / 2);
+      if (inf > 0 && Math.abs(inf - L[0].v) > 0.05 && Math.abs(inf - L[0].v) < L[0].v) { (H.warn = H.warn || []).push(`${['', 'Flop', 'Turn', 'River'][s2]} : mise corrigée de ${L[0].v} à ${inf} BB d'après les pots affichés.`); L[0].v = inf; L[1].v = inf; }
+    }
+    void potStart;
+  }
 }
 /** main lue → main au format du replayer (jetons), avec contrôle des pots */
 function shotToHand(H) {
@@ -1589,7 +1729,7 @@ function shotToHand(H) {
       if (t === 'AI') { const add = left; t = sp[i] + add > maxSp ? (maxSp > 0 ? 'R' : 'K') : 'C'; v = add; }
       if (t === 'F') { folded[i] = true; ph.acts.push({ st: s, p: i, t: 'F', a: 0, ai: false }); continue; }
       if (t === 'X') { ph.acts.push({ st: s, p: i, t: 'X', a: 0, ai: false }); continue; }
-      if (t === 'C') { const add = Math.min(left, v || (maxSp - sp[i])); ph.acts.push({ st: s, p: i, t: 'C', a: add, ai: add >= left }); sp[i] += add; put[i] += add; continue; }
+      if (t === 'C') { const add = Math.min(left, Math.max(0, maxSp - sp[i])); ph.acts.push({ st: s, p: i, t: 'C', a: add, ai: add >= left }); sp[i] += add; put[i] += add; continue; }
       if (t === 'K') { if (maxSp > 0) { t = 'R'; v = sp[i] + v; } else { const add = Math.min(left, v); ph.acts.push({ st: s, p: i, t: 'K', a: add, ai: add >= left }); sp[i] += add; put[i] += add; continue; } }
       if (t === 'R') { // « Raise 2 BB » = relance à 2 BB (total sur la rue)
         let to = a.t === 'AI' ? v : v; if (a.t === 'AI') to = sp[i] + v;
@@ -1657,7 +1797,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même.</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 6</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -1693,7 +1833,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer.</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. · version 6</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et les pots affichés correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
@@ -2033,7 +2173,114 @@ async function openShare() {
   };
 }
 
-/* global vwImport, decodeShare, buildSteps, drawTable, rpGo, rpStop, rpToggle, RP, shareText, shTitle */
+/* global intToCard, rpAmt, nf, esc */
+// ======================= TABLE DU REPLAYER PUBLIC (SVG, s'adapte au PC et au téléphone) =======================
+const VT_SUIT = { s: '♠', h: '♥', d: '♦', c: '♣' };
+const VT_SUIT_BG = { s: '#262b38', h: '#d92b45', d: '#2d62e6', c: '#1c9a55' };
+const VT_SUIT_BG2 = { s: '#151821', h: '#a8172f', d: '#1d43b0', c: '#12723e' };
+
+function vtLayout(n, portrait) {
+  if (portrait) {
+    const L = { W: 440, H: 690, cx: 220, cy: 335, rx: 196, ry: 290, cw: 46, ch: 64, bw: 50, bh: 70, pw: 128, ph: 48, fn: 14, fs: 13.5, fb: 13, fp: 15 };
+    L.seats = n === 2 ? [{ x: 220, y: 630, k: 'b' }, { x: 220, y: 40, k: 't' }] : [{ x: 220, y: 630, k: 'b' }, { x: 92, y: 120, k: 'l' }, { x: 348, y: 120, k: 'r' }];
+    L.bet = { b: [220, 490], t: [220, 200], l: [128, 262], r: [312, 262] };
+    return L;
+  }
+  const L = { W: 900, H: 560, cx: 450, cy: 270, rx: 400, ry: 206, cw: 60, ch: 84, bw: 64, bh: 90, pw: 184, ph: 62, fn: 19, fs: 17, fb: 16, fp: 19 };
+  L.seats = n === 2 ? [{ x: 450, y: 512, k: 'b' }, { x: 450, y: 42, k: 't' }] : [{ x: 450, y: 512, k: 'b' }, { x: 165, y: 82, k: 'l' }, { x: 735, y: 82, k: 'r' }];
+  L.bet = { b: [450, 380], t: [450, 200], l: [255, 245], r: [645, 245] };
+  return L;
+}
+function vtCard(x, y, w, h, c, cls = '') {
+  if (c === 'back') {
+    return `<g class="vtc ${cls}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.14}" fill="url(#vtBack)" stroke="#e8ecf8" stroke-opacity=".9" stroke-width="1.6"/>
+      <rect x="${x + w * 0.14}" y="${y + h * 0.1}" width="${w * 0.72}" height="${h * 0.8}" rx="${w * 0.08}" fill="none" stroke="#fff" stroke-opacity=".25"/>
+      <circle cx="${x + w / 2}" cy="${y + h / 2}" r="${w * 0.17}" fill="none" stroke="#ff4d5e" stroke-width="2"/></g>`;
+  }
+  if (c === 'slot') return `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.14}" fill="#ffffff" fill-opacity=".04" stroke="#ffffff" stroke-opacity=".12" stroke-dasharray="4 4"/>`;
+  const s = intToCard(c), r = s[0] === 'T' ? '10' : s[0], su = s[1];
+  return `<g class="vtc ${cls}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w * 0.14}" fill="url(#vtG${su})"/>
+    <rect x="${x + 0.5}" y="${y + 0.5}" width="${w - 1}" height="${h - 1}" rx="${w * 0.14}" fill="none" stroke="#fff" stroke-opacity=".22"/>
+    <text x="${x + w * 0.1}" y="${y + h * 0.36}" fill="#fff" font-size="${h * (r === '10' ? 0.31 : 0.36)}" font-weight="800" letter-spacing="${r === '10' ? -1.5 : 0}">${r}</text>
+    <text x="${x + w * 0.12}" y="${y + h * 0.56}" fill="#fff" font-size="${h * 0.2}">${VT_SUIT[su]}</text>
+    <text x="${x + w * 0.9}" y="${y + h * 0.92}" fill="#fff" fill-opacity=".95" font-size="${h * 0.46}" text-anchor="end">${VT_SUIT[su]}</text></g>`;
+}
+function vtPill(x, y, text, fill, color, anchor = 'middle', fs = 14) {
+  const w = Math.max(30, text.length * fs * 0.56 + 20), h = fs + 12, x0 = anchor === 'middle' ? x - w / 2 : anchor === 'end' ? x - w : x;
+  return `<g><rect x="${x0}" y="${y - h / 2}" width="${w}" height="${h}" rx="${h / 2}" fill="${fill}"/><text x="${x0 + w / 2}" y="${y + fs * 0.36}" fill="${color}" font-size="${fs}" font-weight="700" text-anchor="middle">${esc(text)}</text></g>`;
+}
+/** dessine l'état s de la main */
+function vtRender(ph, s, o) {
+  const n = ph.seats.length, L = vtLayout(n, o.portrait), hero = Math.max(0, ph.seats.findIndex(p => p.hero));
+  const order = ph.seats.map((p, i) => i).sort((a, b) => ((ph.seats[a].seat - ph.seats[hero].seat + 10) % 10) - ((ph.seats[b].seat - ph.seats[hero].seat + 10) % 10));
+  const amt = (v) => rpAmt(v, ph.bb);
+  const pos = (p) => n === 2 ? (p.btn || p.sb ? 'SB' : 'BB') : p.btn ? 'BTN' : p.sb ? 'SB' : 'BB';
+  let g = `<svg viewBox="0 0 ${L.W} ${L.H}" class="vtsvg" role="img" aria-label="Table de poker">
+  <defs>
+    <radialGradient id="vtFelt" cx="50%" cy="42%" r="70%"><stop offset="0" stop-color="#1f5a7a"/><stop offset=".55" stop-color="#143e5a"/><stop offset="1" stop-color="#0b2236"/></radialGradient>
+    <linearGradient id="vtRail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3150"/><stop offset="1" stop-color="#121628"/></linearGradient>
+    <linearGradient id="vtBack" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b2f55"/><stop offset="1" stop-color="#151833"/></linearGradient>
+    ${Object.keys(VT_SUIT).map(su => `<linearGradient id="vtG${su}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${VT_SUIT_BG[su]}"/><stop offset="1" stop-color="${VT_SUIT_BG2[su]}"/></linearGradient>`).join('')}
+    <filter id="vtSh" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity=".45"/></filter>
+    <filter id="vtGlow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#ff3b52" flood-opacity=".9"/></filter>
+    <filter id="vtWin" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#22e07a" flood-opacity=".9"/></filter>
+  </defs>
+  <ellipse cx="${L.cx}" cy="${L.cy + 8}" rx="${L.rx + 14}" ry="${L.ry + 14}" fill="#000" opacity=".5"/>
+  <ellipse cx="${L.cx}" cy="${L.cy}" rx="${L.rx + 12}" ry="${L.ry + 12}" fill="url(#vtRail)"/>
+  <ellipse cx="${L.cx}" cy="${L.cy}" rx="${L.rx + 12}" ry="${L.ry + 12}" fill="none" stroke="#3a4570" stroke-width="1.5"/>
+  <ellipse cx="${L.cx}" cy="${L.cy}" rx="${L.rx}" ry="${L.ry}" fill="url(#vtFelt)"/>
+  <ellipse cx="${L.cx}" cy="${L.cy}" rx="${L.rx - 16}" ry="${L.ry - 16}" fill="none" stroke="#ffffff" stroke-opacity=".07" stroke-width="2"/>
+  <text x="${L.cx}" y="${L.cy - L.ry * (o.portrait ? 0.38 : 0.45)}" text-anchor="middle" fill="#ffffff" fill-opacity=".07" font-size="${o.portrait ? 26 : 34}" font-weight="800" letter-spacing="6">SPINSCOPE</text>`;
+  // board + pot
+  const gap = o.portrait ? 6 : 8, bx = L.cx - (5 * L.bw + 4 * gap) / 2, by = L.cy - L.bh / 2 + (o.portrait ? 0 : 6);
+  for (let k = 0; k < 5; k++) g += k < s.boardN ? vtCard(bx + k * (L.bw + gap), by, L.bw, L.bh, ph.board[k], k >= (o.prevBoardN || 0) ? 'deal' : '') : vtCard(bx + k * (L.bw + gap), by, L.bw, L.bh, 'slot');
+  if (s.pot) g += vtPill(L.cx, by - 24, 'Pot ' + amt(s.pot), 'rgba(0,0,0,.45)', '#ffd76a', 'middle', L.fp);
+  // sièges
+  order.forEach((i, k) => {
+    const p = ph.seats[i], sp = L.seats[k] || L.seats[0], fold = s.folded[i], isHero = !!p.hero;
+    const known = p.c && p.c.length === 2;
+    const showFace = known && (isHero ? o.hero : (o.vil === 'all' || (o.vil === 'sd' && s.show[i])));
+    const cw = isHero ? L.cw * 1.12 : L.cw, ch = isHero ? L.ch * 1.12 : L.ch;
+    const cardsUp = sp.k === 'b'; // héros : cartes au-dessus de sa plaque
+    const py = sp.y - L.ph / 2, cy0 = cardsUp ? py - ch + 10 : py + L.ph + 4;
+    g += `<g class="vtseat ${fold ? 'fold' : ''}" opacity="${fold ? 0.42 : 1}">`;
+    if (!(fold && !isHero)) {
+      const c1 = showFace ? p.c[0] : 'back', c2 = showFace ? p.c[1] : 'back';
+      if (!(fold && !showFace)) {
+        g += `<g filter="url(#vtSh)" transform="rotate(-6 ${sp.x - cw * 0.45} ${cy0 + ch})">${vtCard(sp.x - cw * 0.95, cy0, cw, ch, c1, o.revealed && o.revealed.has(i) ? 'flip' : '')}</g>`;
+        g += `<g filter="url(#vtSh)" transform="rotate(6 ${sp.x + cw * 0.45} ${cy0 + ch})">${vtCard(sp.x - cw * 0.05, cy0, cw, ch, c2, o.revealed && o.revealed.has(i) ? 'flip' : '')}</g>`;
+      }
+    }
+    // plaque
+    const act = s.actor === i, win = s.win && s.win[i];
+    g += `<g ${act ? 'filter="url(#vtGlow)"' : win ? 'filter="url(#vtWin)"' : ''}><rect x="${sp.x - L.pw / 2}" y="${py}" width="${L.pw}" height="${L.ph}" rx="${L.ph / 2}" fill="#0e1222" stroke="${win ? '#22e07a' : act ? '#ff3b52' : '#3a4366'}" stroke-width="${act || win ? 2.5 : 1.5}"/></g>`;
+    let nm = p.n; const maxC = o.portrait ? 12 : 15; if (nm.length > maxC) nm = nm.slice(0, maxC - 1) + '…';
+    g += `<text x="${sp.x}" y="${py + L.ph * 0.42}" text-anchor="middle" fill="#fff" font-size="${L.fn}" font-weight="700">${esc(nm)}</text>`;
+    const stk = s.allin[i] && s.stacks[i] === 0 && !s.win ? 'ALL-IN' : amt(s.stacks[i]);
+    g += `<text x="${sp.x}" y="${py + L.ph * 0.8}" text-anchor="middle" fill="${stk === 'ALL-IN' ? '#ff5c6c' : '#ffd76a'}" font-size="${L.fs}" font-weight="700">${esc(stk)}</text>`;
+    // position + bouton
+    g += vtPill(sp.x + L.pw / 2 - 6, py - 2, pos(p), '#252c48', '#c9d2f2', 'end', 10.5);
+    if (p.btn) { const dx = sp.x < L.cx - 10 ? sp.x + L.pw / 2 + 16 : sp.x - L.pw / 2 - 16; g += `<g filter="url(#vtSh)"><circle cx="${dx}" cy="${sp.y + (sp.k === 'b' ? 0 : 16)}" r="11" fill="#f5f6fa"/><text x="${dx}" y="${sp.y + (sp.k === 'b' ? 0 : 16) + 4}" text-anchor="middle" font-size="12" font-weight="800" fill="#11131c">D</text></g>`; }
+    g += '</g>';
+    // bulle d'action / équité
+    const lab = s.label[i], eq = s.done && !s.win && s.eq && s.eq[i] !== undefined && showFace ? s.eq[i] : null;
+    const bub = lab || (eq !== null ? nf(eq * 100, 1) + ' %' : '');
+    if (bub) {
+      const bg = eq !== null && !lab ? '#ffffff' : /Fold/.test(lab) ? '#4a5170' : /Gagne/.test(lab) ? '#18b562' : /All-in/.test(lab) ? '#e5263c' : /Raise|Bet/.test(lab) ? '#ff7a1a' : '#2f6fe0';
+      const fg = eq !== null && !lab ? '#11131c' : '#fff';
+      const by2 = sp.k === 'b' ? py - ch - 12 : py + L.ph + ch + 20;
+      g += `<g class="vtbub">${vtPill(sp.x, Math.max(16, Math.min(L.H - 14, by2)), bub, bg, fg, 'middle', L.fb)}</g>`;
+    }
+    // mise
+    if (s.bets[i]) {
+      const [x, y] = L.bet[sp.k];
+      g += `<g class="vtbet"><circle cx="${x - 30}" cy="${y}" r="9" fill="#ffcc33" stroke="#fff" stroke-width="2" stroke-dasharray="3 3"/>${vtPill(x - 18, y, amt(s.bets[i]), 'rgba(0,0,0,.55)', '#fff', 'start', L.fb)}</g>`;
+    }
+  });
+  return g + '</svg>';
+}
+
+/* global vwImport, decodeShare, buildSteps, shareText, shTitle, vtRender, rpAmt, intToCard, VT_SUIT */
 // Lecteur public d'une main partagée : la main est entièrement contenue dans le lien (#code).
 const S = { settings: { rpUnit: 'bb' }, cls: () => 'x' };
 const $ = (s, el = document) => el.querySelector(s);
@@ -2055,64 +2302,104 @@ function vwEmpty(msg) {
     <div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></div>`;
   $('#vw_go').onclick = () => vwLoad($('#vw_paste').value);
 }
+const VW = { ph: null, d: null, steps: [], step: 0, timer: null, speed: 1000, prevBoardN: 0, revealed: new Set(), code: '' };
+const vwOpt = (() => { let o = { hero: true, vil: 'sd' }; try { o = { ...o, ...JSON.parse(localStorage.getItem('vwOpt') || '{}') }; } catch (e) { /* */ } return o; })();
+const vwSaveOpt = () => { try { localStorage.setItem('vwOpt', JSON.stringify(vwOpt)); } catch (e) { /* */ } };
+const vwPortrait = () => (document.documentElement.clientWidth || 1000) < 700;
+function vwDraw() {
+  const s = VW.steps[VW.step]; if (!s || !$('#vt_table')) return;
+  const prev = VW.steps[VW.step - 1];
+  const revealed = new Set(); if (prev) s.show.forEach((v, i) => { if (v && !prev.show[i]) revealed.add(i); });
+  $('#vt_table').innerHTML = vtRender(VW.ph, s, { portrait: vwPortrait(), hero: vwOpt.hero, vil: vwOpt.vil, prevBoardN: prev ? prev.boardN : 0, revealed });
+  $('#vt_msg').innerHTML = `${esc(s.msg)}${VW.step === VW.steps.length - 1 && VW.d && VW.d.net ? ` · <b class="${sgnCls(VW.d.net)}">${VW.d.net > 0 ? '+' : ''}${rpAmt(VW.d.net, VW.ph.bb)}</b>` : ''}`;
+  $('#vt_bar').style.width = (VW.steps.length > 1 ? VW.step / (VW.steps.length - 1) * 100 : 0) + '%';
+  $('#vt_scrub').value = VW.step;
+  $$('.vtl-item').forEach(el => el.classList.toggle('on', +el.dataset.k === VW.step));
+  const on = $('.vtl-item.on'); if (on && $('#vt_log').contains(on)) { const lg = $('#vt_log'); const top = on.offsetTop - lg.offsetTop; if (top < lg.scrollTop || top > lg.scrollTop + lg.clientHeight - 40) lg.scrollTop = top - 60; }
+  $('#vt_play').innerHTML = VW.timer ? '❚❚' : '▶';
+}
+function vwGo(k) { VW.step = Math.max(0, Math.min(VW.steps.length - 1, k)); vwDraw(); }
+function vwStop() { if (VW.timer) { clearInterval(VW.timer); VW.timer = null; } const b = $('#vt_play'); if (b) b.innerHTML = '▶'; }
+function vwToggle() {
+  if (VW.timer) { vwStop(); return; }
+  if (VW.step >= VW.steps.length - 1) VW.step = 0;
+  VW.timer = setInterval(() => { if (VW.step < VW.steps.length - 1) vwGo(VW.step + 1); else vwStop(); }, VW.speed);
+  vwDraw();
+}
+function vwTimeline() {
+  const SN = ['Préflop', 'Flop', 'Turn', 'River'], BN = [0, 3, 4, 5], ph = VW.ph;
+  let html = '', cur = -1;
+  VW.steps.forEach((s, k) => {
+    if (k === 0) return;
+    if (s.street !== cur && /^(Préflop|Flop|Turn|River)$/.test(s.msg)) { cur = s.street; html += `<div class="vtl-st">${SN[cur]} <span>${ph.board.slice(cur ? BN[cur - 1] : 0, BN[cur]).map(c => { const t = intToCard(c); return `<i class="vtl-c ${t[1]}">${t[0] === 'T' ? '10' : t[0]}${VT_SUIT[t[1]]}</i>`; }).join('')}</span></div>`; return; }
+    if (cur < 0) { cur = 0; html += `<div class="vtl-st">Préflop</div>`; }
+    html += `<button class="vtl-item" data-k="${k}">${esc(s.msg)}</button>`;
+  });
+  return html;
+}
 async function vwLoad(code) {
   if (!code || code.replace(/^.*#/, '').length < 8) { vwImport(); return; }
   let x;
   try { x = await decodeShare(code); } catch (e) { vwImport('Ce lien de main est incomplet ou abîmé : vérifie qu’il a été copié en entier.'); return; }
   const { ph, d } = x;
-  RP.ph = ph; RP.d = d; RP.ids = ['x']; RP.i = 0; RP.heroLabel = 'héros';
-  RP.steps = buildSteps(ph, d); RP.step = 0;
+  vwStop();
+  Object.assign(VW, { ph, d, steps: buildSteps(ph, d), step: 0, code: code.replace(/^.*#/, '') });
   const date = ph.ts ? new Date(ph.ts).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : '';
-  $('#vw').innerHTML = `<div class="rp vwrp">
-    <div class="rphd"><div><div class="rpt">${esc(shTitle(ph))}</div><div class="mini">${date}</div></div><div class="sp"></div>
-      <button class="bigbtn xs" id="vw_link">🔗 Copier le lien</button><button class="ghost xs2" id="vw_disc" title="Résumé de la main + lien, pour Discord">Copier pour Discord</button><button class="ghost xs2" id="vw_new">＋ Ajouter ta main</button>
-      <a class="ghost xs2 vwapp" href="spinscope://main#${esc(code.replace(/^.*#/, ''))}" title="Si tu as SpinScope sur ce PC">Ouvrir dans SpinScope</a>
-      <div class="seg" id="rp_unit"><button data-u="bb" class="on">BB</button><button data-u="chips">Jetons</button></div></div>
-    <div class="vwfit"><div id="rp_body"></div></div>
-    <div class="rpctl">
-      <button class="ghost" id="rp_first" title="Début">⏮</button>
-      <button class="ghost" id="rp_prev" title="Action précédente (←)">◀</button>
-      <button class="bigbtn rpplay" id="rp_play" title="Lecture / pause (espace)">▶</button>
-      <button class="ghost" id="rp_next" title="Action suivante (→)">▶</button>
-      <button class="ghost" id="rp_last" title="Fin de la main">⏭</button>
-      <input type="range" id="rp_scrub" min="0" max="${RP.steps.length - 1}" value="0" aria-label="Avancement">
-      <select class="sel" id="rp_speed" aria-label="Vitesse">${[[1500, 'Lent'], [900, 'Normal'], [450, 'Rapide']].map(([v, l]) => `<option value="${v}" ${v === 900 ? 'selected' : ''}>${l}</option>`).join('')}</select>
+  $('#vw').innerHTML = `<div class="vt">
+    <header class="vt-hd"><div class="vt-tt"><div class="vt-brand"><i></i>Replay</div><h1>${esc(shTitle(ph))}</h1>${date ? `<span>${date}</span>` : ''}</div>
+      <div class="vt-acts"><button class="vt-btn pri" id="vw_link">🔗 Copier le lien</button><button class="vt-btn" id="vw_disc">Discord</button><button class="vt-btn" id="vw_new">＋ Ma main</button></div></header>
+    <div class="vt-main">
+      <div class="vt-stage"><div id="vt_table" class="vt-table"></div><div class="vt-msg" id="vt_msg"></div></div>
+      <aside class="vt-side"><div class="vt-sidehd">Déroulé de la main</div><div class="vt-log" id="vt_log">${vwTimeline()}</div>
+        <div class="vt-opts">
+          <div><span>Mes cartes</span><div class="vt-seg" data-o="hero"><button data-v="1">Visibles</button><button data-v="0">Cachées</button></div></div>
+          <div><span>Cartes adverses</span><div class="vt-seg" data-o="vil"><button data-v="sd">À l’abattage</button><button data-v="all">Toujours</button><button data-v="none">Jamais</button></div></div>
+          <div><span>Montants</span><div class="vt-seg" data-o="unit"><button data-v="bb">BB</button><button data-v="chips">Jetons</button></div></div>
+        </div></aside>
     </div>
-    <details class="vwtxt"><summary>Historique écrit</summary><pre class="shtxt" id="vw_txt"></pre><button class="ghost xs2" id="vw_copy">Copier le texte</button></details>
-  </div>
-  <div class="vwfoot">Main rejouée avec <b>SpinScope</b> · tracker Spin &amp; Rush gratuit et indépendant, non affilié à Betclic</div>`;
-  const txt = () => { $('#vw_txt').textContent = shareText(ph, d, {}); };
-  const copy = async (t, b) => { try { await navigator.clipboard.writeText(t); b.textContent = '✓ Copié'; } catch (er) { prompt('Copie ce lien :', t); } setTimeout(() => { b.textContent = b.dataset.l; }, 1800); };
-  const link = () => location.href.split('#')[0] + '#' + code.replace(/^.*#/, '');
-  $('#vw_link').dataset.l = $('#vw_link').textContent; $('#vw_disc').dataset.l = $('#vw_disc').textContent;
+    <div class="vt-ctl">
+      <div class="vt-prog"><div id="vt_bar"></div><input type="range" id="vt_scrub" min="0" max="${VW.steps.length - 1}" value="0" aria-label="Avancement"></div>
+      <div class="vt-btns"><button id="vt_first" aria-label="Début">⏮</button><button id="vt_prev" aria-label="Action précédente">◀</button><button id="vt_play" class="play" aria-label="Lecture">▶</button><button id="vt_next" aria-label="Action suivante">▶</button><button id="vt_last" aria-label="Fin">⏭</button>
+        <select id="vt_speed" aria-label="Vitesse">${[[1700, '0,5×'], [1000, '1×'], [550, '2×']].map(([v, l]) => `<option value="${v}" ${v === VW.speed ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    </div>
+    <details class="vt-txt"><summary>Historique écrit</summary><pre id="vw_txt"></pre></details>
+    <footer class="vt-foot">Rejouée avec <b>SpinScope</b> · outil gratuit et indépendant, non affilié à Betclic · <a href="#" id="vw_new2">Rejoue ta main depuis un screenshot</a></footer>
+  </div>`;
+  const txt = () => { $('#vw_txt').textContent = shareText(ph, d, {}); }; txt();
+  const copy = async (t, b) => { const l = b.textContent; try { await navigator.clipboard.writeText(t); b.textContent = '✓ Copié'; } catch (er) { prompt('Copie ce lien :', t); } setTimeout(() => { b.textContent = l; }, 1600); };
+  const link = () => location.href.split('#')[0] + '#' + VW.code;
   $('#vw_link').onclick = (e) => copy(link(), e.currentTarget);
   $('#vw_disc').onclick = (e) => copy(shareText(ph, d, {}, link()), e.currentTarget);
-  $('#vw_new').onclick = () => { rpStop(); history.pushState(null, '', location.pathname + location.search); vwImport(); };
-  txt();
-  $$('#rp_unit button').forEach(b => b.onclick = () => {
-    S.settings.rpUnit = b.dataset.u; $$('#rp_unit button').forEach(x2 => x2.classList.toggle('on', x2 === b));
-    const k = RP.step; RP.steps = buildSteps(ph, d); RP.step = Math.min(k, RP.steps.length - 1); drawTable(); txt();
+  const toImport = (e) => { if (e) e.preventDefault(); vwStop(); history.pushState(null, '', location.pathname + location.search); vwImport(); };
+  $('#vw_new').onclick = toImport; $('#vw_new2').onclick = toImport;
+  const segSync = () => $$('.vt-seg').forEach(sg => { const o = sg.dataset.o, v = o === 'hero' ? (vwOpt.hero ? '1' : '0') : o === 'unit' ? S.settings.rpUnit : vwOpt.vil; $$('button', sg).forEach(b => b.classList.toggle('on', b.dataset.v === v)); });
+  $$('.vt-seg button').forEach(b => b.onclick = () => {
+    const o = b.parentElement.dataset.o;
+    if (o === 'hero') vwOpt.hero = b.dataset.v === '1'; else if (o === 'vil') vwOpt.vil = b.dataset.v;
+    else { S.settings.rpUnit = b.dataset.v; const k = VW.step; VW.steps = buildSteps(ph, d); VW.step = Math.min(k, VW.steps.length - 1); $('#vt_log').innerHTML = vwTimeline(); bindLog(); txt(); }
+    vwSaveOpt(); segSync(); vwDraw();
   });
-  $('#rp_first').onclick = () => { rpStop(); rpGo(0); };
-  $('#rp_last').onclick = () => { rpStop(); rpGo(RP.steps.length - 1); };
-  $('#rp_prev').onclick = () => { rpStop(); rpGo(RP.step - 1); };
-  $('#rp_next').onclick = () => { rpStop(); rpGo(RP.step + 1); };
-  $('#rp_play').onclick = rpToggle;
-  $('#rp_scrub').oninput = (e) => { rpStop(); rpGo(+e.target.value); };
-  $('#rp_speed').onchange = (e) => { RP.speed = +e.target.value; if (RP.timer) { rpStop(); rpToggle(); } };
-  $('#vw_copy').onclick = async (e) => { try { await navigator.clipboard.writeText($('#vw_txt').textContent); e.target.textContent = '✓ Copié'; } catch (er) { const r = document.createRange(); r.selectNodeContents($('#vw_txt')); getSelection().removeAllRanges(); getSelection().addRange(r); e.target.textContent = 'Ctrl + C pour copier'; } };
-  if (!vwLoad._keys) vwLoad._keys = true; else { drawTable(); vwFit(); setTimeout(() => { if (!RP.timer && RP.step === 0) rpToggle(); }, 700); return; }
-  document.addEventListener('keydown', (e) => {
-    if (!$('#rp_body')) return;
-    if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
-    if (e.key === 'ArrowRight') { rpStop(); rpGo(RP.step + 1); } else if (e.key === 'ArrowLeft') { rpStop(); rpGo(RP.step - 1); } else if (e.key === ' ') { e.preventDefault(); rpToggle(); }
-  });
-  drawTable(); vwFit();
-  setTimeout(() => { if (!RP.timer && RP.step === 0) rpToggle(); }, 700);
+  const bindLog = () => $$('.vtl-item').forEach(b => b.onclick = () => { vwStop(); vwGo(+b.dataset.k); });
+  bindLog(); segSync();
+  $('#vt_first').onclick = () => { vwStop(); vwGo(0); };
+  $('#vt_last').onclick = () => { vwStop(); vwGo(VW.steps.length - 1); };
+  $('#vt_prev').onclick = () => { vwStop(); vwGo(VW.step - 1); };
+  $('#vt_next').onclick = () => { vwStop(); vwGo(VW.step + 1); };
+  $('#vt_play').onclick = vwToggle;
+  $('#vt_scrub').oninput = (e) => { vwStop(); vwGo(+e.target.value); };
+  $('#vt_speed').onchange = (e) => { VW.speed = +e.target.value; if (VW.timer) { vwStop(); vwToggle(); } };
+  if (!vwLoad._keys) {
+    vwLoad._keys = true;
+    document.addEventListener('keydown', (e) => {
+      if (!$('#vt_table') || (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) return;
+      if (e.key === 'ArrowRight') { vwStop(); vwGo(VW.step + 1); } else if (e.key === 'ArrowLeft') { vwStop(); vwGo(VW.step - 1); } else if (e.key === ' ') { e.preventDefault(); vwToggle(); }
+    });
+    let lastP = vwPortrait(); window.addEventListener('resize', () => { if (vwPortrait() !== lastP) { lastP = vwPortrait(); vwDraw(); } });
+  }
+  vwDraw();
+  setTimeout(() => { if (!VW.timer && VW.step === 0 && $('#vt_table')) vwToggle(); }, 800);
 }
-window.addEventListener('resize', vwFit);
 window.addEventListener('hashchange', () => vwLoad(location.hash));
 vwLoad(location.hash);
 
-</script>
-</body></html>
+</script></body></html>
