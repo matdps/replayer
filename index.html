@@ -1614,14 +1614,21 @@ function shotToHand(H) {
 const IM_TESS = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 let imWorker = null;
 function imLoadScript(src) { return new Promise((res, rej) => { if (window.Tesseract) return res(); const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script')); document.head.appendChild(s); }); }
+const imDiag = [];
 async function imOcr(cv, o) {
   if (!imWorker) { await imLoadScript(IM_TESS); imWorker = await Tesseract.createWorker('eng', 1); }
   await imWorker.setParameters({ tessedit_pageseg_mode: String(o.psm || 11), tessedit_char_whitelist: o.whitelist || '' });
-  const r = await imWorker.recognize(cv, {}, { tsv: true, text: false });
-  if (r.data && r.data.tsv) return r.data.tsv;
-  // repli : mots → TSV
-  let ws = (r.data && r.data.words) || [];
-  if (!ws.length && r.data && r.data.blocks) for (const b of r.data.blocks) for (const p of b.paragraphs || []) for (const l of p.lines || []) for (const w of l.words || []) ws.push(w); return 'h\n' + ws.map(w => ['5', 1, 1, 1, 1, 1, w.bbox.x0, w.bbox.y0, w.bbox.x1 - w.bbox.x0, w.bbox.y1 - w.bbox.y0, w.confidence, w.text].join('\t')).join('\n');
+  const r = await imWorker.recognize(cv, {}, { text: true, blocks: true, tsv: true });
+  const d = (r && r.data) || {};
+  const tsv = typeof d.tsv === 'string' ? d.tsv : '';
+  const n5 = tsv.split('\n').filter(l => l.startsWith('5\t')).length;
+  if (!o.whitelist) imDiag.push(`psm ${o.psm} · clés ${Object.keys(d).filter(k => d[k]).join(',')} · tsv ${tsv.length} car. / ${n5} mots · texte ${String(d.text || '').length} car.`);
+  if (n5) return 'h\n' + tsv;
+  // repli : mots des blocs → TSV
+  const ws = [];
+  for (const b of d.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) for (const w of l.words || []) ws.push(w);
+  for (const w of d.words || []) ws.push(w);
+  return 'h\n' + ws.filter(w => w && w.bbox).map(w => ['5', 1, 1, 1, 1, 1, w.bbox.x0, w.bbox.y0, w.bbox.x1 - w.bbox.x0, w.bbox.y1 - w.bbox.y0, w.confidence, w.text].join('\t')).join('\n');
 }
 const IM_R = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'], IM_S = [['s', '♠'], ['h', '♥'], ['d', '♦'], ['c', '♣']];
 const imCardSel = (v, k) => { const s = v === null || v === undefined ? null : intToCard(v); return `<span class="imcard" data-ck="${k}"><select data-cr>${['<option value="">?</option>', ...IM_R.map(r => `<option ${s && s[0] === r ? 'selected' : ''}>${r === 'T' ? '10' : r}</option>`)].join('')}</select><select data-cs class="${s ? 'su-' + s[1] : ''}">${['<option value="">·</option>', ...IM_S.map(([c, g]) => `<option value="${c}" ${s && s[1] === c ? 'selected' : ''}>${g}</option>`)].join('')}</select></span>`; };
@@ -1688,7 +1695,7 @@ function imEdit(H) {
           <input class="inp" data-f="v" type="number" step="0.1" value="${a.v || ''}" placeholder="BB"><button class="ghost xs2" data-del>✕</button></div>`).join('')}
         <button class="ghost xs2" data-add="${st}">+ action</button></div>`).join('')}
       <div class="shrow" style="justify-content:flex-end;margin-top:12px"><button class="bigbtn" id="im_ok">Voir le replayer ▶</button></div>
-      ${H.raw && H.raw.length ? `<details class="imhelp" style="margin-top:10px"><summary class="mini">Texte lu sur l’image (pour signaler un souci)</summary><pre class="shtxt">${esc(H.raw.join('\n'))}</pre></details>` : ''}</div>`;
+      <details class="imhelp" style="margin-top:10px" ${H.raw && H.raw.length ? '' : 'open'}><summary class="mini">Texte lu sur l’image (pour signaler un souci)</summary><pre class="shtxt">${esc((H.raw || []).join('\n') || '(aucun texte lu)')}\n\n${esc(imDiag.slice(-4).join('\n'))}</pre></details></div>`;
     $('#im_back').onclick = () => vwImport();
     $$('[data-add]').forEach(b => b.onclick = () => { read(); const st = +b.dataset.add; M.streets[st].push({ p: 0, t: 'X', v: 0 }); draw(); });
     $$('[data-del]').forEach(b => b.onclick = () => { read(); const el = b.closest('.imact'); M.streets[+el.dataset.st].splice(+el.dataset.j, 1); draw(); });
