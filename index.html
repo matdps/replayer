@@ -1513,6 +1513,18 @@ async function readBetclicShots(images, ocr, progress) {
       if (t2) meta.buyinLine = t2.t;
     }
     const th = lines.length ? lines.map(l => l.h).sort((a, b) => a - b)[Math.floor(lines.length / 2)] : 30;
+    // pseudos : relecture de chaque nom seul, en plus grand (bien plus fiable que la lecture de la page entière)
+    {
+      const nameLines = []; for (const L of lines) { if (shotHdr(L, W) === 0 || /Pre-?\s*flop/i.test(L.t)) break; if (L.segs[0].x0 < W * 0.3 && /\(/.test(L.segs[0].t)) nameLines.push(L); }
+      for (const L of nameLines.concat(lines.filter(l => !nameLines.includes(l) && l.segs.length >= 2 && shotAction(l.segs[l.segs.length - 1].t) && l.segs[0].x0 < W * 0.3).slice(0, 12))) {
+        if (progress) progress('Lecture des pseudos…');
+        const sg = L.segs[0], pad = Math.round(th * 0.35), x0 = Math.max(0, sg.x0 - pad), y0 = Math.max(0, L.y0 - pad), w = Math.min(W, sg.x1 + pad) - x0, h = Math.min(cv.height, L.y1 + pad) - y0;
+        if (w < 8 || h < 8) continue;
+        const sc = Math.max(1, Math.min(3, 64 / h)), big = document.createElement('canvas'); big.width = Math.round(w * sc) + 40; big.height = Math.round(h * sc) + 40;
+        const bx = big.getContext('2d', { willReadFrequently: true }); bx.fillStyle = '#000'; bx.fillRect(0, 0, big.width, big.height); bx.imageSmoothingQuality = 'high'; bx.drawImage(cv, x0, y0, w, h, 20, 20, w * sc, h * sc);
+        try { const t = shotWords(await ocr(shotBinarize(big, 140), { psm: 7 })).map(x => x.t).join(' ').trim(); if (t) L.nameAlt = t; } catch (e) { /* relecture facultative */ }
+      }
+    }
     const cw = th * 1.75; // largeur approximative d'une carte
     // cartes des rues (à droite des titres « Flop - Pot … ») et cartes à l'abattage (sous le nom du joueur)
     for (let i = 0; i < lines.length; i++) {
@@ -1587,7 +1599,8 @@ function shotBuild(pages, cardsMeta) {
     const pos = /Dealer/i.test(right) ? 'BTN' : /^SB/i.test(right) ? 'SB' : /^BB/i.test(right) ? 'BB' : null;
     const blind = pos === 'SB' || pos === 'BB' ? shotNum(right) : null;
     if (pos === 'SB' && blind) H.sb = blind; if (pos === 'BB' && blind) H.bb = blind;
-    H.seats.push({ n: m[1].replace(/[^\w.\-À-ſ ]+/g, '').trim(), bbStack: parseFloat(m[2].replace(',', '.')), pos, bg: L.bg, alias: [m[1].trim()] });
+    const alt = L.nameAlt ? (/^(.*?)\s*\(/.exec(L.nameAlt) || [0, L.nameAlt])[1].trim() : '';
+    H.seats.push({ n: m[1].replace(/[^\w.\-À-ſ ]+/g, '').trim(), bbStack: parseFloat(m[2].replace(',', '.')), pos, bg: L.bg, alias: [m[1].trim()].concat(alt ? [alt, alt] : []) });
   }
   if (H.bb && !H.sb) H.sb = H.bb / 2; if (H.sb && !H.bb) H.bb = H.sb * 2;
   if (H.seats.length === 2) { for (const s of H.seats) if (!s.pos) s.pos = H.seats.some(x => x.pos === 'BB') ? 'SB' : 'BB'; }
@@ -1617,7 +1630,7 @@ function shotBuild(pages, cardsMeta) {
     if (st < 0 || st > 3 || L.segs.length < 2) continue;
     const who = matchName(L.segs[0].t), act = shotAction(L.segs[L.segs.length - 1].t);
     if (who < 0 || !act) { if (/[A-Za-z]{3,}/.test(L.segs[0].t)) warn.push(`Ligne non comprise : « ${t} »`); continue; }
-    H.seats[who].alias.push(L.segs[0].t);
+    H.seats[who].alias.push(L.segs[0].t); if (L.nameAlt && shotLev(L.nameAlt.split(/\s+/)[0], H.seats[who].n) <= Math.max(2, H.seats[who].n.length * 0.4)) H.seats[who].alias.push(L.nameAlt, L.nameAlt);
     H.streets[st].push({ p: who, ...act });
   }
   // positions d'après l'ordre de parole préflop (BTN, SB, BB à 3 ; SB, BB en HU) : plus fiable que la lecture du texte
@@ -1809,7 +1822,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 8</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 9</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -1841,13 +1854,16 @@ function imEdit(H) {
   };
   // gagnant proposé : celui trouvé à la lecture s'il est unique
   if (ph0.won && ph0.seats) { const ws = ph0.won.map((w, i) => w > 0 ? i : -1).filter(i => i >= 0); if (ws.length === 1) { const k = H.seats.findIndex(x => x.n === ph0.seats[ws[0]].n); if (k >= 0) M.win = String(k); } else if (ws.length > 1 && ph0.sd) M.win = 'split'; }
+  // pseudos déjà corrigés sur une main précédente : retenus sur cet appareil
+  const known = imKnownNames();
+  for (const s of M.seats) { let best = null, bd = 1e9; for (const k of known) { const d = shotLev(s.n, k); if (d < bd) { bd = d; best = k; } } if (best && bd > 0 && bd <= Math.max(1, Math.floor(best.length * 0.34))) { const old = s.n; s.n = best; M.streets.forEach(l => l.forEach(a => { if (a.n === old) a.n = best; })); } }
   if (M.seats.length < 2) M.seats = [['BTN', 25], ['SB', 25], ['BB', 25]].map(([pos, st], k) => ({ n: 'Joueur ' + (k + 1), st, pos, hero: k === 2, c: null }));
   if (M.seats.length && !M.seats.some(s => s.hero)) M.seats[M.seats.length - 1].hero = true;
   const warn = [...(H.warn || []), ...(ph0.potErr || []), ...(ph0.warn || [])];
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. · version 8</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 9</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et les pots affichés correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
@@ -1879,7 +1895,10 @@ function imEdit(H) {
   };
   draw();
 }
+function imKnownNames() { try { return JSON.parse(localStorage.getItem('imNames') || '[]'); } catch (e) { return []; } }
+function imRemember(names) { try { const k = imKnownNames().filter(x => !names.includes(x)); localStorage.setItem('imNames', JSON.stringify(names.concat(k).slice(0, 400))); } catch (e) { /* */ } }
 async function imFinish(M) {
+  imRemember(M.seats.map(s => s.n).filter(Boolean));
   const H = { sb: M.sb, bb: M.bb, buyin: M.buyin || null, pots: [], warn: [], heroCards: null,
     seats: M.seats.map((s, k) => ({ n: s.n, bbStack: s.st, pos: s.pos, hero: s.hero, won: M.win === String(k), lost: M.win !== '' && M.win !== 'split' && M.win !== String(k) })),
     streets: M.streets, board: M.board.filter(c => c !== null && c !== undefined), sdCards: {} };
