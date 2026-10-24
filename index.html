@@ -1420,7 +1420,7 @@ function shotSuitOf(p, i) {
   return null;
 }
 /** cartes dans une bande horizontale [y0,y1] et [x0,x1] : groupes de glyphes blancs, couleur du fond autour */
-function shotCardsIn(cv, x0, y0, x1, y1, cw, minBright = 205, dbg = false) {
+function shotCardsIn(cv, x0, y0, x1, y1, cw, minBright = 205, dbg = false, hMax = 0) {
   x0 = Math.max(0, Math.round(x0)); y0 = Math.max(0, Math.round(y0)); x1 = Math.min(cv.width, Math.round(x1)); y1 = Math.min(cv.height, Math.round(y1));
   if (x1 <= x0 || y1 <= y0) return [];
   const d = cv.getContext('2d').getImageData(x0, y0, x1 - x0, y1 - y0), p = d.data, w = x1 - x0, h = y1 - y0;
@@ -1431,6 +1431,8 @@ function shotCardsIn(cv, x0, y0, x1, y1, cw, minBright = 205, dbg = false) {
     if (rc > w * 0.45) continue; // bordure d'encadré, pas un glyphe
     for (let x = 0; x < w; x++) { if (lit((y * w + x) * 4)) { col[x]++; if (y < top[x]) top[x] = y; if (y > bot[x]) bot[x] = y; } }
   }
+  // trait vertical (bord d'encadré) : colonne allumée sur presque toute la hauteur → ce n'est pas un glyphe
+  for (let x = 0; x < w; x++) if (col[x] > h * 0.8 && col[x] > cw * 1.3) col[x] = 0;
   const gap = Math.max(3, cw * 0.14), cards = [];
   let s = -1, last = -1;
   const flush = () => {
@@ -1438,7 +1440,7 @@ function shotCardsIn(cv, x0, y0, x1, y1, cw, minBright = 205, dbg = false) {
     if (wid >= cw * 0.35) {
       let t = h, b = -1; for (let x = s; x <= ex; x++) { if (col[x]) { t = Math.min(t, top[x]); b = Math.max(b, bot[x]); } }
       if (dbg) cards.push({ s, ex, wid, h: b - t });
-      else if (b - t >= cw * 0.6 && b - t <= cw * 1.25) cards.push({ x0: x0 + s, x1: x0 + ex, y0: y0 + t, y1: y0 + b });
+      else if (b - t >= cw * 0.6 && b - t <= (hMax || cw * 1.4)) cards.push({ x0: x0 + s, x1: x0 + ex, y0: y0 + t, y1: y0 + b });
     }
     s = -1;
   };
@@ -1492,9 +1494,10 @@ const SHOT_LIB = [["2","01159998320014699889873068986667998467642234899833310000
 const SHOT_LIBV = SHOT_LIB.map(([r, b, ra]) => [r, Float32Array.from(b, ch => (ch.charCodeAt(0) - 48) / 9), ra]);
 function shotRankMatch(f) {
   if (!f) return null;
-  let best = null, bd = 1e9, second = 1e9;
-  for (const [r, v, ra] of SHOT_LIBV) { let d = 0; for (let i = 0; i < v.length; i++) { const e = f.bits[i] - v[i]; d += e * e; } d = d / v.length + Math.abs(f.ratio - ra) * 0.15; if (d < bd) { if (r !== best) second = bd; bd = d; best = r; } else if (d < second && r !== best) second = d; }
-  return bd < 0.12 ? { r: best, d: bd, gap: second - bd } : null;
+  let best = null, bd = 1e9, second = 1e9; const per = {};
+  for (const [r, v, ra] of SHOT_LIBV) { let d = 0; for (let i = 0; i < v.length; i++) { const e = f.bits[i] - v[i]; d += e * e; } d = d / v.length + Math.abs(f.ratio - ra) * 0.15; if (per[r] === undefined || d < per[r]) per[r] = d; if (d < bd) { if (r !== best) second = bd; bd = d; best = r; } else if (d < second && r !== best) second = d; }
+  const alts = Object.entries(per).map(([r, d]) => ({ r, d })).sort((a, b) => a.d - b.d).slice(0, 4);
+  return bd < 0.12 ? { r: best, d: bd, gap: second - bd, alts } : null;
 }
 function shotRankText(s) {
   s = String(s || '').toUpperCase().replace(/\s/g, '').replace(/O|D/g, '0').replace(/I|L|\|/g, '1');
@@ -1576,30 +1579,35 @@ async function readBetclicShots(images, ocr, progress) {
         }
       }
     }
-    const cw = th * 1.75; // largeur approximative d'une carte
+    let cw = th * 1.75; // largeur approximative d'une carte (affinée d'après les cartes du board)
     // cartes des rues (à droite des titres « Flop - Pot … ») et cartes à l'abattage (sous le nom du joueur)
     for (let i = 0; i < lines.length; i++) {
       const L = lines[i], t = L.t;
       const hk = shotHdr(L, W);
       const actR = L.segs.length > 1 && shotAction(L.segs[L.segs.length - 1].t);
       if (hk === 1 || hk === 2 || hk === 3 || hk === 9 || (hk < 0 && !actR && L.segs[0].x0 < W * 0.3 && !/\(\s*\d/.test(L.segs[0].t))) {
-        const c = shotCardsIn(cv, W * 0.55, L.yc - th * 1.4, W * 0.997, L.yc + th * 1.4, cw);
+        const c = shotCardsIn(cv, W * 0.55, L.yc - th * 2, W * 0.997, L.yc + th * 2, cw, 205, false, cw * 2.2);
         if (hk >= 0 || (c.length >= 3 && c.length <= 5)) L.cards = c;
       }
       if (/\bM[ao]i?[nmr]\s*\d+/i.test(t) && L.segs[0].x0 > W * 0.25 && !cards.heroLine) { cards.heroLine = L; L.cards = shotCardsIn(cv, W * 0.75, L.y0 - th * 1.5, W * 0.999, L.y1 + th * 2.2, cw); }
     }
+    { const hs = lines.filter(l => l.cards && l.cards.length >= 3).flatMap(l => l.cards.map(c => c.y1 - c.y0)).sort((a, b) => a - b); if (hs.length >= 3) cw = hs[Math.floor(hs.length / 2)] * 1.02; }
     if ((!cards.heroLine || !(cards.heroLine.cards && cards.heroLine.cards.length >= 2)) && k === 0) { const idL = lines.find(l => /\bID\b|main:/i.test(l.t)), yMax = idL ? idL.y0 : Math.min(cv.height * 0.2, th * 14); const c = shotCardsIn(cv, W * 0.75, 0, W * 0.995, yMax, cw); if (c.length >= 2) cards.heroTop = c.slice(-2); }
     // abattage : chaque nom de joueur suivi de ses 2 cartes à gauche
     let sdIdx = lines.findIndex(l => /Sh[o0]w\s*d[o0]wn/i.test(l.t) || shotHdr(l, W) === 4);
     if (sdIdx >= 0) {
       const after = lines.slice(sdIdx + 1);
       for (let j = 0; j < after.length; j++) {
-        const L = after[j]; if (L.segs[0].x0 > W * 0.35 || !(/[A-Za-z]/.test(L.segs[0].t) && /[A-Za-z0-9_]{3,}/.test(L.segs[0].t))) continue;
-        const nxt = after.slice(j + 1).find(x => x.segs[0].x0 < W * 0.35 && (/[A-Za-z]/.test(x.segs[0].t) && /[A-Za-z0-9_]{3,}/.test(x.segs[0].t)) && x.yc > L.yc + th * 1.5);
-        const y1c = Math.min(nxt ? nxt.y0 - th * 0.1 : 1e9, L.y1 + th * 3.2);
+        const HAND = /Hauteur|Pai?re|paires|Brelan|Suite|Flush|Couleur|Full|Carr|Quinte/i;
+        const isName = (x) => x.segs[0].x0 < W * 0.35 && /[A-Za-z]/.test(x.segs[0].t) && (/[A-Za-z0-9_]{3,}/.test(x.segs[0].t) || (x.segs.length > 1 && HAND.test(x.segs[x.segs.length - 1].t)));
+        const L = after[j]; if (!isName(L)) continue;
+        const nxt = after.slice(j + 1).find(x => isName(x) && x.yc > L.yc + th * 1.5);
+        const nameW = L.segs[0].words.filter(w => /[A-Za-z]{2,}/.test(w.t)), yName = nameW.length ? Math.max(...nameW.map(w => w.y1)) : L.y1;
+        const y1c = Math.min(nxt ? nxt.y0 - th * 0.1 : 1e9, yName + th * 3.2);
         const sx0 = Math.max(W * 0.02, L.segs[0].x0 - th * 0.3);
-        let c = shotCardsIn(cv, sx0, L.y1 + th * 0.08, W * 0.32, y1c, cw);
-        if (c.length < 2) c = shotCardsIn(cv, sx0, L.y1 + th * 0.08, W * 0.32, y1c, cw, 145); // cartes grisées du perdant
+        let c = shotCardsIn(cv, sx0, yName + th * 0.08, W * 0.32, y1c, cw);
+        const n205 = c.length; if (c.length < 2) c = shotCardsIn(cv, sx0, yName + th * 0.08, W * 0.32, y1c, cw, 145); // cartes grisées du perdant
+        L.sdDbg = { sx0: Math.round(sx0), y0: Math.round(yName + th * 0.08), y1: Math.round(y1c), n205, n145: c.length, cw: Math.round(cw), raw: shotCardsIn(cv, sx0, yName + th * 0.08, W * 0.32, y1c, cw, 145, true) };
         if (c.length >= 2) L.cards = c.slice(0, 2);
       }
     }
@@ -1624,7 +1632,7 @@ async function readBetclicShots(images, ocr, progress) {
     for (const c of allCards) {
       if (progress) progress('Lecture des cartes…');
       const crop = shotRankCrop(cv, c, cw);
-      c.f = shotRankBits(crop); const m = shotRankMatch(c.f); if (m) { c.rank = m.r; c.how = 'tpl'; c.d = m.d; continue; }
+      c.f = shotRankBits(crop); const m = shotRankMatch(c.f); if (m) { c.rank = m.r; c.how = 'tpl'; c.d = m.d; c.alts = m.alts; continue; }
       for (const psm of [8, 10, 7, 13]) { const r = shotWords(await ocr(crop, { psm, whitelist: 'AKQJ1098765432' })).map(w => w.t).join(''); c.rank = shotRankText(r); if (c.rank) break; }
     }
     // surbrillance de la ligne du héros (fond plus clair)
@@ -1634,8 +1642,8 @@ async function readBetclicShots(images, ocr, progress) {
       const vals = []; for (const dy of [-0.3, 0, 0.3]) { const y = Math.max(0, Math.min(cv.height - 1, Math.round(L.yc + dy * th))); const d = ctx.getImageData(Math.round(W * 0.05), y, Math.round(W * 0.9), 1).data; for (let k = 0; k < d.length; k += 12) { if (Math.min(d[k], d[k + 1], d[k + 2]) < 140) vals.push((d[k] + d[k + 1] + d[k + 2]) / 3); } }
       vals.sort((a, b) => a - b); L.bg = vals.length ? vals[Math.floor(vals.length / 2)] : 0;
     }
-    if (typeof window !== 'undefined') { const fx = (c) => ({ b: c.f ? Array.from(c.f.bits).map(v => Math.round(v * 9)).join('') : '', r: c.f ? c.f.ratio : 0, suit: c.suit, rank: c.rank, how: c.how, h: c.y1 - c.y0 }); window.__cardsDbg = (window.__cardsDbg || []).concat(lines.filter(l => l.cards && l.cards.length).map(l => ({ t: l.t, cards: l.cards.map(fx) })), cards.heroTop ? [{ t: 'HEROTOP', cards: cards.heroTop.map(fx) }] : [], (cards.sdPairs || []).map(pr => ({ t: 'SDPAIR', y: pr.y, cards: pr.cards.map(fx) }))); }
-    all.push({ lines, W, th, k }); cards.raw = (cards.raw || []).concat(lines.map(l => l.t)); if (typeof window !== 'undefined') window.__shotDbg = { lines: lines.map(l => ({ t: l.t, y0: l.y0, y1: l.y1, x0: l.segs[0].x0, cards: l.cards })), th, W, heroTop: cards.heroTop };
+    if (typeof window !== 'undefined') { const fx = (c) => ({ b: c.f ? Array.from(c.f.bits).map(v => Math.round(v * 9)).join('') : '', r: c.f ? c.f.ratio : 0, suit: c.suit, rank: c.rank, how: c.how, h: c.y1 - c.y0, box: [c.x0 / scale, c.y0 / scale, c.x1 / scale, c.y1 / scale] }); window.__cardsDbg = (window.__cardsDbg || []).concat(lines.filter(l => l.cards && l.cards.length).map(l => ({ t: l.t, cards: l.cards.map(fx) })), cards.heroTop ? [{ t: 'HEROTOP', cards: cards.heroTop.map(fx) }] : [], (cards.sdPairs || []).map(pr => ({ t: 'SDPAIR', y: pr.y, cards: pr.cards.map(fx) }))); }
+    all.push({ lines, W, th, k }); cards.raw = (cards.raw || []).concat(lines.map(l => l.t)); if (typeof window !== 'undefined') window.__shotDbg = { lines: lines.map(l => ({ t: l.t, y0: l.y0, y1: l.y1, x0: l.segs[0].x0, cards: l.cards, sd: l.sdDbg })), th, W, heroTop: cards.heroTop };
   }
   cards.buyinLine = meta.buyinLine; const H = shotBuild(all, cards); H.raw = cards.raw || []; return H;
 }
@@ -1656,7 +1664,7 @@ function shotBuild(pages, cardsMeta) {
     if (L.segs.length > 1 && L.segs[0].x0 < L.W * 0.3 && shotAction(L.segs[L.segs.length - 1].t) && !/\(\s*\d/.test(L.segs[0].t) && !/D[eé]a?l[eo]r|\bS[B8]\b\s*\(|\b[B8]{2}\b\s*\(/.test(L.t)) break;
   }
   const stackRe = /\(\s*\d+(?:[.,]\d+)?\s*[B8]{1,2}\s*\)?/;
-  const seatLines = lines.slice(0, i).filter(L => L.segs[0].x0 < L.W * 0.3 && /[A-Za-z0-9_]{2,}/.test(L.segs[0].t) && !/\bID\b|main\s*:|Spin|Buy|Rush|\bM[ao]i?[nm]\s*\d/i.test(L.t)
+  const seatLines = lines.slice(0, i).filter(L => L.segs[0].x0 < L.W * 0.3 && /[A-Za-z0-9_]{2,}/.test(L.segs[0].t) && !/^\W*ID\b|main\s*:|Spin\s*&|Buy\W?in|&\s*Rush|^\W*M[ao]i?[nm]\s*\d/i.test(L.segs[0].t)
     && (stackRe.test(L.segs[0].t) || (L.segs.length > 1 && /D[eé]a?l[eo]r|\bS[B8]\b|\b[B8]{2}\b\s*\(/.test(L.segs[L.segs.length - 1].t))));
   for (const L of seatLines) {
     // pseudo (tapis BB) ; si le tapis est illisible, on garde le joueur quand même (tapis déduit plus tard)
@@ -1763,7 +1771,7 @@ function shotBuild(pages, cardsMeta) {
     const who = matchName(L.segs[0].t); if (who < 0) continue;
     if (!(H.sdSeen = H.sdSeen || []).includes(who)) H.sdSeen.push(who);
     { const nx = lines.slice(i + 1).find(x => x.segs[0].x0 < x.W * 0.35 && /[A-Za-z]{2,}/.test(x.segs[0].t) && !/^\W*\d/.test(x.segs[0].t)); (H.sdLines = H.sdLines || []).push({ who, y: L.y1, yEnd: nx ? nx.y0 : 1e9 }); }
-    if (L.cards && L.cards.length === 2 && L.cards.every(c => c.rank)) H.sdCards[who] = L.cards.map(c => shotCard(c.rank, c.suit));
+    if (L.cards && L.cards.length === 2 && L.cards.every(c => c.rank)) { H.sdCards[who] = L.cards.map(c => shotCard(c.rank, c.suit)); (H.sdSrc = H.sdSrc || {})[who] = L.cards; }
     else if (L.cards && L.cards.length === 2) (H.sdPart = H.sdPart || {})[who] = L.cards;
     const tail = lines.slice(i, i + 3).map(x => x.t).join(' ');
     if (/Perdu/i.test(tail)) H.seats[who].lost = true; else if (/Gagn|Remport|Won/i.test(tail)) H.seats[who].won = true;
@@ -1794,6 +1802,18 @@ function shotBuild(pages, cardsMeta) {
     const folded = new Set(H.streets.flat().filter(a => a.t === 'F').map(a => a.p));
     // chaque paire appartient au joueur dont le pseudo est juste au-dessus ; sinon au premier adversaire encore en jeu
     for (const cs of pairs) { const o = ownerOf.get(cs); if (o !== undefined && !H.sdCards[o] && !(H.seats[o].hero && H.sdCards[heroK])) { H.sdCards[o] = cs; if (H.seats[o].hero) H.heroCards = cs; continue; } const v = H.seats.findIndex((x, k) => !x.hero && !folded.has(k) && !H.sdCards[k] && !(H.sdSeen && H.sdSeen.length >= 2 && !H.sdSeen.includes(k))); if (v >= 0) H.sdCards[v] = cs; }
+  }
+  // une carte ne peut exister qu'une fois : en cas de doublon, on prend la 2e hauteur la plus ressemblante
+  {
+    const used = new Set(H.board.filter(c => c !== null && c !== undefined));
+    for (const [k, cs] of Object.entries(H.sdCards)) {
+      const src = (H.sdSrc || {})[k];
+      cs.forEach((c, j) => {
+        if (!used.has(c)) { used.add(c); return; }
+        const o = src && src[j]; const alt = o && (o.alts || []).find(a => a.d < 0.25 && !used.has(shotCard(a.r, o.suit)));
+        if (alt) { const nc = shotCard(alt.r, o.suit); warn.push(`Carte en double corrigée (${H.seats[k] ? H.seats[k].n : ''}) : vérifie ses cartes.`); cs[j] = nc; used.add(nc); if (H.heroCards && H.seats[k] && H.seats[k].hero) H.heroCards = cs; }
+      });
+    }
   }
   // noms : orthographe la plus fréquente parmi toutes les lectures
   // pseudo final : lectures de la ligne du joueur dans l'en-tête (texte avant la parenthèse, espaces compris) ; lignes d'action en secours
@@ -1950,6 +1970,18 @@ function shotRepair(H) {
     state = S;
   }
 }
+/** répartit les pots (principal + secondaires) : contrib = jetons mis par joueur (mise non suivie déjà rendue) */
+function shotAwardPots(contrib, live, val) {
+  const won = contrib.map(() => 0), v = {}; live.forEach(i => { v[i] = val(i); });
+  const levels = [...new Set(live.map(i => contrib[i]))].sort((a, b) => a - b); let prev = 0;
+  for (const L of levels) {
+    let amt = 0; contrib.forEach(c => { amt += Math.max(0, Math.min(c, L) - Math.min(c, prev)); });
+    const elig = live.filter(i => contrib[i] >= L); if (amt <= 0 || !elig.length) { prev = L; continue; }
+    const best = Math.max(...elig.map(i => v[i])), ws = elig.filter(i => v[i] === best), sh = Math.floor(amt / ws.length);
+    ws.forEach((w, k) => { won[w] += sh + (k === 0 ? amt - sh * ws.length : 0); }); prev = L;
+  }
+  return won;
+}
 /** main lue → main au format du replayer (jetons), avec contrôle des pots */
 function shotToHand(H) {
   const bb = H.bb || 20, sb = H.sb || bb / 2, n = H.seats.length;
@@ -2005,9 +2037,12 @@ function shotToHand(H) {
   const pot = contrib.reduce((a, b) => a + b, 0) - refund;
   ph.won = new Array(n).fill(0);
   let winners = live;
+  const cIn = contrib.slice(); if (refI >= 0) cIn[refI] -= refund;
   if (live.length > 1 && ph.sd && ph.board.length === 5) {
-    const val = live.map(i => evalCards([...ph.seats[i].c, ...ph.board])), best = Math.max(...val);
-    winners = live.filter((i, k) => val[k] === best);
+    // pots principal et secondaires : chaque pot va à la meilleure main parmi ceux qui y ont droit
+    ph.won = shotAwardPots(cIn, live, (i) => evalCards([...ph.seats[i].c, ...ph.board]));
+    ph.potErr = potErr; ph.refund = { i: refI, v: refund };
+    return ph;
   } else if (live.length > 1) {
     // cartes adverses non lues : on se fie au résultat affiché (« Gagné », « Perdu », +/- BB du héros)
     const won = live.filter(i => seats[i].won), notLost = live.filter(i => !seats[i].lost);
@@ -2058,7 +2093,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 14</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 15</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -2107,7 +2142,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 14</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 15</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et vérifié : positions, ordre de parole, montants, pots de chaque rue, pot final et résultat correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
@@ -2564,7 +2599,7 @@ function vtRender(ph, s, o) {
   return g + '</svg>';
 }
 
-/* global imCardSel, imReadCard, encodeShare, handChips, evalCards, vwImport, decodeShare, buildSteps, shareText, shTitle, vtRender, rpAmt, intToCard, VT_SUIT */
+/* global shotAwardPots, imCardSel, imReadCard, encodeShare, handChips, evalCards, vwImport, decodeShare, buildSteps, shareText, shTitle, vtRender, rpAmt, intToCard, VT_SUIT */
 // Lecteur public d'une main partagée : la main est entièrement contenue dans le lien (#code).
 const S = { settings: { rpUnit: 'bb' }, cls: () => 'x' };
 const $ = (s, el = document) => el.querySelector(s);
@@ -2641,10 +2676,11 @@ async function vwSetMissing() {
   const folded = new Set(ph.acts.filter(a => a.t === 'F').map(a => a.p)), live = ph.seats.map((p, i) => i).filter(i => !folded.has(i));
   if (live.every(i => ph.seats[i].c)) {
     ph.sd = true;
-    if (ph.board.length === 5) { // gagnant d'après les cartes
-      const pot = ph.won.reduce((x, y) => x + y, 0), val = live.map(i => evalCards([...ph.seats[i].c, ...ph.board])), best = Math.max(...val);
-      const ws = live.filter((i, k) => val[k] === best); ph.won = ph.seats.map(() => 0);
-      ws.forEach(w => { ph.won[w] = Math.floor(pot / ws.length); }); ph.won[ws[0]] += pot - Math.floor(pot / ws.length) * ws.length;
+    if (ph.board.length === 5) { // gagnant(s) d'après les cartes, pots secondaires compris
+      const put = ph.seats.map(() => 0); for (const a of ph.acts) put[a.p] += a.t === 'R' ? 0 : (a.a || 0);
+      { const sp = ph.seats.map(() => 0); let st = -1; for (const a of ph.acts) { if (a.st !== st) { st = a.st; sp.fill(0); } if (a.t === 'R') { put[a.p] += a.to - sp[a.p]; sp[a.p] = a.to; } else sp[a.p] += a.a || 0; } }
+      const o = put.map((v, i) => [v, i]).sort((a, b) => b[0] - a[0]); if (o.length > 1 && o[0][0] > o[1][0]) put[o[0][1]] -= o[0][0] - o[1][0];
+      ph.won = shotAwardPots(put, live, (i) => evalCards([...ph.seats[i].c, ...ph.board]));
     }
   }
   const hero = ph.seats.findIndex(p => p.hero), net = hero >= 0 ? handChips(ph).net[hero] : 0;
