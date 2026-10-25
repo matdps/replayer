@@ -1725,7 +1725,7 @@ function shotBuild(pages, cardsMeta) {
     const stackL = [...(L.nameAlts || []).slice().reverse(), L.segs[0].t].map(x => { const q = /\(\s*(\d+(?:[.,]\d+)?)\s*[B8]/.exec(x); return q ? parseFloat(q[1].replace(',', '.')) : null; }), stackV = shotVote(stackL);
     const hasD = rights.some(r => /D[eé]a?l[eo]r/i.test(r));
     const pos = shotVote(rights.map(r => /\bS[B8]\b/.test(r) ? 'SB' : /\b[B8][B8]\b/.test(r.replace(/\(.*$/, '')) ? 'BB' : null)) || (hasD ? 'BTN' : null);
-    const blind = shotVote(rights.map(r => { const q = /\(\s*(\d+(?:[.,]\d+)?)\s*\)/.exec(r); return q ? shotNum(q[1]) : null; }));
+    const blind = shotVote(rights.map(r => { const q = /\(\s*(\d+(?:[.,]\d+)?)\s*(?:\)|$)/.exec(r.trim()); return q ? shotNum(q[1]) : null; }));
     if (pos === 'SB' && blind) H.sb = blind; if (pos === 'BB' && blind) H.bb = blind;
     const alts = (L.nameAlts || []).map(a => (/^(.*?)\s*\(/.exec(a) || [0, a])[1].replace(/\s*\(?\s*\d+(?:[.,\s]\d+)?\s*[B8E]{1,2}\)?\s*$/i, '').trim()).filter(Boolean);
     H.seats.push({ n: m[1].replace(/[^\w.\-À-ſ ]+/g, '').trim(), bbStack: stackV !== null ? stackV : m[2] ? parseFloat(m[2].replace(',', '.')) : null, pos, dealer: hasD, blind, bg: L.bg, alias: [m[1].trim()].concat(alts, alts, alts), nSeat: 1 + alts.length * 3, stackC: [...new Set(stackL.filter(x => x !== null))] });
@@ -2236,7 +2236,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 18.1</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 18.2</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -2285,7 +2285,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 18.1</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 18.2</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et vérifié : positions, ordre de parole, montants, pots de chaque rue, pot final et résultat correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
