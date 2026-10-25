@@ -615,6 +615,10 @@ html{background:var(--vt-bg)}body{background:radial-gradient(1200px 700px at 50%
   .vt-log{max-height:none;min-height:60px}
   .vt-miss{flex:none;max-height:45%;overflow:auto}
 }
+
+.vt-queue{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;margin-bottom:10px;border:1px solid var(--vt-line);border-radius:12px;background:var(--vt-panel2)}
+.vt-queue b{margin-right:auto}.vt-queue .vt-btn[disabled]{opacity:.4;pointer-events:none}
+.imq{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#2a3157;font-size:12px;vertical-align:middle}
 </style></head><body>
 <div id="vw"><div class="vwempty"><p>Chargement de la main…</p></div></div>
 <script>
@@ -1683,6 +1687,9 @@ async function readBetclicShots(images, ocr, progress) {
         if (n205 < 2) { const short = (x) => x.length < 2 || x.slice(0, 2).some(q => q.y1 - q.y0 < cw * 0.85 || (q.x1 - q.x0) < (q.y1 - q.y0) * 0.38); if (short(c)) { const c2 = shotCardsIn(cv, sx0, yName + th * 0.08, W * 0.32, y1c, cw, 120); if (c2.length >= 2 && (!short(c2) || c.length < 2)) c = c2; } }
         L.sdDbg = { sx0: Math.round(sx0), y0: Math.round(yName + th * 0.08), y1: Math.round(y1c), n205, n145: c.length, cw: Math.round(cw), raw: shotCardsIn(cv, sx0, yName + th * 0.08, W * 0.32, y1c, cw, 145, true) };
         if (c.length >= 2) { L.cards = c.slice(0, 2); if (n205 < 2) L.cards.forEach(q => { q.hMin = cw * 0.95; }); }
+        // au milieu de la ligne : le board en entier (cartes grisées quand elles ne servent pas) → une lecture de plus du board
+        { let bd = shotCardsIn(cv, W * 0.34, yName + th * 0.08, W * 0.8, y1c, cw, 205); if (bd.length !== 5) bd = shotCardsIn(cv, W * 0.34, yName + th * 0.08, W * 0.8, y1c, cw, 145);
+          if (bd.length === 5) { bd.forEach(q => { q.hMin = cw * 0.95; }); (cards.sdBoards = cards.sdBoards || []).push(bd); } }
       }
     }
     // repli : paires de cartes à gauche sous l'abattage (ou sous la dernière rue), même sans nom lu
@@ -1702,7 +1709,7 @@ async function readBetclicShots(images, ocr, progress) {
       }
     }
     // hauteurs des cartes : OCR caractère par caractère
-    const allCards = lines.flatMap(l => l.cards || []).concat(cards.heroTop || [], (cards.sdPairs || []).flatMap(p => p.cards));
+    const allCards = lines.flatMap(l => l.cards || []).concat(cards.heroTop || [], (cards.sdPairs || []).flatMap(p => p.cards), (cards.sdBoards || []).flat());
     for (const c of allCards) {
       if (progress) progress('Lecture des cartes…');
       const crop = shotRankCrop(cv, c, cw);
@@ -1881,8 +1888,9 @@ function shotBuild(pages, cardsMeta) {
     if (best > 0 && bm >= Math.min(row.length, ref.length - best) - 1 && bm >= 1) rows[r] = [...new Array(best).fill(null), ...row];
   }
   H.board = [];
-  for (let k = 0; k < 5; k++) { let card = null; { const sc = new Map(); for (const r of [3, 2, 1]) { const c = rows[r] && rows[r][k]; if (c && c.rank) { const key = c.rank + c.suit, e = sc.get(key) || { n: 0, d: 9, c }; e.n++; e.d = Math.min(e.d, c.d !== undefined ? c.d : 0.15); sc.set(key, e); } } const best = [...sc.values()].sort((a, b) => b.n - a.n || a.d - b.d)[0]; if (best) card = shotCard(best.c.rank, best.c.suit); (H.boardAlts = H.boardAlts || [])[k] = [...sc.values()].sort((a, b) => b.n - a.n || a.d - b.d).map(e => shotCard(e.c.rank, e.c.suit)); } /* même carte lue sur le flop, le turn et la river : vote */ if (card === null) { if ((rows[3] || rows[2] || rows[1] || []).length > k) warn.push(`Carte ${k + 1} du board illisible : choisis-la.`); else break; } H.board.push(card); }
-  for (const [k, n] of [[1, 3], [2, 4], [3, 5]]) if (rows[k] && rows[k].length !== n) warn.push(`${['', 'Flop', 'Turn', 'River'][k]} : ${rows[k].length} cartes lues au lieu de ${n}.`);
+  const sdB = (cardsMeta.sdBoards || []).filter(b => b.length === 5);
+  for (let k = 0; k < 5; k++) { let card = null; { const sc = new Map(); for (const r of [3, 2, 1, ...sdB.map((_, j) => 's' + j)]) { const c = typeof r === 'string' ? sdB[+r.slice(1)][k] : rows[r] && rows[r][k]; if (c && c.rank) { const key = c.rank + c.suit, e = sc.get(key) || { n: 0, d: 9, c }; e.n += typeof r === 'string' ? 0.01 : 1; e.d = Math.min(e.d, c.d !== undefined ? c.d : 0.15); sc.set(key, e); } } const best = [...sc.values()].sort((a, b) => b.n - a.n || a.d - b.d)[0]; if (best) card = shotCard(best.c.rank, best.c.suit); (H.boardAlts = H.boardAlts || [])[k] = [...sc.values()].sort((a, b) => b.n - a.n || a.d - b.d).map(e => shotCard(e.c.rank, e.c.suit)); } /* même carte lue sur le flop, le turn et la river : vote */ if (card === null) { if ((rows[3] || rows[2] || rows[1] || []).length > k) warn.push(`Carte ${k + 1} du board illisible : choisis-la.`); else break; } H.board.push(card); }
+  for (const [k, n] of [[1, 3], [2, 4], [3, 5]]) if (rows[k] && rows[k].filter(Boolean).length !== n && !(H.board.length >= n && H.board.slice(0, n).every(c => c !== null && c !== undefined))) warn.push(`${['', 'Flop', 'Turn', 'River'][k]} : ${rows[k].length} cartes lues au lieu de ${n}.`);
   // cartes du héros (en haut à droite)
   const hl = cardsMeta.heroLine && cardsMeta.heroLine.cards; const hc = (hl && hl.length >= 2 ? hl : cardsMeta.heroTop) || null;
   if (hc && hc.slice(-2).every(c => c.rank)) H.heroCards = hc.slice(-2).map(c => shotCard(c.rank, c.suit));
@@ -2266,10 +2274,10 @@ function vwImport(msg) {
     <p>Ajoute le <b>screenshot de l’historique d’une main</b> Betclic (Spin & Rush) : la main est lue automatiquement, tu vérifies, et tu obtiens un replayer avec un lien à partager.</p>
     ${msg ? `<div class="imwarn">${msg}</div>` : ''}
     <label class="imdrop" id="im_drop" tabindex="0"><input type="file" id="im_file" accept="image/*" multiple hidden>
-      <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
+      <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Plusieurs mains ? Glisse toutes les captures d’un coup : tu les verras une par une (« Main suivante »). Main trop longue pour un écran ? Mets ses captures dans l’ordre, elles sont recollées.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 18.3</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 18.4</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -2284,8 +2292,21 @@ async function imRun(files) {
   stat('Chargement de la lecture d’image (la première fois, quelques secondes)…');
   try {
     const imgs = await Promise.all(files.map(f => createImageBitmap(f)));
-    const H = await readBetclicShots(imgs, imOcr, (t) => stat(t));
-    imEdit(H);
+    window.IMQ = null;
+    if (imgs.length === 1) { imEdit(await readBetclicShots(imgs, imOcr, (t) => stat(t))); return; }
+    // plusieurs captures : une main chacune, sauf les captures sans en-tête (suite d'une main trop longue) qu'on recolle à la précédente
+    const groups = [];
+    for (let k = 0; k < imgs.length; k++) {
+      let H = null; try { H = await readBetclicShots([imgs[k]], imOcr, (t) => stat(`Capture ${k + 1}/${imgs.length} · ${t}`)); } catch (e) { console.warn(e); }
+      const head = H && H.seats && H.seats.length >= 2;
+      if (head || !groups.length) groups.push({ imgs: [imgs[k]], H });
+      else { const g = groups[groups.length - 1]; g.imgs.push(imgs[k]); try { g.H = await readBetclicShots(g.imgs, imOcr, (t) => stat(`Capture ${k + 1}/${imgs.length} (suite) · ${t}`)); } catch (e) { console.warn(e); } }
+    }
+    const items = groups.filter(g => g.H);
+    if (!items.length) throw new Error('aucune main lisible');
+    if (items.length === 1) { imEdit(items[0].H); return; }
+    window.IMQ = { items: items.map(g => ({ H: g.H, code: null })), i: 0 };
+    imEdit(items[0].H);
   } catch (e) {
     console.error(e); stat(`<span class="neg">Lecture impossible (${esc(e.message || e)}). Vérifie ta connexion internet (la lecture d’image se charge au premier usage) et réessaie.</span>`);
   }
@@ -2318,7 +2339,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 18.3</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main${window.IMQ ? ` <span class="imq">${window.IMQ.i + 1} / ${window.IMQ.items.length}</span>` : ''}</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 18.4</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et vérifié : positions, ordre de parole, montants, pots de chaque rue, pot final et résultat correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
@@ -2336,7 +2357,7 @@ function imEdit(H) {
       <div class="imgrid" style="margin-top:12px"><label>Qui remporte le pot ? <select class="sel" id="im_win"><option value="" ${M.win === '' ? 'selected' : ''}>— à choisir —</option>${M.seats.map((s, k) => `<option value="${k}" ${M.win === String(k) ? 'selected' : ''}>${esc(s.n)}</option>`).join('')}<option value="split" ${M.win === 'split' ? 'selected' : ''}>Partage du pot</option></select></label></div>
       <div class="shrow" style="justify-content:flex-end;margin-top:12px"><button class="bigbtn" id="im_ok">Voir le replayer ▶</button></div>
       <details class="imhelp" style="margin-top:10px" ${H.raw && H.raw.length ? '' : 'open'}><summary class="mini">Texte lu sur l’image (pour signaler un souci)</summary><pre class="shtxt">${esc((H.raw || []).join('\n') || '(aucun texte lu)')}\n\n${esc(imDiag.slice(-4).join('\n'))}</pre></details></div>`;
-    $('#im_back').onclick = () => vwImport();
+    $('#im_back').onclick = () => { window.IMQ = null; vwImport(); };
     $$('[data-add]').forEach(b => b.onclick = () => { read(); const st = +b.dataset.add; M.streets[st].push({ p: 0, t: 'X', v: 0 }); draw(); });
     $$('[data-del]').forEach(b => b.onclick = () => { read(); const el = b.closest('.imact'); M.streets[+el.dataset.st].splice(+el.dataset.j, 1); draw(); });
     $$('.imcard [data-cs]').forEach(s => s.onchange = () => { s.className = s.value ? 'su-' + s.value : ''; });
@@ -2361,7 +2382,21 @@ async function imFinish(M) {
   const ph = shotToHand(H);
   const hero = ph.seats.findIndex(s => s.hero); const net = hero >= 0 ? handChips(ph).net[hero] : 0;
   const code = await encodeShare(ph, { net, ev: net, adj: false, ai: null }, { anon: false, allCards: true });
+  if (window.IMQ) window.IMQ.items[window.IMQ.i].code = code;
   location.hash = code;
+}
+/** plusieurs mains importées d'un coup : barre « main précédente / suivante » au-dessus du replayer */
+function imQueueBar(code) {
+  const Q = window.IMQ; if (!Q) return '';
+  const i = Q.items.findIndex(x => x.code === code); if (i < 0) return '';
+  Q.i = i; const n = Q.items.length, done = Q.items.filter(x => x.code).length;
+  return `<div class="vt-queue"><b>Main ${i + 1} / ${n}</b><button class="vt-btn" id="q_prev" ${i ? '' : 'disabled'}>◀ Précédente</button><button class="vt-btn pri" id="q_next" ${i < n - 1 ? '' : 'disabled'}>Main suivante ▶</button>${done > 1 ? `<button class="vt-btn" id="q_all">🔗 Copier les ${done} liens</button>` : ''}</div>`;
+}
+function imQueueBind() {
+  const Q = window.IMQ; if (!Q || !$('.vt-queue')) return;
+  const goto = (j) => { const it = Q.items[j]; if (!it) return; Q.i = j; if (it.code) location.hash = it.code; else { history.pushState(null, '', location.pathname + location.search); imEdit(it.H); } };
+  $('#q_prev').onclick = () => goto(Q.i - 1); $('#q_next').onclick = () => goto(Q.i + 1);
+  const all = $('#q_all'); if (all) all.onclick = async () => { const base = location.href.split('#')[0]; const t = Q.items.map((x, k) => x.code ? `Main ${k + 1} : ${base}#${x.code}` : null).filter(Boolean).join('\n'); const l = all.textContent; try { await navigator.clipboard.writeText(t); all.textContent = '✓ Copiés'; } catch (e) { prompt('Copie ces liens :', t); } setTimeout(() => { all.textContent = l; }, 1600); };
 }
 
 /* global saveSettings, S, $, $$, esc, nf, IDB, parseHand, handChips, intToCard, SIT_LABEL, sgnCls, encodeShare, decodeShare, shareText, shTitle, handGif, handPng */
@@ -2871,7 +2906,7 @@ async function vwLoad(code) {
   vwStop();
   Object.assign(VW, { ph, d, steps: buildSteps(ph, d), step: 0, code: code.replace(/^.*#/, '') });
   const date = ph.ts ? new Date(ph.ts).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : '';
-  $('#vw').innerHTML = `<div class="vt">
+  $('#vw').innerHTML = `<div class="vt">${typeof imQueueBar === 'function' ? imQueueBar(VW.code) : ''}
     <header class="vt-hd"><div class="vt-tt"><div class="vt-brand"><i></i>Replay</div><h1>${esc(shTitle(ph))}</h1>${date ? `<span>${date}</span>` : ''}</div>
       <div class="vt-acts"><button class="vt-btn pri" id="vw_link">🔗 Copier le lien</button><button class="vt-btn" id="vw_disc">Discord</button><button class="vt-btn" id="vw_new">＋ Ma main</button></div></header>
     <div class="vt-main">
@@ -2896,7 +2931,8 @@ async function vwLoad(code) {
   const link = () => location.href.split('#')[0] + '#' + VW.code;
   $('#vw_link').onclick = (e) => copy(link(), e.currentTarget);
   $('#vw_disc').onclick = (e) => copy(shareText(ph, d, {}, link()), e.currentTarget);
-  const toImport = (e) => { if (e) e.preventDefault(); vwStop(); history.pushState(null, '', location.pathname + location.search); vwImport(); };
+  if (typeof imQueueBind === 'function') imQueueBind();
+  const toImport = (e) => { if (e) e.preventDefault(); window.IMQ = null; vwStop(); history.pushState(null, '', location.pathname + location.search); vwImport(); };
   $('#vw_new').onclick = toImport; $('#vw_new2').onclick = toImport;
   const segSync = () => $$('.vt-seg').forEach(sg => { const o = sg.dataset.o, v = o === 'hero' ? (vwOpt.hero ? '1' : '0') : o === 'unit' ? S.settings.rpUnit : vwOpt.vil; $$('button', sg).forEach(b => b.classList.toggle('on', b.dataset.v === v)); });
   $$('.vt-seg button').forEach(b => b.onclick = () => {
