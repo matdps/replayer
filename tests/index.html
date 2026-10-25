@@ -2893,4 +2893,63 @@ async function vwLoad(code) {
 window.addEventListener('hashchange', () => vwLoad(location.hash));
 vwLoad(location.hash);
 
-</script></body></html>
+</script><script>
+// ===== Banc d'essai : lit chaque screenshot avec le vrai moteur du navigateur et compare à la vérité =====
+// ?run            : les vraies mains (truth.json + img/)
+// ?run&set=synth  : les mains synthétiques (synth/truth.json + synth/b*.bin)
+// &k=a,b  &from=N  &loop (recommence à la fin)
+(async () => {
+  const Q = new URLSearchParams(location.search);
+  if (!Q.has('run')) return;
+  const nrm = (x) => String(x).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const lev = (a, b) => { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[a.length][b.length]; };
+  const SYN = Q.get('set') === 'synth', base = SYN ? 'synth/' : '';
+  const T = await (await fetch(base + 'truth.json', { cache: 'no-store' })).json();
+  const only = (Q.get('k') || '').split(',').filter(Boolean);
+  let keys = only.length ? only : Object.keys(T); keys = keys.slice(+(Q.get('from') || 0));
+  document.body.innerHTML = '<pre id="out" style="color:#ddd;font:12px monospace;white-space:pre-wrap;padding:12px"></pre>';
+  const out = document.getElementById('out'), log = (s) => { out.textContent += s + '\n'; };
+  const bins = {}; const getBin = async (b) => bins[b] || (bins[b] = await (await fetch(base + 'b' + b + '.bin')).arrayBuffer());
+  const loadImg = async (k, t) => {
+    if (t.bin) { const [b, off, len, mime] = t.bin; const buf = await getBin(b); return createImageBitmap(new Blob([buf.slice(off, off + len)], { type: mime })); }
+    return createImageBitmap(await (await fetch(base + 'img/' + (t.file || k + '.png'))).blob());
+  };
+  window.__res = { done: false, ok: 0, n: 0, pass: 0, lines: [], raw: {}, shot: {}, names: {}, set: SYN ? 'synth' : 'real', t0: Date.now(), round: 0 };
+  const save = () => { try { localStorage.setItem('bench_' + window.__res.set, JSON.stringify({ ok: window.__res.ok, n: window.__res.n, round: window.__res.round, fails: window.__res.lines.filter(l => l.includes('✗')).map(l => l.split(':')[0]), at: Date.now() })); } catch (e) {} };
+  do {
+    for (const k of keys) {
+      const t = T[k]; let diff = []; const nameIssues = [];
+      try {
+        window.__lastShot = null;
+        const img = await loadImg(k, t);
+        const H = await readBetclicShots([img], imOcr, () => {});
+        const ph = shotToHand(H), bb = ph.bb, r1 = (v) => Math.round(v * 10) / 10;
+        const seats = ph.seats.map(s => ({ n: s.n, st: s.st / bb, pos: ph.seats.length === 2 ? (s.btn || s.sb ? 'SB' : 'BB') : s.btn ? 'BTN' : s.sb ? 'SB' : 'BB', hero: s.hero, c: s.c ? s.c.map(intToCard).join(' ') : null }));
+        // pseudos mal lus : rapprochés du plus proche (signalé à part)
+        seats.forEach(s => { if (t.seats.some(([nm]) => nrm(nm) === nrm(s.n))) return; let best = null, bd = 99; for (const [nm] of t.seats) { const d = lev(nrm(nm), nrm(s.n)); if (d < bd) { bd = d; best = nm; } } if (best && bd <= Math.max(2, Math.round(nrm(best).length * 0.3))) { nameIssues.push(`${s.n}→${best}`); s.n = best; } });
+        if (nameIssues.length) { window.__res.names[k] = nameIssues; if (!SYN) diff.push('pseudos ' + nameIssues.join(', ')); }
+        for (const [nm, st, pos] of t.seats) { const s = seats.find(x => nrm(x.n) === nrm(nm)); if (!s) diff.push(`pseudo ${nm} absent (lus: ${seats.map(x => x.n).join(', ')})`); else { if (Math.abs(s.st - st) > 0.15) diff.push(`tapis ${nm} ${r1(s.st)}≠${st}`); if (s.pos !== pos) diff.push(`position ${nm} ${s.pos}≠${pos}`); } }
+        const hs = seats.find(x => x.hero); if (!hs || nrm(hs.n) !== nrm(t.hero)) diff.push(`héros ${hs && hs.n}≠${t.hero}`);
+        if (t.bb && bb !== t.bb) diff.push(`BB ${bb}≠${t.bb}`);
+        if (t.buyin && ph.buyin !== t.buyin && !SYN) diff.push(`buy-in ${ph.buyin}≠${t.buyin}`);
+        const acts = ph.acts.filter(a => a.t !== 'S' && a.t !== 'B');
+        const got = acts.map((a, j) => { const v = (a.t === 'R' ? a.to : a.a) / bb, e = (t.acts[j] || '').split(' '), vv = e[3] && Math.abs(+e[3] - v) <= 0.15 ? +e[3] : v; return `${a.st} ${nrm(seats[a.p].n)} ${a.t}${a.t === 'X' || a.t === 'F' ? '' : ' ' + r1(vv)}`; });
+        const exp = t.acts.map(x => { const q = x.split(' '); return `${q[0]} ${nrm(q[1])} ${q[2]}${q[3] ? ' ' + r1(+q[3]) : ''}`; });
+        if (got.join(';') !== exp.join(';')) diff.push(`actions\n      lu:      ${got.join(' ; ')}\n      attendu: ${exp.join(' ; ')}`);
+        const board = ph.board.map(intToCard).join(' '); if (board !== (t.board || '')) diff.push(`board ${board}≠${t.board}`);
+        for (const [nm, c] of Object.entries(t.cards)) { const s = seats.find(x => nrm(x.n) === nrm(nm)); const sc = s && s.c ? s.c.split(' ').sort().join(' ') : null; if (sc !== c.split(' ').sort().join(' ')) diff.push(`cartes ${nm} ${s && s.c}≠${c}`); }
+        const wins = seats.filter((s, i) => ph.won[i] > 0).map(s => nrm(s.n)).sort().join(','); if (wins !== t.win.map(nrm).sort().join(',')) diff.push(`gagnant ${wins}≠${t.win}`);
+        window.__res.raw[k] = { text: H.raw, warn: (H.warn || []).concat(ph.potErr || []) };
+      } catch (e) { diff.push('ERREUR ' + e.message); }
+      if (diff.length && window.__lastShot) window.__res.shot[k] = window.__lastShot;
+      if (!diff.length && window.__res.raw[k] && !window.__res.raw[k].warn.length) window.__res.pass++;
+      window.__res.n++; if (!diff.length) window.__res.ok++;
+      const line = `${k}: ${diff.length ? '✗' : '✓'}${nameIssues.length ? ' (pseudos ' + nameIssues.join(', ') + ')' : ''}${diff.length ? '\n   - ' + diff.join('\n   - ') : ''}`; window.__res.lines.push(line); log(line); save();
+    }
+    window.__res.round++;
+    log(`== tour ${window.__res.round} : ${window.__res.ok}/${window.__res.n}`);
+  } while (Q.has('loop'));
+  window.__res.done = true; save();
+})();
+</script>
+</body></html>
