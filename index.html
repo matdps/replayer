@@ -1161,14 +1161,47 @@ function shExpand(x) {
 const shB64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 const shUnB64 = (s) => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
 async function shPipe(u8, stream) { return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(stream)).arrayBuffer()); }
+// ---------- format binaire v2 (liens ~3× plus courts) : entiers variables, une action ≈ 2 octets ----------
+function shPack(x) {
+  const out = [], u = (v) => { v = Math.max(0, Math.round(v)); while (v > 127) { out.push((v & 127) | 128); v = Math.floor(v / 128); } out.push(v); };
+  const z = (v) => u(v >= 0 ? v * 2 : -v * 2 - 1), str = (t) => { const e = new TextEncoder().encode(t || ''); u(e.length); for (const c of e) out.push(c); };
+  const auto = x.g === `Spin & Rush ${x.bi}€`;
+  out.push(2, (x.s ? 1 : 0) | (x.e ? 2 : 0) | (x.r ? 4 : 0) | (x.f && x.f.length ? 8 : 0) | (auto ? 16 : 0));
+  if (!auto) str(x.g); u(x.m * 10); u(x.bi * 100); u(x.z * 100); u(x.t); u(x.b[0]); u(x.b[1]);
+  u(x.p.length); for (const [seat, n, st, fl, c] of x.p) { u(seat); str(n); u(st); out.push(fl); if (c) out.push(c[0], c[1]); else out.push(255); }
+  u(x.a.length); for (const [st, p, t, v, ai] of x.a) { out.push((st << 6) | (p << 4) | (t << 1) | (ai ? 1 : 0)); if (t !== 2 && t !== 3) u(v); }
+  u((x.d || []).length); for (const c of x.d || []) out.push(c);
+  for (let i = 0; i < x.p.length; i++) u((x.w || [])[i] || 0);
+  if (x.f && x.f.length) { u(x.f.length); for (const [p, place, prize] of x.f) { u(p); u(place); u(prize * 100); } }
+  if (x.e) { out.push(x.e[0], x.e[1]); u(x.e[2]); u(x.e[3]); }
+  if (x.r) { z(x.r[0]); z(x.r[1]); out.push(x.r[2] ? 1 : 0); }
+  return new Uint8Array(out);
+}
+function shUnpack(b) {
+  let i = 0; const u = () => { let v = 0, m = 1, c; do { c = b[i++]; v += (c & 127) * m; m *= 128; } while (c & 128); return v; };
+  const zz = () => { const v = u(); return v & 1 ? -(v + 1) / 2 : v / 2; }, str = () => { const n = u(), t = new TextDecoder().decode(b.subarray(i, i + n)); i += n; return t; };
+  i = 1; const fl = b[i++], x = { v: 1 };
+  const g = fl & 16 ? null : str(); x.m = u() / 10; x.bi = u() / 100; x.z = u() / 100; x.t = u(); x.b = [u(), u()]; x.g = g === null ? `Spin & Rush ${x.bi}€` : g;
+  x.p = []; for (let n = u(), k = 0; k < n; k++) { const seat = u(), nm = str(), st = u(), f = b[i++]; const c0 = b[i++]; const c = c0 === 255 ? 0 : [c0, b[i++]]; x.p.push([seat, nm, st, f, c]); }
+  x.a = []; for (let n = u(), k = 0; k < n; k++) { const h = b[i++], st = h >> 6, p = (h >> 4) & 3, t = (h >> 1) & 7, ai = h & 1; x.a.push([st, p, t, t !== 2 && t !== 3 ? u() : 0, ai]); }
+  x.d = []; for (let n = u(), k = 0; k < n; k++) x.d.push(b[i++]);
+  x.w = x.p.map(() => u()); x.s = fl & 1;
+  x.f = []; if (fl & 8) for (let n = u(), k = 0; k < n; k++) x.f.push([u(), u(), u() / 100]);
+  if (fl & 2) x.e = [b[i++], b[i++], u(), u()];
+  if (fl & 4) x.r = [zz(), zz(), b[i++]];
+  return x;
+}
 async function encodeShare(ph, d, o) {
-  const json = new TextEncoder().encode(JSON.stringify(shCompact(ph, d, o)));
+  const x = shCompact(ph, d, o);
+  try { const bin = shPack(x); if (JSON.stringify(shUnpack(bin).a) === JSON.stringify(x.a.map(a => [a[0], a[1], a[2], a[2] === 2 || a[2] === 3 ? 0 : Math.round(a[3]), a[4]]))) return '2' + shB64(bin); } catch (e) { /* format compact impossible : ancien format */ }
+  const json = new TextEncoder().encode(JSON.stringify(x));
   if (typeof CompressionStream !== 'undefined') return '1' + shB64(await shPipe(json, new CompressionStream('deflate-raw')));
   return '0' + shB64(json);
 }
 async function decodeShare(code) {
   code = decodeURIComponent(code.trim()).replace(/^.*#/, '').replace(/^h=/, '');
   const raw = shUnB64(code.slice(1));
+  if (code[0] === '2') return shExpand(shUnpack(raw));
   const json = code[0] === '1' ? await shPipe(raw, new DecompressionStream('deflate-raw')) : raw;
   return shExpand(JSON.parse(new TextDecoder().decode(json)));
 }
@@ -2236,7 +2269,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 18.2</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 18.3</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -2285,7 +2318,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 18.2</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 18.3</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et vérifié : positions, ordre de parole, montants, pots de chaque rue, pot final et résultat correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
