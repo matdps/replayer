@@ -1718,7 +1718,7 @@ function shotBuild(pages, cardsMeta) {
     && (stackRe.test(L.segs[0].t) || (L.segs.length > 1 && /D[eé]a?l[eo]r|\bS[B8]\b|\b[B8]{2}\b\s*\(/.test(L.segs[L.segs.length - 1].t))));
   for (const L of seatLines) {
     // pseudo (tapis BB) ; si le tapis est illisible, on garde le joueur quand même (tapis déduit plus tard)
-    const m = /^(.*?)\s*\(\s*(\d+(?:[.,]\d+)?)\s*[B8]/.exec(L.segs[0].t) || /^(.*?)\s*\(?\s*(\d+(?:[.,]\d+)?)?\s*[B8]{0,2}\s*\)?\s*$/.exec(L.segs[0].t.replace(/[^\w.\-À-ſ (),]+/g, ' ').trim()); if (!m || (!m[1] && !m[2])) continue; // pseudo illisible : retrouvé plus tard dans les lignes d'action
+    const m = /^(.*?)\s*\(\s*(\d+(?:[.,]\d+)?)\s*[B8E]/.exec(L.segs[0].t) || /^(.*?)\s*\(?\s*(\d+(?:[.,]\d+)?)?\s*[B8E]{0,2}\s*\)?\s*$/.exec(L.segs[0].t.replace(/[^\w.\-À-ſ (),]+/g, ' ').trim()); if (!m || (!m[1] && !m[2])) continue; // pseudo illisible : retrouvé plus tard dans les lignes d'action
     if (!m[2] && !(L.nameAlts || []).some(x => /\(\s*\d/.test(x))) warn.push(`Tapis de ${m[1].trim()} illisible : vérifie-le.`);
     const right = L.segs.length > 1 ? L.segs[L.segs.length - 1].t : '';
     const rights = [...(L.rightAlts || []).slice().reverse(), right];
@@ -1727,7 +1727,7 @@ function shotBuild(pages, cardsMeta) {
     const pos = shotVote(rights.map(r => /\bS[B8]\b/.test(r) ? 'SB' : /\b[B8][B8]\b/.test(r.replace(/\(.*$/, '')) ? 'BB' : null)) || (hasD ? 'BTN' : null);
     const blind = shotVote(rights.map(r => { const q = /\(\s*(\d+(?:[.,]\d+)?)\s*\)/.exec(r); return q ? shotNum(q[1]) : null; }));
     if (pos === 'SB' && blind) H.sb = blind; if (pos === 'BB' && blind) H.bb = blind;
-    const alts = (L.nameAlts || []).map(a => (/^(.*?)\s*\(/.exec(a) || [0, a])[1].trim()).filter(Boolean);
+    const alts = (L.nameAlts || []).map(a => (/^(.*?)\s*\(/.exec(a) || [0, a])[1].replace(/\s*\(?\s*\d+(?:[.,\s]\d+)?\s*[B8E]{1,2}\)?\s*$/i, '').trim()).filter(Boolean);
     H.seats.push({ n: m[1].replace(/[^\w.\-À-ſ ]+/g, '').trim(), bbStack: stackV !== null ? stackV : m[2] ? parseFloat(m[2].replace(',', '.')) : null, pos, dealer: hasD, blind, bg: L.bg, alias: [m[1].trim()].concat(alts, alts, alts), nSeat: 1 + alts.length * 3, stackC: [...new Set(stackL.filter(x => x !== null))] });
   }
   // heads-up : le Dealer est la SB ; les montants des blindes départagent en cas de doute
@@ -1857,6 +1857,9 @@ function shotBuild(pages, cardsMeta) {
   // cartes du héros à l'abattage (plus grandes, donc plus sûres) : complètent ou corrigent la petite icône du haut
   { const hk = H.seats.findIndex(x => x.hero), part = H.sdPart && H.sdPart[hk], top = hc && hc.length >= 2 ? hc.slice(-2) : null;
     if (hk >= 0 && !H.sdCards[hk] && part && part.some(c => c.rank)) { const cs = part.map((c, j) => { const t = top && (top.find(x => x.suit === c.suit && x !== top[1 - j]) || top[j]); const r = c.rank || (t && t.rank); return r ? shotCard(r, c.suit) : null; }); if (cs.every(x => x !== null) && cs[0] !== cs[1]) { H.sdCards[hk] = cs; H.heroCards = cs; } }
+    // carte de l'abattage lue par l'OCR de secours : la petite carte du haut, lue sûrement, a la même couleur → on prend sa hauteur
+    if (hk >= 0 && H.sdCards[hk] && top && (H.sdSrc || {})[hk]) (H.sdSrc[hk]).forEach((o, j) => { if (o.how === 'tpl') return; const t = top.find(x => x.how === 'tpl' && x.rank && x.suit === o.suit); if (t && t.rank !== o.rank) { const nc = shotCard(t.rank, t.suit); if (!H.sdCards[hk].includes(nc)) H.sdCards[hk][j] = nc; } });
+    if (hk >= 0 && H.sdCards[hk] && top && top.every(c => c.rank) && top.map(c => shotCard(c.rank, c.suit)).some(c => !H.sdCards[hk].includes(c))) H.heroMismatch = true;
     if (hk >= 0 && H.sdCards[hk]) H.heroCards = H.sdCards[hk]; }
   // paires de cartes trouvées sous l'abattage sans nom : celle qui ressemble le plus aux cartes du héros est à lui, les autres aux adversaires encore en jeu
   {
@@ -1936,6 +1939,7 @@ function shotBuild(pages, cardsMeta) {
   { const fd = new Set(H.streets.flat().filter(a => a.t === 'F').map(a => a.p)); const liveK = H.seats.map((x, k) => k).filter(k => !fd.has(k));
     if (liveK.length > 1) for (const k of liveK) if (!H.seats[k].hero && !H.sdCards[k]) warn.push(`Cartes de ${H.seats[k].n} non lues à l’abattage : choisis-les ci-dessous.`);
     const hk = H.seats.findIndex(x => x.hero); if (hk >= 0 && !H.sdCards[hk] && !H.heroCards) warn.push(`Tes cartes (${H.seats[hk].n}) non lues : choisis-les ci-dessous.`); }
+  { const hk = H.seats.findIndex(x => x.hero); if (H.heroMismatch && hk >= 0) warn.push(`Tes cartes (${H.seats[hk].n}) lues différemment en haut de l’image et à l’abattage : vérifie-les.`); }
   { const hk = H.seats.findIndex(x => x.hero); if (H.heroTopDoubt && hk >= 0 && !H.sdCards[hk] && H.heroCards) warn.push(`Tes cartes (${H.seats[hk].n}) mal lisibles en haut de l’image : vérifie-les.`); }
   H.warn = warn;
   H.seats.forEach((x, k) => { if (!x.n) x.n = 'Joueur ' + (k + 1); });
@@ -2232,7 +2236,7 @@ function vwImport(msg) {
       <b>Glisse ton screenshot ici</b><span>ou clique pour le choisir · ou colle-le (Ctrl + V)</span><span class="mini">Main trop longue pour un écran ? Mets plusieurs captures, dans l’ordre.</span></label>
     <div class="imstat" id="im_stat"></div>
     <details class="imhelp"><summary>Tu as déjà un lien ?</summary><div class="vwrow"><input id="vw_paste" class="inp" placeholder="https://…#1…"><button class="bigbtn xs" id="vw_go">Voir la main</button></div></details>
-    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 18</p>
+    <p class="mini">L’image est lue dans ton navigateur et n’est envoyée nulle part. Le lien de la main contient la main elle-même. · version 18.1</p>
   </div>`;
   $('#vw_go').onclick = () => { const v = $('#vw_paste').value; const c = v.replace(/^.*#/, ''); if (c) location.hash = c; };
   const go = (files) => { files = [...files].filter(f => /^image\//.test(f.type)); if (files.length) imRun(files); };
@@ -2281,7 +2285,7 @@ function imEdit(H) {
   const POS = M.seats.length === 2 ? ['SB', 'BB'] : ['BTN', 'SB', 'BB'];
   const ACT = [['F', 'Fold'], ['X', 'Check'], ['C', 'Call'], ['K', 'Bet'], ['R', 'Raise (à)'], ['AI', 'All-in']];
   const draw = () => {
-    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 18</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
+    $('#vw').innerHTML = `<div class="rp vwrp imed"><div class="rphd"><div><div class="rpt">Vérifie la main</div><div class="mini">Corrige ce qui a été mal lu, puis lance le replayer. Un pseudo corrigé une fois est retenu pour tes prochaines mains. · version 18.1</div></div><div class="sp"></div><button class="ghost xs2" id="im_back">← Autre screenshot</button></div>
       ${warn.length ? `<div class="imwarn">${warn.map(esc).join('<br>')}</div>` : '<div class="imok">✓ Tout a été lu et vérifié : positions, ordre de parole, montants, pots de chaque rue, pot final et résultat correspondent.</div>'}
       <div class="imgrid">
         <label>SB <input class="inp" id="im_sb" type="number" value="${M.sb}"></label><label>BB <input class="inp" id="im_bb" type="number" value="${M.bb}"></label><label>Buy-in (€) <input class="inp" id="im_bi" type="number" value="${M.buyin}"></label>
