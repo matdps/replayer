@@ -72,7 +72,8 @@ h3 { text-wrap: balance; }
 .wrap[data-mode="resultats"] #st_lvl, .wrap[data-mode="resultats"] #games_row,
 .wrap[data-mode="rooms"] #st_room, .wrap[data-mode="rooms"] #st_vol, .wrap[data-mode="rooms"] #st_rb, .wrap[data-mode="rooms"] #b_wrap,
 .wrap[data-mode="bankroll"] #games_row, .wrap[data-mode="bankroll"] #b_wrap,
-.wrap:not([data-mode="sim"]) .gobox { display: none; }
+.wrap:not([data-mode="sim"]) .gobox, .wrap[data-mode="rooms"] .side { display: none; }
+.wrap[data-mode="rooms"] .grid { grid-template-columns: minmax(0, 1fr); }
 
 /* étapes */
 .step { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px 16px; display: grid; gap: 12px; }
@@ -387,7 +388,7 @@ table.t th:first-child, table.t td:first-child { text-align: left; font-family: 
         <section class="card">
           <div class="hd"><h3>Quelle room te rapporte le plus ?</h3>
             <div class="chips sm" id="lvls" role="group" aria-label="Niveau de buy-in"></div></div>
-          <div class="hint">Même CEV sur les 4 sites. Dans chaque carte, mets ton vrai rakeback, ton nombre de tables et ta vitesse sur ce site : c’est souvent ça qui fait la différence.</div>
+          <div class="hint">Dans chaque carte, mets ton CEV sur ce site (plus de joueurs faibles = CEV plus haut), ton rakeback, ton nombre de tables et ta vitesse.</div>
         </section>
         <div class="rooms" id="rooms"></div>
         <section class="card">
@@ -475,7 +476,7 @@ const num = (id) => { const x = parseFloat(String($(id).value).replace(',', '.')
 const fmtBi = (b) => nf(b, b < 1 ? 2 : 0) + ' €';
 const erf = (x) => { const t = 1 / (1 + 0.3275911 * Math.abs(x)), y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; };
 const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
-const S = { site: 'betclic', bi: 10, tiers: [], edited: false, unit: 'eur', places: null, res: null, resB: null, charts: {}, tab: 'win', bands: new Set([90, 75]), view: 'sim', rbs: {}, tbs: {}, spts: {}, risk: 5, pool: false, bkBusy: false, lvl: null, ran: false };
+const S = { site: 'betclic', bi: 10, tiers: [], edited: false, unit: 'eur', places: null, res: null, resB: null, charts: {}, tab: 'win', bands: new Set([90, 75]), view: 'sim', rbs: {}, tbs: {}, spts: {}, cevs: {}, risk: 5, pool: false, bkBusy: false, lvl: null, ran: false };
 const U = () => S.unit === 'eur';
 
 // =================== room ===================
@@ -547,7 +548,7 @@ function refresh() {
   $('#rb_hint').innerHTML = `Rake payé : ${nf(M.rakePct * S.bi / 100, 2)} € par spin → rakeback ${nf(M.rbPer * S.bi, 3)} € par spin.`;
   $('#res_rb_l').textContent = `Mes résultats incluent le rakeback (${nf(num('#rb'))} % du rake, soit ${nf(M.rbPer * S.bi, 3)} € par spin)`;
   $('#ctx_res').innerHTML = `Réglages utilisés : <b>${X.name} ${fmtBi(S.bi)}</b> · rakeback <b>${nf(num('#rb'))} %</b> · <b>${nf(M.sph)}</b> spins/h. Change-les dans les réglages.`;
-  $('#ctx_rooms').innerHTML = `Ton CEV : <b>${nf(num('#cev'), 1)}</b> (dans les réglages). Rakeback, nombre de tables et vitesse se règlent dans chaque carte, site par site.`;
+  $('#ctx_rooms').innerHTML = `Chaque site a ses propres réglages, dans sa carte : ton CEV (le niveau des joueurs n’est pas le même partout), ton rakeback, ton nombre de tables et ta vitesse.`;
   $('#ctx_bk').innerHTML = `Réglages utilisés : <b>${X.name} ${fmtBi(S.bi)}</b> (ta limite actuelle), CEV <b>${nf(num('#cev'), 1)}</b> · rakeback <b>${nf(num('#rb'))} %</b> · <b>${nf(M.sph)}</b> spins/h. Change-les dans les réglages.`;
   bkHints();
   if (S.view === 'rooms') updateRooms();
@@ -828,6 +829,7 @@ function buildRooms() {
     <h4>${SITES[k].name}<small id="rm_bi_${k}"></small></h4><div class="hint" style="margin-top:-6px">${SITES[k].game}</div><span class="badge" hidden>Le meilleur pour toi</span>
     <div><div class="v" id="rm_h_${k}"></div><div class="hint" id="rm_hh_${k}">par heure, rakeback compris</div></div>
     <div class="rset">
+      <label class="rbf"><b>Ton CEV ici</b> <input class="inp" type="number" step="1" data-rs="cevs" data-k="${k}" value="${S.cevs[k] ?? num('#cev')}"></label>
       <label class="rbf">Rakeback (% du rake) <input class="inp" type="number" min="0" max="100" step="1" data-rs="rbs" data-k="${k}" value="${S.rbs[k] ?? num('#rb')}"></label>
       <label class="rbf">Tables en même temps <input class="inp" type="number" min="1" max="24" step="1" data-rs="tbs" data-k="${k}" value="${S.tbs[k] ?? num('#tables')}"></label>
       <label class="rbf">Spins / h par table <input class="inp" type="number" min="1" step="0.5" data-rs="spts" data-k="${k}" value="${S.spts[k] ?? num('#spt')}"></label>
@@ -836,13 +838,13 @@ function buildRooms() {
     <div class="kv" id="rm_kv_${k}"></div>
     <div><div class="mlab" style="margin-bottom:4px"><span>Variance</span><span id="rm_vt_${k}"></span></div><div class="vbar"><i id="rm_vb_${k}"></i></div></div>
     <div class="warnline" id="rm_w_${k}"></div></article>`).join('');
-  $$('[data-rs]').forEach(el => el.oninput = () => { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v > 0 || (el.dataset.rs === 'rbs' && v === 0)) { S[el.dataset.rs][el.dataset.k] = v; updateRooms(); save(); } });
+  $$('[data-rs]').forEach(el => el.oninput = () => { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && (v > 0 || el.dataset.rs === 'cevs' || (el.dataset.rs === 'rbs' && v === 0))) { S[el.dataset.rs][el.dataset.k] = v; updateRooms(); save(); } });
   updateRooms();
 }
 function updateRooms() {
   if (!$('#room_betclic')) return;
-  const cev = num('#cev'), out = {};
-  for (const k of REAL) { const bi = nearOf(SITES[k].buyins, S.lvl), rb = S.rbs[k] ?? num('#rb'), sph = Math.max(1, S.tbs[k] ?? num('#tables')) * Math.max(0.5, S.spts[k] ?? num('#spt')); out[k] = { bi, rb, sph, m: model(cev, { site: k, bi, rb, sph, bonus: false, pr: placesFor(cev) }) }; }
+  const out = {};
+  for (const k of REAL) { const cev = S.cevs[k] ?? num('#cev'); const bi = nearOf(SITES[k].buyins, S.lvl), rb = S.rbs[k] ?? num('#rb'), sph = Math.max(1, S.tbs[k] ?? num('#tables')) * Math.max(0.5, S.spts[k] ?? num('#spt')); out[k] = { bi, rb, sph, cev, m: model(cev, { site: k, bi, rb, sph, bonus: false, pr: placesFor(cev) }) }; }
   const prac = (k) => (out[k].m.evNet - out[k].m.evRare) * out[k].bi * out[k].sph, best = REAL.reduce((a, k) => prac(k) > prac(a) ? k : a), maxSd = Math.max(...REAL.map(k => out[k].m.sdP));
   for (const k of REAL) {
     const { bi, m, rb } = out[k], ph = m.evNet * m.sph * bi, mu = m.evNet - m.evRare, n95 = mu > 0 ? Math.pow(1.645 * m.sdP / mu, 2) : null, br = mu > 0 ? -Math.log(0.05) * m.sdP * m.sdP / (2 * mu) : null, be = breakeven({ site: k, bi, rb, bonus: false });
@@ -1012,8 +1014,8 @@ function share() {
   try { navigator.clipboard.writeText(url).then(ok, ko); } catch (e) { ko(); }
 }
 const KEYS = ['cev', 'stack', 'players', 'cevb', 'games', 'tables', 'spt', 'rb', 'rbn', 'bon', 'bonn', 'obj', 'objh', 'l_n', 'l_c', 'l_r', 'l_m', 'r_n', 'r_c', 'r_r', 'r_m', 'bk_br', 'bk_drop'];
-function save() { try { localStorage.setItem('spinscope-sim4', JSON.stringify({ site: S.site, bi: S.bi, rbs: S.rbs, tbs: S.tbs, spts: S.spts, unit: S.unit, ...Object.fromEntries(KEYS.map(k => [k, $('#' + k).value])) })); } catch (e) { /* stockage indisponible */ } }
-function restore() { try { const o = JSON.parse(localStorage.getItem('spinscope-sim4') || 'null'); if (!o) return null; for (const k of KEYS) if (o[k] !== undefined && o[k] !== '') $('#' + k).value = o[k]; if (o.rbs) S.rbs = o.rbs; if (o.tbs) S.tbs = o.tbs; if (o.spts) S.spts = o.spts; return o; } catch (e) { return null; } }
+function save() { try { localStorage.setItem('spinscope-sim4', JSON.stringify({ site: S.site, bi: S.bi, rbs: S.rbs, tbs: S.tbs, spts: S.spts, cevs: S.cevs, unit: S.unit, ...Object.fromEntries(KEYS.map(k => [k, $('#' + k).value])) })); } catch (e) { /* stockage indisponible */ } }
+function restore() { try { const o = JSON.parse(localStorage.getItem('spinscope-sim4') || 'null'); if (!o) return null; for (const k of KEYS) if (o[k] !== undefined && o[k] !== '') $('#' + k).value = o[k]; if (o.rbs) S.rbs = o.rbs; if (o.tbs) S.tbs = o.tbs; if (o.spts) S.spts = o.spts; if (o.cevs) S.cevs = o.cevs; return o; } catch (e) { return null; } }
 function renderAll() { $$('.u_lbl').forEach(e => e.textContent = U() ? '(€)' : '(buy-ins)'); if (S.view === 'sim') render(); if (S.view === 'bankroll') renderBk(); if (S.view === 'rooms') updateRooms(); }
 function bind() {
   $('#t_add').onclick = () => { S.tiers.push({ m: 2, p: 0, s: [100, 0, 0] }); S.edited = true; drawTiers(); refresh(); };
