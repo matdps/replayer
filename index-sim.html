@@ -1,0 +1,560 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body><title>SpinScope Sim</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Simulateur de variance pour les Spin Betclic, Winamax, Unibet et PMU : gains attendus, taux horaire, courbes de variance, downswings et bankroll.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout : 4 étapes numérotées à gauche (ta room, ton niveau, ton volume, rakeback), résultats à droite ; une colonne sur téléphone. */
+:root {
+  --bg: #f2f0eb; --panel: #ffffff; --panel2: #f7f5f0; --line: #e3ded3; --line2: #cfc8ba;
+  --text: #1c1a15; --muted: #69645a; --dim: #9a9485;
+  --accent: #c7781a; --accent-ink: #ffffff; --accent-soft: rgba(199,120,26,.12);
+  --good: #16803c; --bad: #c4352b; --blue: #2f6fd6;
+  --b95: rgba(199,120,26,.09); --b90: rgba(199,120,26,.13); --b75: rgba(199,120,26,.20); --b50: rgba(199,120,26,.30); --path: rgba(28,26,21,.14);
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1013; --panel: #161a1f; --panel2: #1c2027; --line: #262b34; --line2: #343b46;
+  --text: #eceae4; --muted: #9da2ac; --dim: #6b717c;
+  --accent: #f0a63a; --accent-ink: #1a1307; --accent-soft: rgba(240,166,58,.14);
+  --good: #3ccf73; --bad: #ff6a5c; --blue: #6aa2ff;
+  --b95: rgba(240,166,58,.07); --b90: rgba(240,166,58,.11); --b75: rgba(240,166,58,.17); --b50: rgba(240,166,58,.26); --path: rgba(236,234,228,.12);
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e1013; --panel: #161a1f; --panel2: #1c2027; --line: #262b34; --line2: #343b46;
+  --text: #eceae4; --muted: #9da2ac; --dim: #6b717c;
+  --accent: #f0a63a; --accent-ink: #1a1307; --accent-soft: rgba(240,166,58,.14);
+  --good: #3ccf73; --bad: #ff6a5c; --blue: #6aa2ff;
+  --b95: rgba(240,166,58,.07); --b90: rgba(240,166,58,.11); --b75: rgba(240,166,58,.17); --b50: rgba(240,166,58,.26); --path: rgba(236,234,228,.12);
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--f-body); }
+.wrap { max-width: 1360px; margin: 0 auto; padding-block: 22px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+td, .kv b, .num { font-variant-numeric: tabular-nums; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { width: 44px; height: 44px; flex: none; }
+.brand h1 { margin: 0; font: 800 31px/1 var(--f-display); letter-spacing: .3px; }
+.brand h1 span { color: var(--accent); }
+.brand p { margin: 3px 0 0; color: var(--muted); font-size: 13.5px; }
+.pill2 { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); }
+.pill2 button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 13px; color: var(--muted); cursor: pointer; }
+.pill2 button.on { background: var(--text); color: var(--bg); }
+
+.grid { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 1020px) { .grid { grid-template-columns: 1fr; } .gobox { position: static; border-top: 0; } }
+@media (max-width: 480px) { .step > h2 .sub { display: none; } }
+.side { display: grid; gap: 12px; }
+
+/* étapes */
+.step { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px 16px; display: grid; gap: 12px; }
+.step > h2 { margin: 0; display: flex; align-items: center; gap: 10px; font: 700 18px/1.1 var(--f-display); letter-spacing: .2px; }
+.step > h2 .n { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 700 13px var(--f-body); flex: none; }
+.step > h2 .sub { margin-left: auto; font: 500 12px var(--f-body); color: var(--dim); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1px solid var(--line2); background: var(--panel2); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.chips button:hover { color: var(--text); }
+.chips button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chips.sm button { padding: 4px 10px; font-size: 12.5px; }
+.site { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 6px; }
+.site button { border: 1px solid var(--line2); background: var(--panel2); border-radius: 10px; padding: 9px 4px; font: 700 14.5px var(--f-display); letter-spacing: .2px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.site button.on { border-color: var(--accent); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.lbl { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .3px; }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--muted); }
+.facts b { color: var(--text); font-family: var(--f-num); font-weight: 600; }
+.field { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; }
+.field label { color: var(--muted); font-size: 13px; }
+.inp { width: 116px; background: var(--panel2); border: 1px solid var(--line2); border-radius: 9px; padding: 7px 10px; text-align: right; min-width: 0; }
+.inp.big { width: 100%; font: 700 26px var(--f-display); padding: 6px 12px; text-align: center; }
+.inp:focus { border-color: var(--accent); outline: none; }
+.stepper { display: inline-flex; align-items: center; gap: 4px; }
+.stepper button { width: 32px; height: 34px; border: 1px solid var(--line2); background: var(--panel2); border-radius: 9px; cursor: pointer; font-size: 16px; }
+.stepper .inp { width: 64px; text-align: center; }
+.trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.trio > div { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px; display: grid; gap: 2px; }
+.trio span { font-size: 11.5px; color: var(--muted); }
+.trio .inp { width: 100%; padding: 4px 6px; }
+.range { width: 100%; accent-color: var(--accent); }
+.hint { color: var(--dim); font-size: 12px; line-height: 1.5; }
+.hint b { color: var(--muted); }
+.lnk { border: 0; background: none; color: var(--accent); font-weight: 600; cursor: pointer; padding: 0; font-size: 12.5px; text-align: left; }
+details.adv summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 12.5px; list-style: none; }
+details.adv summary::-webkit-details-marker { display: none; }
+details.adv summary::before { content: "▸ "; } details.adv[open] summary::before { content: "▾ "; }
+.tw { overflow-x: auto; }
+.tiers { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; margin-top: 8px; }
+.tiers col.c-m { width: 21%; } .tiers col.c-p { width: 28%; } .tiers col.c-s { width: 15%; } .tiers col.c-x { width: 6%; }
+.tiers th { color: var(--dim); font-weight: 600; font-size: 11px; text-align: right; padding: 0 3px 4px; }
+.tiers th:first-child { text-align: left; }
+.tiers td { padding: 2px 3px; }
+.tiers .inp { width: 100%; padding: 4px; font-size: 12px; border-radius: 6px; -moz-appearance: textfield; appearance: textfield; }
+.tiers .inp::-webkit-inner-spin-button, .tiers .inp::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.tiers .x { border: 0; background: none; color: var(--dim); cursor: pointer; padding: 2px 4px; font-size: 14px; }
+.chk { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.chk input { accent-color: var(--accent); width: 16px; height: 16px; }
+.gobox { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); padding-top: 10px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; }
+.btn { border: 0; border-radius: 12px; padding: 13px 14px; background: var(--accent); color: var(--accent-ink); font: 700 16px var(--f-body); cursor: pointer; }
+.btn:disabled { opacity: .6; cursor: progress; }
+.bar { height: 4px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+
+/* résultats */
+.main { display: grid; gap: 14px; min-width: 0; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 780px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 13px 15px; min-width: 0; }
+.kpi .l { font-size: 11.5px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+.kpi .v { font: 700 30px/1.1 var(--f-display); margin-top: 5px; letter-spacing: .2px; overflow-wrap: anywhere; }
+.kpi .s { font-size: 12px; color: var(--dim); margin-top: 3px; }
+.kpi .s b { color: var(--muted); font-weight: 600; }
+.kpi.hl { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.pos { color: var(--good); } .neg { color: var(--bad); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 15px 17px; min-width: 0; }
+.card h3 { margin: 0; font: 700 20px/1.2 var(--f-display); letter-spacing: .2px; }
+.hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.chart { width: 100%; height: 400px; }
+.chart.sm { height: 300px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 18px; height: 8px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+.tabs button { border: 0; background: none; padding: 8px 11px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 13.5px; }
+.tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
+.split { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 880px) { .split { grid-template-columns: 1fr; } }
+table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.t th { text-align: right; color: var(--dim); font-weight: 600; font-size: 11.5px; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.t td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; font-family: var(--f-num); font-size: 12.5px; }
+table.t th:first-child, table.t td:first-child { text-align: left; font-family: var(--f-body); }
+.kv { display: grid; }
+.kv div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.kv div:last-child { border-bottom: 0; }
+.kv span { color: var(--muted); }
+.kv b { font-family: var(--f-num); font-weight: 600; text-align: right; }
+.kv small { color: var(--dim); font-family: var(--f-body); font-weight: 500; }
+.goal { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 12px; }
+.goal output { font: 700 22px var(--f-display); color: var(--text); }
+.cmp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 680px) { .cmp { grid-template-columns: 1fr; } }
+.tag { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-right: 4px; }
+.tag.b { background: rgba(47,111,214,.14); color: var(--blue); }
+.foot { color: var(--dim); font-size: 12px; margin-top: 18px; max-width: 95ch; line-height: 1.6; }
+.foot a { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="var(--panel)" stroke="var(--line2)" stroke-width="1.5"/><g fill="var(--accent)"><path d="M22 22 L22 4 A18 18 0 0 1 37.6 13 Z"/><path d="M22 22 L37.6 31 A18 18 0 0 1 22 40 Z" opacity=".55"/><path d="M22 22 L6.4 31 A18 18 0 0 1 6.4 13 Z" opacity=".3"/></g><circle cx="22" cy="22" r="4.8" fill="var(--text)"/></svg>
+      <div><h1>SpinScope <span>Sim</span></h1><p>Ce que ton niveau peut donner sur des milliers de Spin : gains, taux horaire et variance.</p></div>
+    </div>
+    <div class="pill2" role="group" aria-label="Unité des résultats"><button id="u_eur" class="on">Gains en €</button><button id="u_bi">En buy-ins</button></div>
+  </header>
+
+  <div class="grid">
+    <aside class="side" aria-label="Réglages">
+      <section class="step">
+        <h2><span class="n">1</span>Ta room<span class="sub" id="room_sub"></span></h2>
+        <div class="site" id="sites" role="group" aria-label="Site"></div>
+        <div><div class="lbl" style="margin-bottom:6px">Buy-in</div><div class="chips sm" id="buyins" role="group" aria-label="Buy-in"></div></div>
+        <div class="facts" id="facts"></div>
+        <details class="adv" id="adv"><summary>Voir ou modifier la table des gains</summary>
+          <div class="tw"><table class="tiers" id="tiers"><colgroup><col class="c-m"><col class="c-p"><col class="c-s"><col class="c-s"><col class="c-s"><col class="c-x"></colgroup><thead><tr><th>Multi.</th><th title="Chances sur 1 000 000 parties">Sur 1 M</th><th>1er %</th><th>2e %</th><th>3e %</th><th></th></tr></thead><tbody></tbody></table></div>
+          <div class="facts" style="margin-top:6px"><span id="t_sum"></span><button class="lnk" id="t_add">+ ligne</button></div>
+          <div class="hint" id="t_src" style="margin-top:4px"></div>
+        </details>
+      </section>
+
+      <section class="step">
+        <h2><span class="n">2</span>Ton niveau<span class="sub">CEV = jetons gagnés par spin</span></h2>
+        <div class="field"><label for="cev">Ton CEV</label><span></span></div>
+        <input id="cev" class="inp big" type="number" step="1" value="35" aria-label="CEV">
+        <input id="cev_r" class="range" type="range" min="-60" max="150" step="1" value="35" aria-label="CEV (curseur)">
+        <div class="field"><label for="stack">Tapis de départ (jetons)</label><input id="stack" class="inp" type="number" min="1" step="10" value="500"></div>
+        <div class="field"><label for="players">Joueurs à la table</label><input id="players" class="inp" type="number" min="2" max="9" step="1" value="3"></div>
+        <div class="trio" aria-label="Places obtenues">
+          <div><span>1re place</span><input id="p1" class="inp" type="number" step="0.1"></div>
+          <div><span>2e place</span><input id="p2" class="inp" type="number" step="0.1"></div>
+          <div><span>3e place</span><input id="p3" class="inp" type="number" step="0.1" disabled></div>
+        </div>
+        <div class="hint" id="lv_hint"></div>
+        <label class="chk"><input type="checkbox" id="b_on"> Comparer avec un autre CEV</label>
+        <div class="field" id="b_row" hidden><label for="cevb">CEV du scénario B</label><input id="cevb" class="inp" type="number" step="1" value="45"></div>
+      </section>
+
+      <section class="step">
+        <h2><span class="n">3</span>Ton volume</h2>
+        <div><div class="field"><label for="games">Spins joués (par simulation)</label><input id="games" class="inp" type="number" min="100" max="200000" step="500" value="10000"></div>
+          <div class="chips sm" id="games_q" style="margin-top:6px"></div></div>
+        <div class="field"><label for="tables">Tables en même temps</label><span class="stepper"><button type="button" data-tb="-1" aria-label="Une table de moins">−</button><input id="tables" class="inp" type="number" min="1" max="24" step="1" value="8"><button type="button" data-tb="1" aria-label="Une table de plus">+</button></span></div>
+        <div class="field"><label for="spt">Spins par heure, par table</label><input id="spt" class="inp" type="number" min="1" step="0.5" value="12"></div>
+        <div class="hint" id="vol_hint"></div>
+      </section>
+
+      <section class="step">
+        <h2><span class="n">4</span>Rakeback et bonus</h2>
+        <div class="field"><label for="rb">Rakeback (% du rake)</label><input id="rb" class="inp" type="number" min="0" max="100" step="1" value="20"></div>
+        <div class="field"><label for="rbn">Rakeback versé tous les (spins)</label><input id="rbn" class="inp" type="number" min="1" step="1" value="1"></div>
+        <div class="field"><label for="bon">Montant d’un bonus (€)</label><input id="bon" class="inp" type="number" min="0" step="1" value="0"></div>
+        <div class="field"><label for="bonn">Bonus reçu tous les (spins)</label><input id="bonn" class="inp" type="number" min="1" step="100" value="1000"></div>
+        <div class="hint" id="rb_hint"></div>
+      </section>
+
+      <div class="gobox">
+        <div class="field"><label for="sims">Précision</label><select id="sims" class="inp" style="width:auto;text-align:left"><option value="1000">Rapide · 1 000 simulations</option><option value="3000" selected>Normale · 3 000 simulations</option><option value="10000">Précise · 10 000 simulations</option></select></div>
+        <button class="btn" id="run">Simuler</button><div class="bar" aria-hidden="true"><i id="prog"></i></div><div class="hint" id="status">Exemple pré-rempli : Betclic 10 €, CEV 35, 8 tables, 20 % de rakeback.</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="kpis" id="kpis"></div>
+      <section class="card">
+        <div class="hd"><h3 id="fan_t">Ta courbe attendue et sa variance</h3>
+          <div class="chips sm" id="bands" role="group" aria-label="Intervalles affichés"><button data-b="95">95 %</button><button data-b="90" class="on">90 %</button><button data-b="75" class="on">75 %</button><button data-b="50">50 %</button></div></div>
+        <div class="hint" id="fan_h">Chaque bande montre où ta courbe a des chances de se trouver : 90 % = 9 joueurs sur 10 avec ton niveau finissent dedans.</div>
+        <div class="chart" id="c_fan" role="img" aria-label="Courbe attendue et intervalles de variance"></div>
+        <div class="legend" id="fan_lg"></div>
+        <label class="chk" style="margin-top:6px"><input type="checkbox" id="paths"> Montrer 25 parcours réels au hasard</label>
+      </section>
+      <section class="card">
+        <div class="tabs" role="tablist">
+          <button role="tab" data-tab="win" class="on">Chance d’être gagnant</button>
+          <button role="tab" data-tab="cev">Selon ton CEV</button>
+          <button role="tab" data-tab="ruin">Bankroll</button>
+          <button role="tab" data-tab="dd">Downswings</button>
+          <button role="tab" data-tab="fin">Résultat final</button>
+          <button role="tab" data-tab="jp">Jackpots</button>
+          <button role="tab" data-tab="tab">Tableau</button>
+        </div>
+        <div data-pane="win" class="split"><div class="chart sm" id="c_win" role="img" aria-label="Chance d'être gagnant selon le nombre de spins"></div><div><div class="hint" style="margin-bottom:6px">La part des simulations en positif après chaque nombre de spins. Au début, la variance domine ; avec le volume, ton niveau ressort.</div><div class="kv" id="win_kv"></div></div></div>
+        <div data-pane="cev" class="split" hidden><div class="chart sm" id="c_cev" role="img" aria-label="ROI et taux horaire selon le CEV"></div><div><div class="hint" style="margin-bottom:6px">Ce que rapporte chaque point de CEV avec ta room, ton buy-in, ton volume et ton rakeback (calcul exact, sans simulation).</div><div class="kv" id="cev_kv"></div></div></div>
+        <div data-pane="ruin" class="split" hidden><div class="chart sm" id="c_ruin" role="img" aria-label="Risque de ruine selon la bankroll"></div><div><div class="hint" style="margin-bottom:6px">La chance de tout perdre avant la fin selon ta bankroll de départ (sans recave et sans changer de limite).</div><div class="kv" id="ruin_kv"></div></div></div>
+        <div data-pane="dd" class="split" hidden><div class="chart sm" id="c_dd" role="img" aria-label="Taille du pire downswing"></div><div><div class="hint" style="margin-bottom:6px">Le pire downswing de chaque simulation : la plus grosse chute depuis un sommet, et le plus long passage sans battre son record.</div><div class="kv" id="dd_kv"></div></div></div>
+        <div data-pane="fin" class="split" hidden><div class="chart sm" id="c_fin" role="img" aria-label="Répartition du résultat final"></div><div><div class="kv" id="fin_kv"></div><div class="goal"><label for="goal">Chance de finir à au moins</label><input id="goal" class="inp" type="number" step="100" value="1000"><span id="goal_u">€</span> : <output id="goal_o">–</output></div></div></div>
+        <div data-pane="jp" hidden><div class="hint" style="margin-bottom:8px">Combien de fois chaque multiplicateur tombe sur ta période, et la chance que ce soit toi qui le remportes.</div><div class="tw"><table class="t" id="jp_t"></table></div></div>
+        <div data-pane="tab" hidden><div class="hint" style="margin-bottom:8px">Ton résultat cumulé à différents moments. 5 % = 1 joueur sur 20 avec ton niveau fait pire.</div><div class="tw"><table class="t" id="pc_t"></table></div></div>
+      </section>
+      <section class="card" id="cmp_card" hidden>
+        <div class="hd"><h3>Scénario A contre scénario B</h3><span class="hint">Même room, même volume : seul le CEV change.</span></div>
+        <div class="cmp" id="cmp"></div>
+      </section>
+      <p class="foot">Méthode : chaque simulation tire chaque spin au hasard, comme sur le site (multiplicateur selon la table officielle, puis ta place selon ton niveau). Avec un CEV, ta chance de finir 1er vaut (tapis + CEV) / (tapis × joueurs) ; les autres places se partagent le reste à égalité, et tu peux les corriger à la main. Rakeback = % du rake payé (rake du site × buy-in). Tables : <a href="https://www.winamax.fr/expresso" target="_blank" rel="noopener">Winamax</a> et <a href="https://www.unibet.fr/paris-sportifs/poker-power-spin" target="_blank" rel="noopener">Unibet</a> d’après leurs pages officielles, Betclic d’après sa table officielle et les historiques de mains, PMU d’après le <a href="https://poker-builder.com/en/spin-go-comparator" target="_blank" rel="noopener">comparateur Poker Builder</a> (mai 2026) : vérifie-la dans le lobby PMU.</p>
+    </main>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.6.0/echarts.min.js"></script>
+<script>
+"use strict";
+// =================== tables officielles ===================
+const J80 = [80, 12, 8], J75 = [75, 15, 10], WTA = [100, 0, 0];
+// Winamax Expresso : dotation en €, chances sur 10 000 000 (sur 1 000 000 à 250 € et 500 €), partage 80/12/8 sur les 3 plus gros lots
+const WMX = {
+  0.25: [1e7, [[25000, 2], [250, 100], [25, 2000], [5, 10000], [2.5, 100000], [1.25, 400000], [1, 800000], [0.75, 3324204], [0.5, 5363694]]],
+  0.5: [1e7, [[50000, 2], [500, 100], [50, 2000], [10, 10000], [5, 100000], [2.5, 400000], [2, 800000], [1.5, 3324204], [1, 5363694]]],
+  1: [1e7, [[100000, 4], [1000, 100], [100, 2000], [20, 10000], [10, 100000], [5, 400000], [4, 850000], [3, 3324208], [2, 5313688]]],
+  2: [1e7, [[1e6, 1], [2000, 100], [200, 2000], [40, 10000], [20, 100000], [10, 400000], [8, 800000], [6, 3324202], [4, 5363697]]],
+  5: [1e7, [[1e6, 1], [5000, 100], [500, 2000], [100, 15000], [50, 100000], [25, 400000], [20, 900000], [15, 3334202], [10, 5248697]]],
+  10: [1e7, [[1e6, 2], [10000, 100], [1000, 2000], [200, 15000], [100, 100000], [50, 400000], [40, 900000], [30, 3334204], [20, 5248694]]],
+  25: [1e7, [[1e6, 5], [25000, 100], [2500, 2000], [500, 15000], [250, 100000], [125, 400000], [100, 900000], [75, 3334210], [50, 5248685]]],
+  50: [1e7, [[1e6, 10], [50000, 100], [5000, 2000], [1000, 15000], [500, 100000], [250, 400000], [200, 900000], [150, 3334220], [100, 5248670]]],
+  100: [1e7, [[1e6, 20], [100000, 100], [10000, 2000], [2000, 15000], [1000, 100000], [500, 400000], [400, 900000], [300, 3334240], [200, 5248640]]],
+  250: [1e6, [[1e6, 4], [100000, 25], [25000, 200], [5000, 1500], [2500, 10000], [1250, 40000], [1000, 90000], [750, 337458], [500, 520813]]],
+  500: [1e6, [[2e6, 4], [200000, 25], [50000, 200], [10000, 1500], [5000, 10000], [2500, 40000], [2000, 90000], [1500, 337458], [1000, 520813]]],
+};
+const SITES = {
+  betclic: { name: 'Betclic', game: 'Spin & Rush', stack: 500, buyins: [0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200], def: 10, rake: () => 7,
+    tiers: () => [[1000, 5, J75], [100, 100, J75], [20, 500, J75], [10, 5000, WTA], [5, 40000, WTA], [4, 130000, WTA], [3, 346200, WTA], [2, 478195, WTA]],
+    src: 'Table officielle Betclic (chances sur 1 000 000). À partir de x20, le prize pool est partagé 75 % / 15 % / 10 %, comme dans les historiques de mains.' },
+  winamax: { name: 'Winamax', game: 'Expresso', stack: 500, buyins: [0.25, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500], def: 10, rake: (b) => b <= 0.5 ? 8 : 7,
+    tiers: (b) => { const [den, rows] = WMX[b]; return rows.map(([prize, p], i) => [prize / b, p * 1e6 / den, i < 3 ? J80 : WTA]); },
+    src: 'Table officielle Winamax pour ce buy-in. Les 3 plus gros lots sont partagés 80 % / 12 % / 8 %.' },
+  unibet: { name: 'Unibet', game: 'Power Spin', stack: 500, buyins: [1, 2, 5, 10, 25, 50, 100, 250], def: 10, rake: (b) => b >= 250 ? 6.9 : 7,
+    tiers: (b) => [[b >= 250 ? 4000 : 2500, 2, J80], [100, 40, J80], [10, 10000, [80, 10, 10]], [5, 32000, WTA], [4, 130000, WTA], [3, 345084, WTA], [2, 482874, WTA]],
+    src: 'Table officielle Unibet Power Spin (x4000 au lieu de x2500 à 250 €). x10 : 80 % / 10 % / 10 % ; x100 et plus : 80 % / 12 % / 8 %.' },
+  pmu: { name: 'PMU', game: 'Twister', stack: 500, buyins: [1, 2, 5, 10, 20, 50, 100], def: 10, rake: () => 7,
+    tiers: () => [[1000, 10, J75], [200, 30, J75], [100, 100, J75], [20, 500, J75], [10, 3000, J75], [5, 30000, WTA], [4, 130000, WTA], [3, 381280, WTA], [2, 455080, WTA]],
+    src: 'Table Twister (x2 à 45,51 %) relevée par le comparateur Poker Builder en mai 2026 : vérifie-la dans le lobby PMU. À partir de x10 : 75 % / 15 % / 10 %.' },
+  custom: { name: 'Autre', game: 'ma table', stack: 500, buyins: [1, 2, 5, 10, 20, 25, 50, 100], def: 10, rake: () => 7,
+    tiers: () => [[1000, 5, J75], [100, 100, J75], [20, 500, J75], [10, 5000, WTA], [5, 40000, WTA], [4, 130000, WTA], [3, 346200, WTA], [2, 478195, WTA]],
+    src: 'Table libre : tape les multiplicateurs, leurs chances sur 1 000 000 et la part du 1er, 2e et 3e.' },
+};
+// =================== état ===================
+const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+const nf = (v, d = 0) => (v ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const cls = (v) => v > 1e-9 ? 'pos' : v < -1e-9 ? 'neg' : '';
+const sg = (v, d = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v), d);
+const num = (id) => { const x = parseFloat(String($(id).value).replace(',', '.')); return Number.isFinite(x) ? x : 0; };
+const S = { site: 'betclic', bi: 10, tiers: [], edited: false, unit: 'eur', places: null, res: null, resB: null, charts: {}, tab: 'win', bands: new Set([90, 75]) };
+const fmtBi = (b) => nf(b, b < 1 ? 2 : 0) + ' €';
+
+function setSite(k, keepBi) {
+  S.site = k; const X = SITES[k];
+  if (!keepBi || !X.buyins.includes(S.bi)) S.bi = X.buyins.includes(S.bi) ? S.bi : X.def;
+  $('#stack').value = X.stack; S.places = null;
+  $('#sites').innerHTML = Object.entries(SITES).map(([kk, v]) => `<button data-site="${kk}" class="${kk === k ? 'on' : ''}">${v.name}</button>`).join('');
+  $$('#sites [data-site]').forEach(b => b.onclick = () => { setSite(b.dataset.site); refresh(); });
+  drawBuyins(); loadTable();
+}
+function drawBuyins() {
+  $('#buyins').innerHTML = SITES[S.site].buyins.map(b => `<button data-bi="${b}" class="${b === S.bi ? 'on' : ''}">${fmtBi(b)}</button>`).join('');
+  $$('#buyins [data-bi]').forEach(b => b.onclick = () => { S.bi = +b.dataset.bi; drawBuyins(); loadTable(); refresh(); });
+}
+function loadTable() { S.tiers = SITES[S.site].tiers(S.bi).map(([m, p, s]) => ({ m: Math.round(m * 1000) / 1000, p: Math.round(p * 100) / 100, s: s.slice() })); S.edited = false; drawTiers(); }
+function drawTiers() {
+  $('#tiers tbody').innerHTML = S.tiers.map((t, i) => `<tr><td><input class="inp" id="tm${i}" data-i="${i}" data-k="m" type="number" min="0" value="${t.m}" aria-label="Multiplicateur"></td><td><input class="inp" id="tp${i}" data-i="${i}" data-k="p" type="number" min="0" value="${t.p}" aria-label="Chances sur un million"></td>${[0, 1, 2].map(j => `<td><input class="inp" id="ts${i}_${j}" data-i="${i}" data-k="s${j}" type="number" min="0" max="100" value="${t.s[j]}" aria-label="Part de la place ${j + 1}"></td>`).join('')}<td><button class="x" data-del="${i}" aria-label="Supprimer la ligne">×</button></td></tr>`).join('');
+  $$('#tiers input').forEach(el => el.oninput = () => { const t = S.tiers[+el.dataset.i], k = el.dataset.k, v = parseFloat(el.value) || 0; if (k === 'm') t.m = v; else if (k === 'p') t.p = v; else t.s[+k[1]] = v; S.edited = true; refresh(); });
+  $$('#tiers [data-del]').forEach(b => b.onclick = () => { S.tiers.splice(+b.dataset.del, 1); S.edited = true; drawTiers(); refresh(); });
+  $('#t_src').textContent = S.edited ? 'Table modifiée à la main.' : SITES[S.site].src;
+}
+// =================== modèle exact ===================
+function places(cev) {
+  if (S.places && cev === undefined) return S.places;
+  const st = Math.max(1, num('#stack')), n = Math.max(2, Math.round(num('#players'))) || 3, c = cev !== undefined ? cev : num('#cev');
+  const p1 = Math.max(0, Math.min(1, (st + c) / (st * n))), rest = (1 - p1) / (n - 1);
+  return [p1, n >= 2 ? rest : 0, n >= 3 ? rest : 0];
+}
+function model(cev) {
+  const tiers = S.tiers.filter(t => t.p > 0 && t.m > 0), tot = tiers.reduce((a, t) => a + t.p, 0) || 1;
+  const pr = places(cev), bi = S.bi;
+  let meanPool = 0, ev = 0, e2 = 0;
+  for (const t of tiers) { const q = t.p / tot; meanPool += q * t.m * (t.s[0] + t.s[1] + t.s[2]) / 100; for (let k = 0; k < 3; k++) { const w = t.m * t.s[k] / 100; ev += q * pr[k] * w; e2 += q * pr[k] * w * w; } }
+  const rakePct = SITES[S.site].rake(bi), rbPer = rakePct / 100 * Math.max(0, num('#rb')) / 100, bonPer = Math.max(0, num('#bon')) / bi / Math.max(1, num('#bonn'));
+  const evNet = ev - 1 + rbPer + bonPer, sd = Math.sqrt(Math.max(0, e2 - ev * ev)), sph = Math.max(1, num('#tables')) * Math.max(0.5, num('#spt'));
+  return { tiers, tot, pr, bi, meanPool, ev, evNet, sd, rbPer, bonPer, rakePct, sph, roiPre: (ev - 1) * 100, roi: evNet * 100, effRake: 1 - meanPool / 3, only1: tiers.every(t => t.s[1] === 0 && t.s[2] === 0) };
+}
+function breakeven() { let lo = -500, hi = 1500; for (let k = 0; k < 60; k++) { const mid = (lo + hi) / 2; if (model(mid).evNet > 0) hi = mid; else lo = mid; } return (lo + hi) / 2; }
+const U = () => S.unit === 'eur';
+const money = (v, d) => U() ? `${nf(v * S.bi, d ?? (Math.abs(v * S.bi) < 100 ? 2 : 0))} €` : `${nf(v, d ?? (Math.abs(v) < 10 ? 2 : 1))} BI`;
+const moneyS = (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '') + money(Math.abs(v), d);
+
+function refresh() {
+  const M = model(), X = SITES[S.site];
+  if (!S.places) { $('#p1').value = nf(M.pr[0] * 100, 1).replace(',', '.'); $('#p2').value = nf(M.pr[1] * 100, 1).replace(',', '.'); }
+  $('#p3').value = nf(M.pr[2] * 100, 1).replace(',', '.');
+  $('#room_sub').textContent = `${X.game} · ${fmtBi(S.bi)}`;
+  const p3plus = M.tiers.filter(t => t.m >= 3).reduce((a, t) => a + t.p, 0) / M.tot;
+  $('#facts').innerHTML = `<span>Rake <b>${nf(M.rakePct, 1)} %</b></span><span>Multiplicateur moyen <b>×${nf(M.meanPool, 3)}</b></span><span>x3 ou plus <b>${nf(p3plus * 100, 1)} %</b></span><span>Plus gros lot <b>×${nf(Math.max(...M.tiers.map(t => t.m)))}</b></span>`;
+  $('#t_sum').textContent = `${nf(M.tot)} chances au total${Math.abs(M.tot - 1e6) > 0.5 ? ' (ramenées à 1 000 000)' : ''}`;
+  const be = breakeven();
+  $('#lv_hint').innerHTML = `Rentable à partir d’un CEV de <b>${nf(be, 1)}</b>${M.rbPer > 0 ? ' avec ton rakeback' : ''}. ${S.places ? '<button class="lnk" id="pl_reset">Recalculer les places depuis le CEV</button>' : 'Places calculées depuis ton CEV : tu peux les corriger.'}`;
+  if ($('#pl_reset')) $('#pl_reset').onclick = () => { S.places = null; refresh(); };
+  $('#vol_hint').innerHTML = `<b>${nf(M.sph, 0)} spins par heure</b> · ${nf(num('#games'), 0)} spins = ${nf(num('#games') / M.sph, 1)} h de jeu.`;
+  $('#rb_hint').innerHTML = `Rake payé : ${nf(M.rakePct * S.bi / 100, 2)} € par spin → rakeback ${nf(M.rbPer * S.bi, 3)} € par spin.`;
+  save();
+}
+
+// =================== simulation (Web Worker) ===================
+const WORKER = `
+self.onmessage = (e) => {
+  const o = e.data, N = o.games, P = o.sims, K = o.K, nT = o.cum.length;
+  let a = (o.seed >>> 0) || 1, b = 0x9e3779b9, c = 0x243f6a88, d = 0xb7e15162;
+  const rnd = () => { a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0; c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0; return (t >>> 0) / 4294967296; };
+  for (let k = 0; k < 40; k++) rnd();
+  const marks = new Int32Array(K); for (let k = 0; k < K; k++) marks[k] = Math.max(1, Math.round((k + 1) * N / K));
+  const at = new Float32Array(P * K), fin = new Float32Array(P), mn = new Float32Array(P), dd = new Float32Array(P), dlen = new Int32Array(P);
+  const NS = Math.min(P, 25), paths = new Float32Array(NS * K);
+  const p1 = o.pr[0], p12 = o.pr[0] + o.pr[1], cum = o.cum, win = o.win, only1 = o.only1;
+  for (let s = 0; s < P; s++) {
+    let bank = 0, peak = 0, low = 0, mdd = 0, since = 0, longest = 0, mi = 0;
+    for (let g = 1; g <= N; g++) {
+      let r = -1;
+      const v = rnd(), place = v < p1 ? 0 : v < p12 ? 1 : 2;
+      if (!(only1 && place)) { const u = rnd(); let t = 0; while (t < nT - 1 && u > cum[t]) t++; r += win[t * 3 + place]; }
+      if (g % o.rbN === 0) r += o.rb * o.rbN;
+      if (o.bonN && g % o.bonN === 0) r += o.bon;
+      bank += r;
+      if (bank > peak) { peak = bank; since = 0; } else { since++; if (since > longest) longest = since; if (peak - bank > mdd) mdd = peak - bank; }
+      if (bank < low) low = bank;
+      if (g === marks[mi]) { at[s * K + mi] = bank; if (s < NS) paths[s * K + mi] = bank; mi++; }
+    }
+    fin[s] = bank; mn[s] = low; dd[s] = mdd; dlen[s] = longest;
+    if ((s & 63) === 63) self.postMessage({ prog: (s + 1) / P });
+  }
+  self.postMessage({ done: true, marks, at, fin, mn, dd, dlen, paths, NS, K, P, N }, [at.buffer, fin.buffer, mn.buffer, dd.buffer, dlen.buffer, paths.buffer]);
+};`;
+const workerURL = URL.createObjectURL(new Blob([WORKER], { type: 'text/javascript' }));
+function simulate(M, onProg) {
+  return new Promise((res, rej) => {
+    const w = new Worker(workerURL), cum = [], win = []; let c = 0;
+    for (const t of M.tiers) { c += t.p / M.tot; cum.push(c); for (let k = 0; k < 3; k++) win.push(t.m * t.s[k] / 100); }
+    cum[cum.length - 1] = 1;
+    const games = Math.max(100, Math.min(200000, Math.round(num('#games'))));
+    w.onmessage = (e) => { if (e.data.prog !== undefined) onProg(e.data.prog); if (e.data.done) { w.terminate(); res(e.data); } };
+    w.onerror = (e) => { w.terminate(); rej(e); };
+    w.postMessage({ games, sims: +$('#sims').value, K: Math.min(200, games), cum, win, pr: M.pr, rb: M.rbPer, rbN: Math.max(1, Math.round(num('#rbn'))), bon: Math.max(0, num('#bon')) / M.bi, bonN: num('#bon') > 0 ? Math.max(1, Math.round(num('#bonn'))) : 0, only1: M.only1, seed: (Math.random() * 4294967296) >>> 0 });
+  });
+}
+const sorted = (arr) => Float64Array.from(arr).sort();
+const qs = (s, x) => s[Math.min(s.length - 1, Math.max(0, Math.floor(x * (s.length - 1) + 0.5)))];
+const QS = [0.01, 0.025, 0.05, 0.125, 0.25, 0.5, 0.75, 0.875, 0.95, 0.975, 0.99];
+function prep(R) {
+  R.sFin = sorted(R.fin); R.sDd = sorted(R.dd); R.sLen = sorted(R.dlen); R.sLoss = Float64Array.from(R.mn, v => -v).sort();
+  R.pct = {}; for (const q of QS) R.pct[q] = new Float64Array(R.K); R.pPos = new Float64Array(R.K);
+  const col = new Float64Array(R.P);
+  for (let k = 0; k < R.K; k++) { let pos = 0; for (let s = 0; s < R.P; s++) { col[s] = R.at[s * R.K + k]; if (col[s] > 0) pos++; } col.sort(); for (const q of QS) R.pct[q][k] = qs(col, q); R.pPos[k] = pos / R.P; }
+}
+async function run() {
+  refresh(); const M = model(), btn = $('#run'), both = $('#b_on').checked, t0 = performance.now();
+  btn.disabled = true; $('#status').textContent = 'Simulation en cours…'; $('#prog').style.width = '0';
+  try {
+    S.res = await simulate(M, (p) => { $('#prog').style.width = (p * (both ? 50 : 100)) + '%'; }); S.res.M = M; prep(S.res);
+    if (both) { const MB = model(num('#cevb')); S.resB = await simulate(MB, (p) => { $('#prog').style.width = (50 + p * 50) + '%'; }); S.resB.M = MB; S.resB.cev = num('#cevb'); prep(S.resB); } else S.resB = null;
+    S.res.cev = num('#cev');
+    $('#status').textContent = `${nf(S.res.P)} simulations de ${nf(S.res.N)} spins en ${nf((performance.now() - t0) / 1000, 1)} s.`;
+    render();
+    if (matchMedia('(max-width: 1020px)').matches && S.ran) $('#kpis').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    S.ran = true;
+  } catch (e) { $('#status').innerHTML = '<span class="neg">La simulation n’a pas pu tourner dans ce navigateur.</span>'; console.error(e); }
+  btn.disabled = false; $('#prog').style.width = '100%';
+}
+
+// =================== affichage ===================
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function chart(id) { if (!S.charts[id]) S.charts[id] = echarts.init(document.getElementById(id), null, { renderer: 'canvas' }); return S.charts[id]; }
+const axis = () => ({ axisLine: { lineStyle: { color: css('--line2') } }, axisTick: { show: false }, axisLabel: { color: css('--muted'), fontSize: 11, fontFamily: 'Public Sans, system-ui, sans-serif' }, splitLine: { lineStyle: { color: css('--line') } } });
+const tip = () => ({ backgroundColor: css('--panel'), borderColor: css('--line2'), textStyle: { color: css('--text'), fontSize: 12 }, extraCssText: 'border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2)' });
+const uv = (v) => U() ? v * S.bi : v, ul = () => U() ? ' €' : ' BI';
+const BANDS = { 95: [0.025, 0.975, '--b95'], 90: [0.05, 0.95, '--b90'], 75: [0.125, 0.875, '--b75'], 50: [0.25, 0.75, '--b50'] };
+
+function render() {
+  const R = S.res; if (!R) return; const M = R.M, N = R.N, hours = N / M.sph;
+  const n95 = M.evNet > 0 ? Math.pow(1.96 * M.sd / M.evNet, 2) : null;
+  $('#kpis').innerHTML = `
+    <div class="kpi hl"><div class="l">Gains attendus</div><div class="v ${cls(M.evNet)}">${moneyS(M.evNet * N, 0)}</div><div class="s">sur ${nf(N)} spins · ROI <b>${sg(M.roi, 1)} %</b> (${nf(M.roiPre, 1)} % hors rakeback)</div></div>
+    <div class="kpi"><div class="l">Taux horaire</div><div class="v ${cls(M.evNet)}">${moneyS(M.evNet * M.sph, 2)}<span style="font-size:16px"> / h</span></div><div class="s">${nf(num('#tables'))} tables × ${nf(num('#spt'), 1)} spins · ${nf(hours, 0)} h au total</div></div>
+    <div class="kpi"><div class="l">Chance d’être gagnant</div><div class="v">${nf(R.pPos[R.K - 1] * 100, 0)} %</div><div class="s">au bout de ${nf(N)} spins · médiane <b>${moneyS(qs(R.sFin, 0.5), 0)}</b></div></div>
+    <div class="kpi"><div class="l">Fourchette à 90 %</div><div class="v" style="font-size:22px;margin-top:9px">${moneyS(qs(R.sFin, 0.05), 0)} <span style="color:var(--dim)">→</span> ${moneyS(qs(R.sFin, 0.95), 0)}</div><div class="s">${n95 === null ? 'pas rentable avec ces réglages' : `ton niveau ressort à 95 % après <b>${nf(n95, 0)}</b> spins`}</div></div>`;
+  const xs = Array.from(R.marks), P = R.pct, sc = (arr) => Array.from(arr, v => +uv(v).toFixed(2)), ser = [];
+  for (const b of [95, 90, 75, 50]) if (S.bands.has(b)) { const [lo, hi, col] = BANDS[b], L = sc(P[lo]), H = sc(P[hi]); ser.push({ type: 'custom', data: [[0, 0]], silent: true, z: 0, tooltip: { show: false }, renderItem: (pr, api) => ({ type: 'polygon', shape: { points: [...xs.map((x, i) => api.coord([x, H[i]])), ...xs.map((x, i) => api.coord([x, L[i]])).reverse()] }, style: { fill: css(col) } }) }); }
+  if ($('#paths').checked) for (let s = 0; s < R.NS; s++) ser.push({ type: 'line', data: xs.map((x, k) => [x, +uv(R.paths[s * R.K + k]).toFixed(2)]), symbol: 'none', lineStyle: { width: 1, color: css('--path') }, silent: true, tooltip: { show: false }, z: 1 });
+  const top = Math.max(...S.bands, 0), [qlo, qhi] = top ? BANDS[top] : [0.05, 0.95];
+  ser.push({ name: 'Plus', type: 'line', data: sc(P[qhi]).map((v, i) => [xs[i], v]), symbol: 'none', lineStyle: { width: 1.3, color: css('--good'), type: 'dashed' }, z: 3 });
+  ser.push({ name: 'Moins', type: 'line', data: sc(P[qlo]).map((v, i) => [xs[i], v]), symbol: 'none', lineStyle: { width: 1.3, color: css('--bad'), type: 'dashed' }, z: 3 });
+  ser.push({ name: 'Courbe attendue', type: 'line', data: xs.map(x => [x, +uv(M.evNet * x).toFixed(2)]), symbol: 'none', lineStyle: { width: 3, color: css('--accent') }, z: 4 });
+  if (S.resB) { const B = S.resB; ser.push({ name: 'B attendue', type: 'line', data: xs.map(x => [x, +uv(B.M.evNet * x).toFixed(2)]), symbol: 'none', lineStyle: { width: 2.4, color: css('--blue') }, z: 5 }, { name: 'B moins', type: 'line', data: sc(B.pct[qlo]).map((v, i) => [xs[i], v]), symbol: 'none', lineStyle: { width: 1.2, color: css('--blue'), type: 'dotted' }, z: 5 }); }
+  chart('c_fan').setOption({
+    animation: false, grid: { left: 66, right: 18, top: 16, bottom: 34 },
+    tooltip: { ...tip(), trigger: 'axis', formatter: (ps) => { const x = +ps[0].axisValue, k = xs.indexOf(x); if (k < 0) return ''; const f = (q) => moneyS(P[q][k], 0); return `<b>${nf(x)} spins</b> · ${nf(x / M.sph, 1)} h<br>Attendu : <b>${moneyS(M.evNet * x, 0)}</b><br>${[...S.bands].sort((a, b) => a - b).map(b => `${b} % : ${f(BANDS[b][0])} à ${f(BANDS[b][1])}`).join('<br>')}<br>Gagnant : ${nf(R.pPos[k] * 100, 0)} %${S.resB ? `<br><span style="color:${css('--blue')}">B attendu : ${moneyS(S.resB.M.evNet * x, 0)}</span>` : ''}`; } },
+    xAxis: { type: 'value', min: 0, max: N, ...axis(), splitLine: { show: false }, axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) } },
+    yAxis: { type: 'value', ...axis(), axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) + ul() } },
+    series: [...ser, { type: 'line', data: [], markLine: { silent: true, symbol: 'none', data: [{ yAxis: 0 }], lineStyle: { color: css('--muted'), width: 1 }, label: { show: false } } }],
+  }, true);
+  $('#fan_t').textContent = `Ta courbe attendue sur ${nf(N)} spins`;
+  $('#fan_lg').innerHTML = `<span><i style="background:${css('--accent')};height:3px"></i>Courbe attendue</span><span><i style="background:${css('--good')};height:2px"></i>Le plus (haut de la bande ${top || 90} %)</span><span><i style="background:${css('--bad')};height:2px"></i>Le moins</span>${[...S.bands].sort((a, b) => b - a).map(b => `<span><i style="background:${css(BANDS[b][2])}"></i>${b} % des cas</span>`).join('')}${S.resB ? `<span><i style="background:${css('--blue')};height:3px"></i>Scénario B (CEV ${nf(S.resB.cev)})</span>` : ''}`;
+  renderTab(); renderJackpots(); renderTable(); renderCmp();
+}
+function hist(sortedArr, bins) {
+  const lo = sortedArr[Math.floor(sortedArr.length * 0.002)], hi = sortedArr[Math.floor(sortedArr.length * 0.998)], w = (hi - lo) / bins || 1, cnt = new Array(bins).fill(0);
+  for (const v of sortedArr) { const k = Math.min(bins - 1, Math.max(0, Math.floor((v - lo) / w))); cnt[k]++; }
+  return cnt.map((c, k) => ({ x0: lo + k * w, x1: lo + (k + 1) * w, c: c / sortedArr.length }));
+}
+const barChart = (id, h, color, xname, fmtTip) => chart(id).setOption({ animation: false, grid: { left: 44, right: 12, top: 12, bottom: 42 }, tooltip: { ...tip(), trigger: 'axis', formatter: (ps) => fmtTip(h[ps[0].dataIndex]) },
+  xAxis: { type: 'category', data: h.map(b => nf(uv((b.x0 + b.x1) / 2), 0)), name: xname, nameLocation: 'middle', nameGap: 28, nameTextStyle: { color: css('--muted'), fontSize: 11 }, ...axis(), splitLine: { show: false } },
+  yAxis: { type: 'value', ...axis(), axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v * 100, 0) + ' %' } },
+  series: [{ type: 'bar', data: h.map(b => ({ value: b.c, itemStyle: { color: color(b), opacity: .85, borderRadius: [3, 3, 0, 0] } })), barCategoryGap: '8%' }] }, true);
+function renderTab() {
+  const R = S.res; if (!R) return; const M = R.M;
+  $$('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== S.tab; }); $$('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab));
+  if (S.tab === 'win') {
+    const xs = Array.from(R.marks);
+    chart('c_win').setOption({ animation: false, grid: { left: 44, right: 34, top: 14, bottom: 30 }, tooltip: { ...tip(), trigger: 'axis', formatter: (ps) => ps.filter(p => p.seriesName).map(p => `${p.seriesName} : <b>${nf(p.data[1], 0)} %</b>`).join('<br>') + `<br>${nf(ps[0].data[0])} spins` },
+      xAxis: { type: 'value', min: 0, max: R.N, ...axis(), splitLine: { show: false }, axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) } }, yAxis: { type: 'value', min: 0, max: 100, ...axis(), axisLabel: { ...axis().axisLabel, formatter: '{value} %' } },
+      series: [{ name: 'A', type: 'line', data: xs.map((x, k) => [x, +(R.pPos[k] * 100).toFixed(1)]), symbol: 'none', smooth: true, lineStyle: { width: 2.6, color: css('--accent') }, areaStyle: { color: css('--b90') } }, ...(S.resB ? [{ name: 'B', type: 'line', data: xs.map((x, k) => [x, +(S.resB.pPos[k] * 100).toFixed(1)]), symbol: 'none', smooth: true, lineStyle: { width: 2.2, color: css('--blue') } }] : []),
+        { type: 'line', data: [], markLine: { silent: true, symbol: 'none', data: [{ yAxis: 50 }, { yAxis: 90 }], lineStyle: { color: css('--line2'), type: 'dashed' }, label: { color: css('--dim'), formatter: '{c} %', fontSize: 10 } } }] }, true);
+    const at = (p) => { const k = R.pPos.findIndex(v => v >= p); return k < 0 ? null : R.marks[k]; };
+    $('#win_kv').innerHTML = [0.6, 0.75, 0.9, 0.95].map(p => { const n = at(p); return `<div><span>Gagnant ${nf(p * 100)} % du temps</span><b>${n === null ? `<small>au-delà de ${nf(R.N)} spins</small>` : `${nf(n)} spins <small>· ${nf(n / M.sph, 0)} h</small>`}</b></div>`; }).join('');
+  } else if (S.tab === 'cev') {
+    const xs = [], roi = [], ph = []; for (let c = -40; c <= 140; c += 2) { const m = model(c); xs.push(c); roi.push(+(m.roi).toFixed(2)); ph.push(+(m.evNet * m.sph * S.bi).toFixed(2)); }
+    const cur = num('#cev');
+    chart('c_cev').setOption({ animation: false, grid: { left: 48, right: 56, top: 26, bottom: 36 }, legend: { top: 0, right: 0, textStyle: { color: css('--muted'), fontSize: 11 }, itemWidth: 14, itemHeight: 3 },
+      tooltip: { ...tip(), trigger: 'axis', formatter: (ps) => `<b>CEV ${ps[0].axisValue}</b><br>ROI : ${nf(ps[0].data, 1)} %<br>${nf(ps[1].data, 2)} € / h` },
+      xAxis: { type: 'category', data: xs, name: 'CEV', nameLocation: 'middle', nameGap: 24, nameTextStyle: { color: css('--muted'), fontSize: 11 }, ...axis(), splitLine: { show: false }, axisLabel: { ...axis().axisLabel, interval: 9 } },
+      yAxis: [{ type: 'value', ...axis(), axisLabel: { ...axis().axisLabel, formatter: '{value} %' } }, { type: 'value', ...axis(), splitLine: { show: false }, axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) + ' €' } }],
+      series: [{ name: 'ROI', type: 'line', data: roi, symbol: 'none', lineStyle: { width: 2.6, color: css('--accent') }, markLine: { silent: true, symbol: 'none', data: [{ xAxis: String(Math.max(-40, Math.min(140, Math.round(cur / 2) * 2))) }, { yAxis: 0 }], lineStyle: { color: css('--muted'), type: 'dashed' }, label: { show: false } } },
+        { name: '€ / heure', type: 'line', yAxisIndex: 1, data: ph, symbol: 'none', lineStyle: { width: 2, color: css('--blue') } }] }, true);
+    const be = breakeven(), per10 = (model(cur + 10).evNet - model(cur).evNet);
+    $('#cev_kv').innerHTML = `<div><span>Rentable à partir de</span><b>CEV ${nf(be, 1)}</b></div><div><span>+10 de CEV te rapporte</span><b>${moneyS(per10 * M.sph, 2)} / h <small>· ${sg(per10 * 100, 2)} % de ROI</small></b></div>${[20, 40, 60, 80].map(c => { const m = model(c); return `<div><span>Avec un CEV de ${c}</span><b class="${cls(m.evNet)}">${moneyS(m.evNet * m.sph, 2)} / h <small>· ROI ${sg(m.roi, 1)} %</small></b></div>`; }).join('')}`;
+  } else if (S.tab === 'ruin') {
+    const loss = R.sLoss, maxB = Math.max(10, loss[Math.floor(loss.length * 0.995)]) * 1.05, pts = [];
+    for (let k = 0; k <= 60; k++) { const B = maxB * k / 60; let n = 0; for (const v of loss) if (v >= B) n++; pts.push([+uv(B).toFixed(1), +(n / loss.length * 100).toFixed(2)]); }
+    chart('c_ruin').setOption({ animation: false, grid: { left: 48, right: 16, top: 12, bottom: 42 }, tooltip: { ...tip(), trigger: 'axis', formatter: (ps) => `Bankroll ${nf(ps[0].data[0])}${ul()}<br>Risque de ruine : <b>${nf(ps[0].data[1], 1)} %</b>` },
+      xAxis: { type: 'value', name: 'bankroll de départ', nameLocation: 'middle', nameGap: 28, nameTextStyle: { color: css('--muted'), fontSize: 11 }, ...axis(), splitLine: { show: false }, axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) } },
+      yAxis: { type: 'value', max: 100, ...axis(), axisLabel: { ...axis().axisLabel, formatter: '{value} %' } },
+      series: [{ type: 'line', data: pts, smooth: true, symbol: 'none', lineStyle: { width: 2.6, color: css('--bad') }, areaStyle: { color: css('--b90') } }] }, true);
+    const need = (r) => loss[Math.min(loss.length - 1, Math.floor(loss.length * (1 - r)))];
+    $('#ruin_kv').innerHTML = [[0.2, 'Risque 20 %'], [0.1, 'Risque 10 %'], [0.05, 'Risque 5 % (conseillée)'], [0.01, 'Risque 1 % (prudente)']].map(([r, l]) => `<div><span>${l}</span><b>${U() ? nf(need(r) * S.bi, 0) + ' € ' : ''}<small>${nf(need(r), 0)} BI</small></b></div>`).join('');
+  } else if (S.tab === 'dd') {
+    barChart('c_dd', hist(R.sDd, 40), () => css('--bad'), 'pire downswing', (b) => `${nf(uv(b.x0), 0)} à ${nf(uv(b.x1), 0)}${ul()}<br>${nf(b.c * 100, 1)} % des simulations`);
+    const L = R.sLen, row = (l, q) => `<div><span>${l}</span><b>${U() ? nf(qs(R.sDd, q) * S.bi, 0) + ' € ' : ''}<small>${nf(qs(R.sDd, q), 0)} BI</small></b></div>`;
+    $('#dd_kv').innerHTML = row('Downswing typique', 0.5) + row('1 fois sur 5', 0.8) + row('1 fois sur 20', 0.95) + row('1 fois sur 100', 0.99) + `<div><span>Plus long passage sans nouveau record</span><b>${nf(qs(L, 0.5), 0)} spins <small>· ${nf(qs(L, 0.5) / M.sph, 0)} h</small></b></div><div><span>… 1 fois sur 20</span><b>${nf(qs(L, 0.95), 0)} spins <small>· ${nf(qs(L, 0.95) / M.sph, 0)} h</small></b></div>`;
+  } else if (S.tab === 'fin') {
+    barChart('c_fin', hist(R.sFin, 44), (b) => (b.x0 + b.x1) / 2 >= 0 ? css('--good') : css('--bad'), 'résultat à la fin', (b) => `${moneyS(b.x0, 0)} à ${moneyS(b.x1, 0)}<br>${nf(b.c * 100, 1)} % des simulations`);
+    $('#fin_kv').innerHTML = `<div><span>Attendu</span><b class="${cls(M.evNet)}">${moneyS(M.evNet * R.N, 0)}</b></div><div><span>Médiane</span><b class="${cls(qs(R.sFin, 0.5))}">${moneyS(qs(R.sFin, 0.5), 0)}</b></div><div><span>Fourchette à 75 %</span><b>${moneyS(qs(R.sFin, 0.125), 0)} → ${moneyS(qs(R.sFin, 0.875), 0)}</b></div><div><span>Fourchette à 90 %</span><b>${moneyS(qs(R.sFin, 0.05), 0)} → ${moneyS(qs(R.sFin, 0.95), 0)}</b></div><div><span>Finir perdant</span><b>${nf((1 - R.pPos[R.K - 1]) * 100, 0)} %</b></div>`;
+    goal();
+  }
+}
+function goal() { const R = S.res; if (!R) return; const g = num('#goal') / (U() ? S.bi : 1); let n = 0; for (const v of R.fin) if (v >= g) n++; $('#goal_u').textContent = U() ? '€' : 'BI'; $('#goal_o').textContent = nf(n / R.P * 100, 0) + ' %'; }
+function renderJackpots() {
+  const R = S.res; if (!R) return; const M = R.M, N = R.N;
+  $('#jp_t').innerHTML = `<thead><tr><th>Multiplicateur</th><th>Fréquence</th><th>Tirés sur ${nf(N)} spins</th><th>En voir au moins un</th><th>En toucher au moins un</th><th>Gain 1er / 2e / 3e</th></tr></thead><tbody>${M.tiers.slice().sort((a, b) => b.m - a.m).map(t => {
+    const q = t.p / M.tot, w = q * ((t.s[0] > 0 ? M.pr[0] : 0) + (t.s[1] > 0 ? M.pr[1] : 0) + (t.s[2] > 0 ? M.pr[2] : 0)), g = (k) => { const v = t.m * t.s[k] / 100 * S.bi; return t.s[k] > 0 ? nf(v, Number.isInteger(Math.round(v * 100) / 100) ? 0 : 2) + ' €' : '–'; };
+    return `<tr><td><b>×${nf(t.m)}</b></td><td>1 sur ${nf(1 / q, q > 0.01 ? 1 : 0)}</td><td>${nf(q * N, q * N < 10 ? 1 : 0)}</td><td>${nf((1 - Math.pow(1 - q, N)) * 100, 1)} %</td><td>${nf((1 - Math.pow(1 - w, N)) * 100, 1)} %</td><td>${g(0)}${t.s[1] || t.s[2] ? ` / ${g(1)} / ${g(2)}` : ''}</td></tr>`; }).join('')}</tbody>`;
+}
+function renderTable() {
+  const R = S.res; if (!R) return; const M = R.M, ks = [];
+  for (const n of [100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000, 100000, 200000]) { if (n > R.N) break; const k = R.marks.findIndex(x => x >= n); if (k >= 0 && !ks.includes(k)) ks.push(k); }
+  if (!ks.includes(R.K - 1)) ks.push(R.K - 1);
+  const qq = [0.05, 0.125, 0.5, 0.875, 0.95], lab = { 0.05: 'Pire 5 %', 0.125: '12,5 %', 0.5: 'Médiane', 0.875: '87,5 %', 0.95: 'Meilleur 5 %' };
+  $('#pc_t').innerHTML = `<thead><tr><th>Après</th><th>Heures</th>${qq.map(q => `<th>${lab[q]}</th>`).join('')}<th>Attendu</th><th>Gagnant</th></tr></thead><tbody>${ks.map(k => `<tr><td>${nf(R.marks[k])} spins</td><td>${nf(R.marks[k] / M.sph, 0)} h</td>${qq.map(q => `<td class="${cls(R.pct[q][k])}">${moneyS(R.pct[q][k], 0)}</td>`).join('')}<td>${moneyS(M.evNet * R.marks[k], 0)}</td><td>${nf(R.pPos[k] * 100, 0)} %</td></tr>`).join('')}</tbody>`;
+}
+function renderCmp() {
+  $('#cmp_card').hidden = !S.resB; if (!S.resB) return; const A = S.res, B = S.resB;
+  const box = (R, l, c) => `<div class="kpi"><div class="l"><span class="tag ${c}">${l}</span> CEV ${nf(R.cev, 1)}</div><div class="v ${cls(R.M.evNet)}">${moneyS(R.M.evNet * R.N, 0)}</div><div class="s">${moneyS(R.M.evNet * R.M.sph, 2)} / h · ROI ${sg(R.M.roi, 1)} % · gagnant ${nf(R.pPos[R.K - 1] * 100, 0)} %<br>downswing 1 sur 20 : ${nf(qs(R.sDd, 0.95), 0)} BI · bankroll 5 % : ${nf(R.sLoss[Math.floor(R.P * 0.95)], 0)} BI</div></div>`;
+  const d = B.M.evNet - A.M.evNet;
+  $('#cmp').innerHTML = box(A, 'A', '') + box(B, 'B', 'b') + `<div class="kpi hl"><div class="l">Ce que B rapporte en plus</div><div class="v ${cls(d)}">${moneyS(d * A.N, 0)}</div><div class="s">${moneyS(d * A.M.sph, 2)} par heure · ${moneyS(d, 3)} par spin</div></div>`;
+}
+
+// =================== réglages ===================
+const KEYS = ['cev', 'stack', 'players', 'cevb', 'games', 'tables', 'spt', 'rb', 'rbn', 'bon', 'bonn', 'sims'];
+function save() { try { localStorage.setItem('spinscope-sim2', JSON.stringify({ site: S.site, bi: S.bi, ...Object.fromEntries(KEYS.map(k => [k, $('#' + k).value])) })); } catch (e) { /* stockage indisponible */ } }
+function restore() { try { const o = JSON.parse(localStorage.getItem('spinscope-sim2') || 'null'); if (!o) return null; for (const k of KEYS) if (o[k] !== undefined && o[k] !== '') $('#' + k).value = o[k]; return o; } catch (e) { return null; } }
+function bind() {
+  $('#t_add').onclick = () => { S.tiers.push({ m: 2, p: 0, s: [100, 0, 0] }); S.edited = true; drawTiers(); refresh(); };
+  const syncCev = (v) => { $('#cev').value = v; $('#cev_r').value = v; S.places = null; refresh(); };
+  $('#cev').oninput = (e) => syncCev(e.target.value); $('#cev_r').oninput = (e) => syncCev(e.target.value);
+  ['#stack', '#players'].forEach(id => $(id).addEventListener('input', () => { S.places = null; refresh(); }));
+  ['#p1', '#p2'].forEach(id => $(id).addEventListener('input', () => { const a = Math.max(0, Math.min(100, num('#p1'))), b = Math.max(0, Math.min(100 - a, num('#p2'))); S.places = [a / 100, b / 100, Math.max(0, 1 - a / 100 - b / 100)]; refresh(); }));
+  ['#games', '#tables', '#spt', '#rb', '#rbn', '#bon', '#bonn', '#cevb', '#sims'].forEach(id => $(id).addEventListener('input', refresh));
+  $$('[data-tb]').forEach(b => b.onclick = () => { $('#tables').value = Math.max(1, Math.min(24, num('#tables') + +b.dataset.tb)); refresh(); });
+  $('#games_q').innerHTML = [1000, 5000, 10000, 25000, 50000].map(n => `<button data-g="${n}">${nf(n)}</button>`).join('');
+  $$('#games_q [data-g]').forEach(b => b.onclick = () => { $('#games').value = b.dataset.g; refresh(); });
+  $('#b_on').onchange = () => { $('#b_row').hidden = !$('#b_on').checked; };
+  $('#run').onclick = run;
+  $('#paths').onchange = render;
+  $$('#bands [data-b]').forEach(b => b.onclick = () => { const v = +b.dataset.b; if (S.bands.has(v)) S.bands.delete(v); else S.bands.add(v); b.classList.toggle('on', S.bands.has(v)); render(); });
+  const unit = (u) => { S.unit = u; $('#u_eur').classList.toggle('on', u === 'eur'); $('#u_bi').classList.toggle('on', u === 'bi'); render(); };
+  $('#u_eur').onclick = () => unit('eur'); $('#u_bi').onclick = () => unit('bi');
+  $$('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; renderTab(); requestAnimationFrame(() => Object.values(S.charts).forEach(c => c.resize())); });
+  $('#goal').oninput = goal;
+  window.addEventListener('resize', () => Object.values(S.charts).forEach(c => c.resize()));
+  const mq = matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', render);
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
+bind();
+const saved = restore();
+setSite(saved && SITES[saved.site] ? saved.site : 'betclic', false);
+if (saved && SITES[S.site].buyins.includes(+saved.bi)) { S.bi = +saved.bi; drawBuyins(); loadTable(); if (saved.stack) $('#stack').value = saved.stack; }
+$('#cev_r').value = $('#cev').value;
+refresh();
+if (window.echarts) run(); else $('#status').innerHTML = '<span class="neg">Les graphiques n’ont pas pu se charger : vérifie ta connexion internet.</span>';
+</script>
+</body></html>
