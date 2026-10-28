@@ -1,15 +1,16 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body><title>SpinScope Sim</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Simulateur de variance pour les Spin Betclic, Winamax, Unibet et PMU : gains attendus, taux horaire, courbes de variance, downswings et bankroll.">
+<meta name="description" content="Simulateur de variance pour les Spin Betclic, Winamax, Unibet et PMU : gains, taux horaire, chance ou niveau, comparateur de rooms et plan de bankroll.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
 <style>
-/* Layout : 4 étapes numérotées à gauche (ta room, ton niveau, ton volume, rakeback), résultats à droite ; une colonne sur téléphone. */
+/* Layout : réglages communs à gauche (4 étapes), 4 outils à droite choisis par les onglets du haut ; une colonne sur téléphone. */
 :root {
   --bg: #f2f0eb; --panel: #ffffff; --panel2: #f7f5f0; --line: #e3ded3; --line2: #cfc8ba;
   --text: #1c1a15; --muted: #69645a; --dim: #9a9485;
   --accent: #c7781a; --accent-ink: #ffffff; --accent-soft: rgba(199,120,26,.12);
-  --good: #16803c; --bad: #c4352b; --blue: #2f6fd6;
+  --good: #16803c; --bad: #c4352b; --blue: #2f6fd6; --warn: #b7791f;
+  --good-soft: rgba(22,128,60,.12); --bad-soft: rgba(196,53,43,.12); --blue-soft: rgba(47,111,214,.12);
   --b95: rgba(199,120,26,.09); --b90: rgba(199,120,26,.13); --b75: rgba(199,120,26,.20); --b50: rgba(199,120,26,.30); --path: rgba(28,26,21,.14);
   --f-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
   --f-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
@@ -20,14 +21,16 @@
   --bg: #0e1013; --panel: #161a1f; --panel2: #1c2027; --line: #262b34; --line2: #343b46;
   --text: #eceae4; --muted: #9da2ac; --dim: #6b717c;
   --accent: #f0a63a; --accent-ink: #1a1307; --accent-soft: rgba(240,166,58,.14);
-  --good: #3ccf73; --bad: #ff6a5c; --blue: #6aa2ff;
+  --good: #3ccf73; --bad: #ff6a5c; --blue: #6aa2ff; --warn: #f0c04a;
+  --good-soft: rgba(60,207,115,.13); --bad-soft: rgba(255,106,92,.13); --blue-soft: rgba(106,162,255,.14);
   --b95: rgba(240,166,58,.07); --b90: rgba(240,166,58,.11); --b75: rgba(240,166,58,.17); --b50: rgba(240,166,58,.26); --path: rgba(236,234,228,.12);
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #0e1013; --panel: #161a1f; --panel2: #1c2027; --line: #262b34; --line2: #343b46;
   --text: #eceae4; --muted: #9da2ac; --dim: #6b717c;
   --accent: #f0a63a; --accent-ink: #1a1307; --accent-soft: rgba(240,166,58,.14);
-  --good: #3ccf73; --bad: #ff6a5c; --blue: #6aa2ff;
+  --good: #3ccf73; --bad: #ff6a5c; --blue: #6aa2ff; --warn: #f0c04a;
+  --good-soft: rgba(60,207,115,.13); --bad-soft: rgba(255,106,92,.13); --blue-soft: rgba(106,162,255,.14);
   --b95: rgba(240,166,58,.07); --b90: rgba(240,166,58,.11); --b75: rgba(240,166,58,.17); --b50: rgba(240,166,58,.26); --path: rgba(236,234,228,.12);
   color-scheme: dark; }
 
@@ -37,34 +40,52 @@ body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--f-body); 
 .wrap { max-width: 1360px; margin: 0 auto; padding-block: 22px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-td, .kv b, .num { font-variant-numeric: tabular-nums; }
+td, .kv b { font-variant-numeric: tabular-nums; }
+h3 { text-wrap: balance; }
 
-.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
-.brand { display: flex; align-items: center; gap: 12px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .logo { width: 44px; height: 44px; flex: none; }
 .brand h1 { margin: 0; font: 800 31px/1 var(--f-display); letter-spacing: .3px; }
 .brand h1 span { color: var(--accent); }
 .brand p { margin: 3px 0 0; color: var(--muted); font-size: 13.5px; }
+.topr { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pill2 { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--panel); }
 .pill2 button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 13px; color: var(--muted); cursor: pointer; }
 .pill2 button.on { background: var(--text); color: var(--bg); }
+.ghost { border: 1px solid var(--line2); background: var(--panel); border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 13px; cursor: pointer; }
+.ghost:hover { border-color: var(--accent); }
+.sharebox { background: var(--panel); border: 1px solid var(--accent); border-radius: var(--r); padding: 12px 14px; margin-bottom: 14px; display: grid; gap: 6px; }
+.sharebox input { width: 100%; background: var(--panel2); border: 1px solid var(--line2); border-radius: 8px; padding: 7px 10px; font: 12.5px var(--f-num); }
 
-.grid { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 18px; align-items: start; }
-@media (max-width: 1020px) { .grid { grid-template-columns: 1fr; } .gobox { position: static; border-top: 0; } }
-@media (max-width: 480px) { .step > h2 .sub { display: none; } }
+.modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+@media (max-width: 700px) { .modes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.modes button { text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 10px 14px; cursor: pointer; display: grid; gap: 1px; min-width: 0; }
+.modes b { font: 700 18px/1.15 var(--f-display); letter-spacing: .2px; }
+.modes span { font-size: 12px; color: var(--dim); }
+.modes button.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.modes button.on span { color: var(--muted); }
+
+.grid { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 1020px) { .grid { grid-template-columns: 1fr; } }
 .side { display: grid; gap: 12px; }
+.wrap[data-mode="resultats"] #st_lvl, .wrap[data-mode="resultats"] #games_row,
+.wrap[data-mode="rooms"] #st_room, .wrap[data-mode="rooms"] #st_vol, .wrap[data-mode="rooms"] #st_rb, .wrap[data-mode="rooms"] #b_wrap,
+.wrap[data-mode="bankroll"] #games_row, .wrap[data-mode="bankroll"] #b_wrap,
+.wrap:not([data-mode="sim"]) .gobox { display: none; }
 
 /* étapes */
 .step { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px 16px; display: grid; gap: 12px; }
 .step > h2 { margin: 0; display: flex; align-items: center; gap: 10px; font: 700 18px/1.1 var(--f-display); letter-spacing: .2px; }
 .step > h2 .n { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font: 700 13px var(--f-body); flex: none; }
-.step > h2 .sub { margin-left: auto; font: 500 12px var(--f-body); color: var(--dim); }
+.step > h2 .sub { margin-left: auto; font: 500 12px var(--f-body); color: var(--dim); text-align: right; }
+@media (max-width: 480px) { .step > h2 .sub { display: none; } }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button { border: 1px solid var(--line2); background: var(--panel2); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; }
 .chips button:hover { color: var(--text); }
 .chips button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .chips.sm button { padding: 4px 10px; font-size: 12.5px; }
-.site { display: grid; grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 6px; }
+.site { display: grid; grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); gap: 6px; }
 .site button { border: 1px solid var(--line2); background: var(--panel2); border-radius: 10px; padding: 9px 4px; font: 700 14.5px var(--f-display); letter-spacing: .2px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .site button.on { border-color: var(--accent); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
 .lbl { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .3px; }
@@ -75,6 +96,7 @@ td, .kv b, .num { font-variant-numeric: tabular-nums; }
 .inp { width: 116px; background: var(--panel2); border: 1px solid var(--line2); border-radius: 9px; padding: 7px 10px; text-align: right; min-width: 0; }
 .inp.big { width: 100%; font: 700 26px var(--f-display); padding: 6px 12px; text-align: center; }
 .inp:focus { border-color: var(--accent); outline: none; }
+select.inp { text-align: left; }
 .stepper { display: inline-flex; align-items: center; gap: 4px; }
 .stepper button { width: 32px; height: 34px; border: 1px solid var(--line2); background: var(--panel2); border-radius: 9px; cursor: pointer; font-size: 16px; }
 .stepper .inp { width: 64px; text-align: center; }
@@ -86,21 +108,23 @@ td, .kv b, .num { font-variant-numeric: tabular-nums; }
 .hint { color: var(--dim); font-size: 12px; line-height: 1.5; }
 .hint b { color: var(--muted); }
 .lnk { border: 0; background: none; color: var(--accent); font-weight: 600; cursor: pointer; padding: 0; font-size: 12.5px; text-align: left; }
-details.adv summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 12.5px; list-style: none; }
-details.adv summary::-webkit-details-marker { display: none; }
-details.adv summary::before { content: "▸ "; } details.adv[open] summary::before { content: "▾ "; }
+details.adv > summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 12.5px; list-style: none; }
+details.adv > summary::-webkit-details-marker { display: none; }
+details.adv > summary::before { content: "▸ "; } details.adv[open] > summary::before { content: "▾ "; }
+details.adv[open] > .advin { margin-top: 10px; display: grid; gap: 10px; }
 .tw { overflow-x: auto; }
-.tiers { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; margin-top: 8px; }
+.tiers { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
 .tiers col.c-m { width: 21%; } .tiers col.c-p { width: 28%; } .tiers col.c-s { width: 15%; } .tiers col.c-x { width: 6%; }
 .tiers th { color: var(--dim); font-weight: 600; font-size: 11px; text-align: right; padding: 0 3px 4px; }
 .tiers th:first-child { text-align: left; }
 .tiers td { padding: 2px 3px; }
-.tiers .inp { width: 100%; padding: 4px; font-size: 12px; border-radius: 6px; -moz-appearance: textfield; appearance: textfield; }
+.tiers .inp { -moz-appearance: textfield; appearance: textfield; width: 100%; padding: 4px; font-size: 12px; border-radius: 6px; }
 .tiers .inp::-webkit-inner-spin-button, .tiers .inp::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .tiers .x { border: 0; background: none; color: var(--dim); cursor: pointer; padding: 2px 4px; font-size: 14px; }
 .chk { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
 .chk input { accent-color: var(--accent); width: 16px; height: 16px; }
 .gobox { position: sticky; bottom: 0; background: var(--bg); border-top: 1px solid var(--line); padding-top: 10px; padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 8px; }
+@media (max-width: 1020px) { .gobox { position: static; border-top: 0; } .wrap:not([data-mode="sim"]) .main { order: -1; } }
 .btn { border: 0; border-radius: 12px; padding: 13px 14px; background: var(--accent); color: var(--accent-ink); font: 700 16px var(--f-body); cursor: pointer; }
 .btn:disabled { opacity: .6; cursor: progress; }
 .bar { height: 4px; border-radius: 99px; background: var(--line); overflow: hidden; }
@@ -108,6 +132,9 @@ details.adv summary::before { content: "▸ "; } details.adv[open] summary::befo
 
 /* résultats */
 .main { display: grid; gap: 14px; min-width: 0; }
+.view { display: grid; gap: 14px; min-width: 0; }
+.ctx { font-size: 12.5px; color: var(--muted); background: var(--panel2); border: 1px dashed var(--line2); border-radius: 10px; padding: 8px 12px; }
+.ctx b { color: var(--text); }
 .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 780px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 13px 15px; min-width: 0; }
@@ -122,6 +149,7 @@ details.adv summary::before { content: "▸ "; } details.adv[open] summary::befo
 .hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
 .chart { width: 100%; height: 400px; }
 .chart.sm { height: 300px; }
+.chart.xs { height: 190px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); margin-top: 6px; }
 .legend i { display: inline-block; width: 18px; height: 8px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
 .tabs { display: flex; gap: 2px; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
@@ -129,6 +157,8 @@ details.adv summary::before { content: "▸ "; } details.adv[open] summary::befo
 .tabs button.on { color: var(--text); border-bottom-color: var(--accent); }
 .split { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 880px) { .split { grid-template-columns: 1fr; } }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 880px) { .two { grid-template-columns: 1fr; } }
 table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.t th { text-align: right; color: var(--dim); font-weight: 600; font-size: 11.5px; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.t td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; font-family: var(--f-num); font-size: 12.5px; }
@@ -141,65 +171,131 @@ table.t th:first-child, table.t td:first-child { text-align: left; font-family: 
 .kv small { color: var(--dim); font-family: var(--f-body); font-weight: 500; }
 .goal { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin-top: 12px; }
 .goal output { font: 700 22px var(--f-display); color: var(--text); }
+.box { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; display: grid; gap: 8px; margin-top: 12px; }
 .cmp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 @media (max-width: 680px) { .cmp { grid-template-columns: 1fr; } }
 .tag { display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); margin-right: 4px; }
-.tag.b { background: rgba(47,111,214,.14); color: var(--blue); }
-.foot { color: var(--dim); font-size: 12px; margin-top: 18px; max-width: 95ch; line-height: 1.6; }
+.tag.b { background: var(--blue-soft); color: var(--blue); }
+.foot { color: var(--dim); font-size: 12px; margin-top: 4px; max-width: 95ch; line-height: 1.6; }
 .foot a { color: var(--muted); }
+
+/* mes résultats */
+.pform { display: grid; gap: 10px; }
+.pform h3 { display: flex; align-items: center; gap: 8px; }
+.verdict { display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: var(--panel2); color: var(--muted); }
+.verdict.good { background: var(--good-soft); color: var(--good); }
+.verdict.bad { background: var(--bad-soft); color: var(--bad); }
+.verdict.mid { background: var(--blue-soft); color: var(--blue); }
+.meter { position: relative; height: 10px; border-radius: 99px; background: linear-gradient(90deg, var(--bad), var(--line2) 30%, var(--line2) 70%, var(--good)); margin: 14px 0 4px; }
+.meter i { position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%; background: var(--text); border: 3px solid var(--panel); transform: translate(-50%, -50%); box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.mlab { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); }
+.say { font-size: 14px; line-height: 1.55; margin: 8px 0 4px; }
+.say b { color: var(--text); }
+
+/* rooms */
+.rooms { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 1180px) { .rooms { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .rooms { grid-template-columns: 1fr; } }
+.room { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 15px; display: grid; gap: 8px; align-content: start; min-width: 0; position: relative; }
+.room.best { border-color: var(--good); box-shadow: inset 0 0 0 1px var(--good); }
+.room h4 { margin: 0; font: 700 20px/1.1 var(--f-display); }
+.room h4 small { font: 500 12px var(--f-body); color: var(--dim); margin-left: 4px; }
+.room .badge { justify-self: start; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--good-soft); color: var(--good); }
+.room .v { font: 700 28px/1.1 var(--f-display); }
+.vbar { height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.vbar i { display: block; height: 100%; background: var(--warn); border-radius: 99px; }
+.room .kv div { padding: 5px 0; font-size: 12.5px; }
+.room .rbf { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--muted); }
+.room .rbf .inp { width: 70px; padding: 4px 8px; }
+.rset { display: grid; gap: 6px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.warnline { font-size: 12px; color: var(--warn); }
+
+/* bankroll */
+.plan { display: grid; gap: 10px; margin-top: 12px; }
+.pl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14px; }
+.pl.sub { padding-left: 32px; font-size: 13.5px; color: var(--muted); }
+.pl .inp { width: 96px; text-align: center; padding: 5px 8px; }
+.pl select.inp { width: auto; min-width: 96px; }
+.pn { width: 22px; height: 22px; border-radius: 50%; background: var(--panel2); border: 1px solid var(--line2); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--muted); flex: none; }
+.eg { font-size: 12px; color: var(--accent); font-weight: 600; }
+.bksay { display: grid; gap: 6px; }
+.bksay ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
 @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
 </style>
 
-<div class="wrap">
+<div class="wrap" data-mode="sim">
   <header class="top">
     <div class="brand">
       <svg class="logo" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="20" fill="var(--panel)" stroke="var(--line2)" stroke-width="1.5"/><g fill="var(--accent)"><path d="M22 22 L22 4 A18 18 0 0 1 37.6 13 Z"/><path d="M22 22 L37.6 31 A18 18 0 0 1 22 40 Z" opacity=".55"/><path d="M22 22 L6.4 31 A18 18 0 0 1 6.4 13 Z" opacity=".3"/></g><circle cx="22" cy="22" r="4.8" fill="var(--text)"/></svg>
-      <div><h1>SpinScope <span>Sim</span></h1><p>Ce que ton niveau peut donner sur des milliers de Spin : gains, taux horaire et variance.</p></div>
+      <div><h1>SpinScope <span>Sim</span></h1><p>Gains, variance, chance ou niveau, room et bankroll : tout pour tes Spin.</p></div>
     </div>
-    <div class="pill2" role="group" aria-label="Unité des résultats"><button id="u_eur" class="on">Gains en €</button><button id="u_bi">En buy-ins</button></div>
+    <div class="topr">
+      <button class="ghost" id="share">Partager ces réglages</button>
+      <div class="pill2" role="group" aria-label="Unité"><button id="u_eur" class="on">En €</button><button id="u_bi">En buy-ins</button></div>
+    </div>
   </header>
+  <div class="sharebox" id="sharebox" hidden>
+    <div class="lbl" id="share_msg">Lien copié : envoie-le, la personne retrouvera exactement tes réglages.</div>
+    <input id="share_url" readonly aria-label="Lien de partage">
+    <div class="hint">Le lien pointe vers la version en ligne (GitHub). La table de gains modifiée à la main est incluse.</div>
+  </div>
+
+  <nav class="modes" id="modes" aria-label="Outils">
+    <button data-v="sim" class="on"><b>Simulateur</b><span>Ce que ton niveau peut donner</span></button>
+    <button data-v="resultats"><b>Mes résultats</b><span>Chance ou niveau ?</span></button>
+    <button data-v="rooms"><b>Quelle room ?</b><span>Les 4 sites comparés</span></button>
+    <button data-v="bankroll"><b>Bankroll</b><span>Puis-je monter ?</span></button>
+  </nav>
 
   <div class="grid">
     <aside class="side" aria-label="Réglages">
-      <section class="step">
+      <section class="step" id="st_room">
         <h2><span class="n">1</span>Ta room<span class="sub" id="room_sub"></span></h2>
         <div class="site" id="sites" role="group" aria-label="Site"></div>
         <div><div class="lbl" style="margin-bottom:6px">Buy-in</div><div class="chips sm" id="buyins" role="group" aria-label="Buy-in"></div></div>
         <div class="facts" id="facts"></div>
-        <details class="adv" id="adv"><summary>Voir ou modifier la table des gains</summary>
-          <div class="tw"><table class="tiers" id="tiers"><colgroup><col class="c-m"><col class="c-p"><col class="c-s"><col class="c-s"><col class="c-s"><col class="c-x"></colgroup><thead><tr><th>Multi.</th><th title="Chances sur 1 000 000 parties">Sur 1 M</th><th>1er %</th><th>2e %</th><th>3e %</th><th></th></tr></thead><tbody></tbody></table></div>
-          <div class="facts" style="margin-top:6px"><span id="t_sum"></span><button class="lnk" id="t_add">+ ligne</button></div>
-          <div class="hint" id="t_src" style="margin-top:4px"></div>
+        <details class="adv"><summary>Voir ou modifier la table des gains</summary>
+          <div class="advin">
+            <div class="tw"><table class="tiers" id="tiers"><colgroup><col class="c-m"><col class="c-p"><col class="c-s"><col class="c-s"><col class="c-s"><col class="c-x"></colgroup><thead><tr><th>Multi.</th><th title="Chances sur 1 000 000 parties">Sur 1 M</th><th>1er %</th><th>2e %</th><th>3e %</th><th></th></tr></thead><tbody></tbody></table></div>
+            <div class="facts"><span id="t_sum"></span><button class="lnk" id="t_add">+ ligne</button><button class="lnk" id="t_reset">Remettre la table officielle</button></div>
+            <div class="hint" id="t_src"></div>
+          </div>
         </details>
       </section>
 
-      <section class="step">
+      <section class="step" id="st_lvl">
         <h2><span class="n">2</span>Ton niveau<span class="sub">CEV = jetons gagnés par spin</span></h2>
-        <div class="field"><label for="cev">Ton CEV</label><span></span></div>
-        <input id="cev" class="inp big" type="number" step="1" value="35" aria-label="CEV">
+        <input id="cev" class="inp big" type="number" step="1" value="35" aria-label="Ton CEV">
         <input id="cev_r" class="range" type="range" min="-60" max="150" step="1" value="35" aria-label="CEV (curseur)">
-        <div class="field"><label for="stack">Tapis de départ (jetons)</label><input id="stack" class="inp" type="number" min="1" step="10" value="500"></div>
-        <div class="field"><label for="players">Joueurs à la table</label><input id="players" class="inp" type="number" min="2" max="9" step="1" value="3"></div>
-        <div class="trio" aria-label="Places obtenues">
-          <div><span>1re place</span><input id="p1" class="inp" type="number" step="0.1"></div>
-          <div><span>2e place</span><input id="p2" class="inp" type="number" step="0.1"></div>
-          <div><span>3e place</span><input id="p3" class="inp" type="number" step="0.1" disabled></div>
-        </div>
         <div class="hint" id="lv_hint"></div>
-        <label class="chk"><input type="checkbox" id="b_on"> Comparer avec un autre CEV</label>
-        <div class="field" id="b_row" hidden><label for="cevb">CEV du scénario B</label><input id="cevb" class="inp" type="number" step="1" value="45"></div>
+        <details class="adv"><summary>Avancé : tapis, joueurs, places</summary>
+          <div class="advin">
+            <div class="field"><label for="stack">Tapis de départ (jetons)</label><input id="stack" class="inp" type="number" min="1" step="10" value="500"></div>
+            <div class="field"><label for="players">Joueurs à la table</label><input id="players" class="inp" type="number" min="2" max="9" step="1" value="3"></div>
+            <div class="trio" aria-label="Places obtenues">
+              <div><span>1re place %</span><input id="p1" class="inp" type="number" step="0.1"></div>
+              <div><span>2e place %</span><input id="p2" class="inp" type="number" step="0.1"></div>
+              <div><span>3e place %</span><input id="p3" class="inp" type="number" step="0.1" disabled></div>
+            </div>
+            <div class="hint" id="pl_hint">Calculées depuis ton CEV. Tu peux les corriger à la main.</div>
+          </div>
+        </details>
+        <div id="b_wrap" style="display:grid;gap:10px">
+          <label class="chk"><input type="checkbox" id="b_on"> Comparer avec un autre CEV</label>
+          <div class="field" id="b_row" hidden><label for="cevb">CEV du scénario B</label><input id="cevb" class="inp" type="number" step="1" value="45"></div>
+        </div>
       </section>
 
-      <section class="step">
+      <section class="step" id="st_vol">
         <h2><span class="n">3</span>Ton volume</h2>
-        <div><div class="field"><label for="games">Spins joués (par simulation)</label><input id="games" class="inp" type="number" min="100" max="200000" step="500" value="10000"></div>
+        <div id="games_row"><div class="field"><label for="games">Spins joués (par simulation)</label><input id="games" class="inp" type="number" min="100" max="200000" step="500" value="10000"></div>
           <div class="chips sm" id="games_q" style="margin-top:6px"></div></div>
         <div class="field"><label for="tables">Tables en même temps</label><span class="stepper"><button type="button" data-tb="-1" aria-label="Une table de moins">−</button><input id="tables" class="inp" type="number" min="1" max="24" step="1" value="8"><button type="button" data-tb="1" aria-label="Une table de plus">+</button></span></div>
         <div class="field"><label for="spt">Spins par heure, par table</label><input id="spt" class="inp" type="number" min="1" step="0.5" value="12"></div>
         <div class="hint" id="vol_hint"></div>
       </section>
 
-      <section class="step">
+      <section class="step" id="st_rb">
         <h2><span class="n">4</span>Rakeback et bonus</h2>
         <div class="field"><label for="rb">Rakeback (% du rake)</label><input id="rb" class="inp" type="number" min="0" max="100" step="1" value="20"></div>
         <div class="field"><label for="rbn">Rakeback versé tous les (spins)</label><input id="rbn" class="inp" type="number" min="1" step="1" value="1"></div>
@@ -209,44 +305,125 @@ table.t th:first-child, table.t td:first-child { text-align: left; font-family: 
       </section>
 
       <div class="gobox">
-        <div class="field"><label for="sims">Précision</label><select id="sims" class="inp" style="width:auto;text-align:left"><option value="1000">Rapide · 1 000 simulations</option><option value="3000" selected>Normale · 3 000 simulations</option><option value="10000">Précise · 10 000 simulations</option></select></div>
         <button class="btn" id="run">Simuler</button><div class="bar" aria-hidden="true"><i id="prog"></i></div><div class="hint" id="status">Exemple pré-rempli : Betclic 10 €, CEV 35, 8 tables, 20 % de rakeback.</div>
       </div>
     </aside>
 
     <main class="main">
-      <div class="kpis" id="kpis"></div>
-      <section class="card">
-        <div class="hd"><h3 id="fan_t">Ta courbe attendue et sa variance</h3>
-          <div class="chips sm" id="bands" role="group" aria-label="Intervalles affichés"><button data-b="95">95 %</button><button data-b="90" class="on">90 %</button><button data-b="75" class="on">75 %</button><button data-b="50">50 %</button></div></div>
-        <div class="hint" id="fan_h">Chaque bande montre où ta courbe a des chances de se trouver : 90 % = 9 joueurs sur 10 avec ton niveau finissent dedans.</div>
-        <div class="chart" id="c_fan" role="img" aria-label="Courbe attendue et intervalles de variance"></div>
-        <div class="legend" id="fan_lg"></div>
-        <label class="chk" style="margin-top:6px"><input type="checkbox" id="paths"> Montrer 25 parcours réels au hasard</label>
+      <!-- ============ SIMULATEUR ============ -->
+      <section class="view" data-view="sim">
+        <div class="kpis" id="kpis"></div>
+        <section class="card">
+          <div class="hd"><h3 id="fan_t">Ta courbe attendue et sa variance</h3>
+            <div class="chips sm" id="bands" role="group" aria-label="Intervalles affichés"><button data-b="95">95 %</button><button data-b="90" class="on">90 %</button><button data-b="75" class="on">75 %</button><button data-b="50">50 %</button></div></div>
+          <div class="hint">Chaque bande montre où ta courbe a des chances de se trouver : 90 % = 9 joueurs sur 10 avec ton niveau finissent dedans.</div>
+          <div class="chart" id="c_fan" role="img" aria-label="Courbe attendue et intervalles de variance"></div>
+          <div class="legend" id="fan_lg"></div>
+          <label class="chk" style="margin-top:6px"><input type="checkbox" id="paths"> Montrer 25 parcours réels au hasard</label>
+        </section>
+        <section class="card">
+          <div class="tabs" role="tablist">
+            <button role="tab" data-tab="win" class="on">Chance d’être gagnant</button>
+            <button role="tab" data-tab="cev">Selon ton CEV · objectif</button>
+            <button role="tab" data-tab="ruin">Risque de ruine</button>
+            <button role="tab" data-tab="dd">Downswings</button>
+            <button role="tab" data-tab="fin">Résultat final</button>
+            <button role="tab" data-tab="jp">Jackpots</button>
+            <button role="tab" data-tab="tab">Tableau</button>
+          </div>
+          <div data-pane="win" class="split"><div class="chart sm" id="c_win" role="img" aria-label="Chance d'être gagnant selon le nombre de spins"></div><div><div class="hint" style="margin-bottom:6px">La part des simulations en positif après chaque nombre de spins. Au début, la variance domine ; avec le volume, ton niveau ressort.</div><div class="kv" id="win_kv"></div></div></div>
+          <div data-pane="cev" class="split" hidden><div class="chart sm" id="c_cev" role="img" aria-label="ROI et taux horaire selon le CEV"></div><div><div class="hint" style="margin-bottom:6px">Ce que rapporte chaque point de CEV avec ta room, ton buy-in, ton volume et ton rakeback (calcul exact).</div><div class="kv" id="cev_kv"></div>
+            <div class="box"><div class="lbl">Ton objectif</div>
+              <div class="field"><label for="obj">Gagner par mois (€)</label><input id="obj" class="inp" type="number" min="0" step="100" value="1500"></div>
+              <div class="field"><label for="objh">Heures de jeu par mois</label><input id="objh" class="inp" type="number" min="1" step="5" value="80"></div>
+              <div class="kv" id="obj_kv"></div></div></div></div>
+          <div data-pane="ruin" class="split" hidden><div class="chart sm" id="c_ruin" role="img" aria-label="Risque de ruine selon la bankroll"></div><div><div class="hint" style="margin-bottom:6px">La chance de tout perdre avant la fin selon ta bankroll de départ (sans recave et sans changer de limite). Pour savoir si tu peux monter de limite, va dans l’outil Bankroll en haut.</div><div class="kv" id="ruin_kv"></div></div></div>
+          <div data-pane="dd" class="split" hidden><div class="chart sm" id="c_dd" role="img" aria-label="Taille du pire downswing"></div><div><div class="hint" style="margin-bottom:6px">Le pire downswing de chaque simulation : la plus grosse chute depuis un sommet, et le plus long passage sans battre son record.</div><div class="kv" id="dd_kv"></div></div></div>
+          <div data-pane="fin" class="split" hidden><div class="chart sm" id="c_fin" role="img" aria-label="Répartition du résultat final"></div><div><div class="kv" id="fin_kv"></div><div class="goal"><label for="goal">Chance de finir à au moins</label><input id="goal" class="inp" type="number" step="100" value="1000"><span id="goal_u">€</span> : <output id="goal_o">–</output></div></div></div>
+          <div data-pane="jp" hidden><div class="hint" style="margin-bottom:8px">Combien de fois chaque multiplicateur tombe sur ta période, et la chance d’en toucher au moins un.</div><div class="tw"><table class="t" id="jp_t"></table></div></div>
+          <div data-pane="tab" hidden><div class="hint" style="margin-bottom:8px">Ton résultat cumulé à différents moments. Pire 5 % = 1 joueur sur 20 avec ton niveau fait moins bien.</div><div class="tw"><table class="t" id="pc_t"></table></div></div>
+        </section>
+        <section class="card" id="cmp_card" hidden>
+          <div class="hd"><h3>Scénario A contre scénario B</h3><span class="hint">Même room, même volume : seul le CEV change.</span></div>
+          <div class="cmp" id="cmp"></div>
+        </section>
       </section>
-      <section class="card">
-        <div class="tabs" role="tablist">
-          <button role="tab" data-tab="win" class="on">Chance d’être gagnant</button>
-          <button role="tab" data-tab="cev">Selon ton CEV</button>
-          <button role="tab" data-tab="ruin">Bankroll</button>
-          <button role="tab" data-tab="dd">Downswings</button>
-          <button role="tab" data-tab="fin">Résultat final</button>
-          <button role="tab" data-tab="jp">Jackpots</button>
-          <button role="tab" data-tab="tab">Tableau</button>
+
+      <!-- ============ MES RÉSULTATS ============ -->
+      <section class="view" data-view="resultats" hidden>
+        <div class="ctx" id="ctx_res"></div>
+        <section class="card">
+          <div class="hd"><h3>Chance ou niveau ?</h3></div>
+          <div class="hint">Recopie tes stats du tracker (Dashboard) : nombre de spins, CEV et résultat en € <b>rakeback compris</b> (avec le % de l’étape 4). Ton long terme dit quel est ton vrai niveau ; ta période récente est jugée avec ce niveau, pour voir si tu run bad ou si quelque chose a changé.</div>
+          <div class="two" style="margin-top:12px">
+            <div class="box pform" style="margin-top:0">
+              <h3 style="font-size:17px"><span class="tag">1</span>Ton long terme</h3>
+              <div class="field"><label for="l_n">Spins joués</label><input id="l_n" class="inp" type="number" min="1" step="1000" value="50000"></div>
+              <div class="field"><label for="l_c">Ton CEV</label><input id="l_c" class="inp" type="number" step="0.1" value="45"></div>
+              <div class="field"><label for="l_r">Résultat <span class="u_lbl">(€)</span></label><input id="l_r" class="inp" type="number" step="10" value="12500"></div>
+              <details class="adv"><summary>Option : multiplicateur moyen</summary><div class="advin"><div class="field"><label for="l_m">Multiplicateur moyen de tes spins</label><input id="l_m" class="inp" type="number" step="0.001" placeholder="ex. 2,79"></div><div class="hint">S’il est dans ton tracker : sépare la chance sur les multiplicateurs de la chance en partie.</div></div></details>
+            </div>
+            <div class="box pform" style="margin-top:0">
+              <h3 style="font-size:17px"><span class="tag b">2</span>Ta période récente</h3>
+              <label class="chk"><input type="checkbox" id="r_on" checked> Ajouter une période récente</label>
+              <div id="r_fields" style="display:grid;gap:10px">
+                <div class="field"><label for="r_n">Spins joués</label><input id="r_n" class="inp" type="number" min="1" step="100" value="1000"></div>
+                <div class="field"><label for="r_c">Ton CEV</label><input id="r_c" class="inp" type="number" step="0.1" value="20"></div>
+                <div class="field"><label for="r_r">Résultat <span class="u_lbl">(€)</span></label><input id="r_r" class="inp" type="number" step="10" value="-760"></div>
+                <label class="chk"><input type="checkbox" id="r_in" checked> Ces spins font partie de mon long terme</label>
+                <details class="adv"><summary>Option : multiplicateur moyen</summary><div class="advin"><div class="field"><label for="r_m">Multiplicateur moyen de tes spins</label><input id="r_m" class="inp" type="number" step="0.001" placeholder="ex. 2,79"></div></div></details>
+              </div>
+            </div>
+          </div>
+          <label class="chk" style="margin-top:12px"><input type="checkbox" id="res_rb" checked> <span id="res_rb_l">Mes résultats incluent le rakeback</span></label>
+          <div style="display:grid;gap:8px;margin-top:12px"><button class="btn" id="res_go">Analyser mes résultats</button><div class="bar" aria-hidden="true"><i id="res_prog"></i></div></div>
+        </section>
+        <div id="res_out" class="view"></div>
+      </section>
+
+      <!-- ============ QUELLE ROOM ============ -->
+      <section class="view" data-view="rooms" hidden>
+        <div class="ctx" id="ctx_rooms"></div>
+        <section class="card">
+          <div class="hd"><h3>Quelle room te rapporte le plus ?</h3>
+            <div class="chips sm" id="lvls" role="group" aria-label="Niveau de buy-in"></div></div>
+          <div class="hint">Même CEV sur les 4 sites. Dans chaque carte, mets ton vrai rakeback, ton nombre de tables et ta vitesse sur ce site : c’est souvent ça qui fait la différence.</div>
+        </section>
+        <div class="rooms" id="rooms"></div>
+        <section class="card">
+          <div class="hd"><h3>Chance d’être gagnant selon tes heures de jeu, sur chaque site</h3></div>
+          <div class="hint">Ça tient compte de tout : ROI, variance, et vitesse de jeu de chaque site. Plus la courbe monte vite, plus vite ton niveau se voit dans tes résultats (sans compter les jackpots géants).</div>
+          <div class="chart sm" id="c_rooms" role="img" aria-label="Chance d'être gagnant selon le nombre de spins pour chaque site"></div>
+        </section>
+      </section>
+
+      <!-- ============ BANKROLL ============ -->
+      <section class="view" data-view="bankroll" hidden>
+        <div class="ctx" id="ctx_bk"></div>
+        <section class="card">
+          <div class="hd"><h3>Puis-je monter de limite ?</h3></div>
+          <div class="hint">Avec ton niveau et ta bankroll : as-tu assez pour jouer la limite au-dessus pour de bon ? Sinon, combien de buy-ins peux-tu risquer pour tenter un shot ?</div>
+          <div class="plan">
+            <div class="pl"><span class="pn">1</span><span>Ma bankroll :</span><input id="bk_br" class="inp" type="number" min="1" step="50" value="1500"><span>€ · je joue en ce moment le <b id="bk_start"></b> avec un CEV de <b id="bk_cur"></b>.</span></div>
+            <div class="pl"><span class="pn">2</span><span>Je veux monter au</span><select id="bk_tg" class="inp"></select></div>
+            <div class="pl"><span class="pn">3</span><span>Là-bas, les joueurs sont meilleurs : je pense perdre</span><input id="bk_drop" class="inp" type="number" step="1" value="3"><span>points de CEV</span><span class="eg" id="bk_cev_h"></span></div>
+            <div class="pl sub"><span class="hint" style="margin:0">Souvent 2 à 5 points par limite. Ça change beaucoup la bankroll nécessaire : teste plusieurs valeurs.</span></div>
+            <div class="pl"><span class="pn">4</span><span>Le risque de tout perdre que j’accepte :</span><div class="chips sm" id="bk_risk"><button data-r="1">1 % · prudent</button><button data-r="5" class="on">5 % · normal</button><button data-r="10">10 % · joueur</button></div></div>
+            <div class="pl"><span class="pn">5</span><span>Je joue</span><div class="chips sm" id="bk_pool"><button data-p="0" class="on">Hors pool EV</button><button data-p="1">En pool EV (ex. Hyperspool)</button></div></div>
+            <div class="pl sub"><span class="hint" style="margin:0">En pool EV, ceux qui ont run good reversent à ceux qui ont run bad : tu touches tes gains à l’EV. La chance sur les multiplicateurs disparaît, il ne reste que celle de tes parties.</span></div>
+          </div>
+          <div style="display:grid;gap:8px;margin-top:12px"><button class="btn" id="bk_go">Vérifier</button><div class="bar" aria-hidden="true"><i id="bk_prog"></i></div></div>
+        </section>
+        <div id="bk_out" class="view" hidden>
+          <section class="card bksay"><div class="hd"><h3 id="bk_t1"></h3><span class="verdict" id="bk_v1"></span></div><div id="bk_say1"></div></section>
+          <section class="card bksay" id="bk_shot"><div class="hd"><h3 id="bk_t2"></h3><span class="verdict" id="bk_v2"></span></div><div id="bk_say2"></div>
+            <div class="tw" style="margin-top:10px"><table class="t" id="bk_t"></table></div>
+            <div class="hint" style="margin-top:8px">Réussir = ta bankroll atteint le montant qu’il faut pour rester à la limite au-dessus. Échouer = tu perds les buy-ins mis en jeu et tu redescends. Calculé sur 2 000 simulations, jackpots compris (hors pool) ou payé à l’EV (en pool).</div>
+          </section>
         </div>
-        <div data-pane="win" class="split"><div class="chart sm" id="c_win" role="img" aria-label="Chance d'être gagnant selon le nombre de spins"></div><div><div class="hint" style="margin-bottom:6px">La part des simulations en positif après chaque nombre de spins. Au début, la variance domine ; avec le volume, ton niveau ressort.</div><div class="kv" id="win_kv"></div></div></div>
-        <div data-pane="cev" class="split" hidden><div class="chart sm" id="c_cev" role="img" aria-label="ROI et taux horaire selon le CEV"></div><div><div class="hint" style="margin-bottom:6px">Ce que rapporte chaque point de CEV avec ta room, ton buy-in, ton volume et ton rakeback (calcul exact, sans simulation).</div><div class="kv" id="cev_kv"></div></div></div>
-        <div data-pane="ruin" class="split" hidden><div class="chart sm" id="c_ruin" role="img" aria-label="Risque de ruine selon la bankroll"></div><div><div class="hint" style="margin-bottom:6px">La chance de tout perdre avant la fin selon ta bankroll de départ (sans recave et sans changer de limite).</div><div class="kv" id="ruin_kv"></div></div></div>
-        <div data-pane="dd" class="split" hidden><div class="chart sm" id="c_dd" role="img" aria-label="Taille du pire downswing"></div><div><div class="hint" style="margin-bottom:6px">Le pire downswing de chaque simulation : la plus grosse chute depuis un sommet, et le plus long passage sans battre son record.</div><div class="kv" id="dd_kv"></div></div></div>
-        <div data-pane="fin" class="split" hidden><div class="chart sm" id="c_fin" role="img" aria-label="Répartition du résultat final"></div><div><div class="kv" id="fin_kv"></div><div class="goal"><label for="goal">Chance de finir à au moins</label><input id="goal" class="inp" type="number" step="100" value="1000"><span id="goal_u">€</span> : <output id="goal_o">–</output></div></div></div>
-        <div data-pane="jp" hidden><div class="hint" style="margin-bottom:8px">Combien de fois chaque multiplicateur tombe sur ta période, et la chance que ce soit toi qui le remportes.</div><div class="tw"><table class="t" id="jp_t"></table></div></div>
-        <div data-pane="tab" hidden><div class="hint" style="margin-bottom:8px">Ton résultat cumulé à différents moments. 5 % = 1 joueur sur 20 avec ton niveau fait pire.</div><div class="tw"><table class="t" id="pc_t"></table></div></div>
       </section>
-      <section class="card" id="cmp_card" hidden>
-        <div class="hd"><h3>Scénario A contre scénario B</h3><span class="hint">Même room, même volume : seul le CEV change.</span></div>
-        <div class="cmp" id="cmp"></div>
-      </section>
-      <p class="foot">Méthode : chaque simulation tire chaque spin au hasard, comme sur le site (multiplicateur selon la table officielle, puis ta place selon ton niveau). Avec un CEV, ta chance de finir 1er vaut (tapis + CEV) / (tapis × joueurs) ; les autres places se partagent le reste à égalité, et tu peux les corriger à la main. Rakeback = % du rake payé (rake du site × buy-in). Tables : <a href="https://www.winamax.fr/expresso" target="_blank" rel="noopener">Winamax</a> et <a href="https://www.unibet.fr/paris-sportifs/poker-power-spin" target="_blank" rel="noopener">Unibet</a> d’après leurs pages officielles, Betclic d’après sa table officielle et les historiques de mains, PMU d’après le <a href="https://poker-builder.com/en/spin-go-comparator" target="_blank" rel="noopener">comparateur Poker Builder</a> (mai 2026) : vérifie-la dans le lobby PMU.</p>
+
+      <p class="foot">Méthode : chaque simulation tire chaque spin au hasard, comme sur le site (multiplicateur selon la table officielle, puis ta place selon ton niveau). Avec un CEV, ta chance de finir 1er vaut (tapis + CEV) / (tapis × joueurs) ; les autres places se partagent le reste. Rakeback = % du rake payé. Tables : <a href="https://www.winamax.fr/expresso" target="_blank" rel="noopener">Winamax</a> et <a href="https://www.unibet.fr/paris-sportifs/poker-power-spin" target="_blank" rel="noopener">Unibet</a> d’après leurs pages officielles, Betclic d’après sa table officielle et les historiques de mains, PMU d’après le <a href="https://poker-builder.com/en/spin-go-comparator" target="_blank" rel="noopener">comparateur Poker Builder</a> (mai 2026) : vérifie-la dans le lobby PMU.</p>
     </main>
   </div>
 </div>
@@ -256,7 +433,7 @@ table.t th:first-child, table.t td:first-child { text-align: left; font-family: 
 "use strict";
 // =================== tables officielles ===================
 const J80 = [80, 12, 8], J75 = [75, 15, 10], WTA = [100, 0, 0];
-// Winamax Expresso : dotation en €, chances sur 10 000 000 (sur 1 000 000 à 250 € et 500 €), partage 80/12/8 sur les 3 plus gros lots
+// Winamax Expresso : dotation en €, chances sur 10 000 000 (sur 1 000 000 à 250 € et 500 €)
 const WMX = {
   0.25: [1e7, [[25000, 2], [250, 100], [25, 2000], [5, 10000], [2.5, 100000], [1.25, 400000], [1, 800000], [0.75, 3324204], [0.5, 5363694]]],
   0.5: [1e7, [[50000, 2], [500, 100], [50, 2000], [10, 10000], [5, 100000], [2.5, 400000], [2, 800000], [1.5, 3324204], [1, 5363694]]],
@@ -270,9 +447,9 @@ const WMX = {
   250: [1e6, [[1e6, 4], [100000, 25], [25000, 200], [5000, 1500], [2500, 10000], [1250, 40000], [1000, 90000], [750, 337458], [500, 520813]]],
   500: [1e6, [[2e6, 4], [200000, 25], [50000, 200], [10000, 1500], [5000, 10000], [2500, 40000], [2000, 90000], [1500, 337458], [1000, 520813]]],
 };
+const BETCLIC_T = () => [[1000, 5, J75], [100, 100, J75], [20, 500, J75], [10, 5000, WTA], [5, 40000, WTA], [4, 130000, WTA], [3, 346200, WTA], [2, 478195, WTA]];
 const SITES = {
-  betclic: { name: 'Betclic', game: 'Spin & Rush', stack: 500, buyins: [0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200], def: 10, rake: () => 7,
-    tiers: () => [[1000, 5, J75], [100, 100, J75], [20, 500, J75], [10, 5000, WTA], [5, 40000, WTA], [4, 130000, WTA], [3, 346200, WTA], [2, 478195, WTA]],
+  betclic: { name: 'Betclic', game: 'Spin & Rush', stack: 500, buyins: [0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200], def: 10, rake: () => 7, tiers: BETCLIC_T,
     src: 'Table officielle Betclic (chances sur 1 000 000). À partir de x20, le prize pool est partagé 75 % / 15 % / 10 %, comme dans les historiques de mains.' },
   winamax: { name: 'Winamax', game: 'Expresso', stack: 500, buyins: [0.25, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500], def: 10, rake: (b) => b <= 0.5 ? 8 : 7,
     tiers: (b) => { const [den, rows] = WMX[b]; return rows.map(([prize, p], i) => [prize / b, p * 1e6 / den, i < 3 ? J80 : WTA]); },
@@ -282,23 +459,29 @@ const SITES = {
     src: 'Table officielle Unibet Power Spin (x4000 au lieu de x2500 à 250 €). x10 : 80 % / 10 % / 10 % ; x100 et plus : 80 % / 12 % / 8 %.' },
   pmu: { name: 'PMU', game: 'Twister', stack: 500, buyins: [1, 2, 5, 10, 20, 50, 100], def: 10, rake: () => 7,
     tiers: () => [[1000, 10, J75], [200, 30, J75], [100, 100, J75], [20, 500, J75], [10, 3000, J75], [5, 30000, WTA], [4, 130000, WTA], [3, 381280, WTA], [2, 455080, WTA]],
-    src: 'Table Twister (x2 à 45,51 %) relevée par le comparateur Poker Builder en mai 2026 : vérifie-la dans le lobby PMU. À partir de x10 : 75 % / 15 % / 10 %.' },
-  custom: { name: 'Autre', game: 'ma table', stack: 500, buyins: [1, 2, 5, 10, 20, 25, 50, 100], def: 10, rake: () => 7,
-    tiers: () => [[1000, 5, J75], [100, 100, J75], [20, 500, J75], [10, 5000, WTA], [5, 40000, WTA], [4, 130000, WTA], [3, 346200, WTA], [2, 478195, WTA]],
+    src: 'Table Twister relevée par le comparateur Poker Builder en mai 2026 : vérifie-la dans le lobby PMU. À partir de x10 : 75 % / 15 % / 10 %.' },
+  custom: { name: 'Autre', game: 'ma table', stack: 500, buyins: [1, 2, 5, 10, 20, 25, 50, 100], def: 10, rake: () => 7, tiers: BETCLIC_T,
     src: 'Table libre : tape les multiplicateurs, leurs chances sur 1 000 000 et la part du 1er, 2e et 3e.' },
 };
-// =================== état ===================
+const REAL = ['betclic', 'winamax', 'unibet', 'pmu'];
+const RARE = 1e-6; // jackpots plus rares que 1 sur 1 000 000 : on ne les compte pas dans la variance « en pratique »
+
+// =================== outils ===================
 const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
-const nf = (v, d = 0) => (v ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const nf = (v, d = 0) => (Number.isFinite(v) ? v : 0).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
 const cls = (v) => v > 1e-9 ? 'pos' : v < -1e-9 ? 'neg' : '';
 const sg = (v, d = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + nf(Math.abs(v), d);
 const num = (id) => { const x = parseFloat(String($(id).value).replace(',', '.')); return Number.isFinite(x) ? x : 0; };
-const S = { site: 'betclic', bi: 10, tiers: [], edited: false, unit: 'eur', places: null, res: null, resB: null, charts: {}, tab: 'win', bands: new Set([90, 75]) };
 const fmtBi = (b) => nf(b, b < 1 ? 2 : 0) + ' €';
+const erf = (x) => { const t = 1 / (1 + 0.3275911 * Math.abs(x)), y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x); return x >= 0 ? y : -y; };
+const Phi = (z) => 0.5 * (1 + erf(z / Math.SQRT2));
+const S = { site: 'betclic', bi: 10, tiers: [], edited: false, unit: 'eur', places: null, res: null, resB: null, charts: {}, tab: 'win', bands: new Set([90, 75]), view: 'sim', rbs: {}, tbs: {}, spts: {}, risk: 5, pool: false, bkBusy: false, lvl: null, ran: false };
+const U = () => S.unit === 'eur';
 
-function setSite(k, keepBi) {
+// =================== room ===================
+function setSite(k) {
   S.site = k; const X = SITES[k];
-  if (!keepBi || !X.buyins.includes(S.bi)) S.bi = X.buyins.includes(S.bi) ? S.bi : X.def;
+  if (!X.buyins.includes(S.bi)) S.bi = X.buyins.reduce((a, x) => Math.abs(Math.log(x / S.bi)) < Math.abs(Math.log(a / S.bi)) ? x : a);
   $('#stack').value = X.stack; S.places = null;
   $('#sites').innerHTML = Object.entries(SITES).map(([kk, v]) => `<button data-site="${kk}" class="${kk === k ? 'on' : ''}">${v.name}</button>`).join('');
   $$('#sites [data-site]').forEach(b => b.onclick = () => { setSite(b.dataset.site); refresh(); });
@@ -307,58 +490,79 @@ function setSite(k, keepBi) {
 function drawBuyins() {
   $('#buyins').innerHTML = SITES[S.site].buyins.map(b => `<button data-bi="${b}" class="${b === S.bi ? 'on' : ''}">${fmtBi(b)}</button>`).join('');
   $$('#buyins [data-bi]').forEach(b => b.onclick = () => { S.bi = +b.dataset.bi; drawBuyins(); loadTable(); refresh(); });
+  fillBkSelects();
 }
-function loadTable() { S.tiers = SITES[S.site].tiers(S.bi).map(([m, p, s]) => ({ m: Math.round(m * 1000) / 1000, p: Math.round(p * 100) / 100, s: s.slice() })); S.edited = false; drawTiers(); }
+const rawTiers = (site, bi) => SITES[site].tiers(bi).map(([m, p, s]) => ({ m: Math.round(m * 1000) / 1000, p: Math.round(p * 100) / 100, s: s.slice() }));
+function loadTable() { S.tiers = rawTiers(S.site, S.bi); S.edited = false; drawTiers(); }
 function drawTiers() {
-  $('#tiers tbody').innerHTML = S.tiers.map((t, i) => `<tr><td><input class="inp" id="tm${i}" data-i="${i}" data-k="m" type="number" min="0" value="${t.m}" aria-label="Multiplicateur"></td><td><input class="inp" id="tp${i}" data-i="${i}" data-k="p" type="number" min="0" value="${t.p}" aria-label="Chances sur un million"></td>${[0, 1, 2].map(j => `<td><input class="inp" id="ts${i}_${j}" data-i="${i}" data-k="s${j}" type="number" min="0" max="100" value="${t.s[j]}" aria-label="Part de la place ${j + 1}"></td>`).join('')}<td><button class="x" data-del="${i}" aria-label="Supprimer la ligne">×</button></td></tr>`).join('');
-  $$('#tiers input').forEach(el => el.oninput = () => { const t = S.tiers[+el.dataset.i], k = el.dataset.k, v = parseFloat(el.value) || 0; if (k === 'm') t.m = v; else if (k === 'p') t.p = v; else t.s[+k[1]] = v; S.edited = true; refresh(); });
+  $('#tiers tbody').innerHTML = S.tiers.map((t, i) => `<tr><td><input class="inp" data-i="${i}" data-k="m" type="number" min="0" value="${t.m}" aria-label="Multiplicateur"></td><td><input class="inp" data-i="${i}" data-k="p" type="number" min="0" value="${t.p}" aria-label="Chances sur un million"></td>${[0, 1, 2].map(j => `<td><input class="inp" data-i="${i}" data-k="s${j}" type="number" min="0" max="100" value="${t.s[j]}" aria-label="Part de la place ${j + 1}"></td>`).join('')}<td><button class="x" data-del="${i}" aria-label="Supprimer la ligne">×</button></td></tr>`).join('');
+  $$('#tiers input').forEach(el => el.oninput = () => { const t = S.tiers[+el.dataset.i], k = el.dataset.k, v = parseFloat(el.value) || 0; if (k === 'm') t.m = v; else if (k === 'p') t.p = v; else t.s[+k[1]] = v; S.edited = true; $('#t_src').textContent = 'Table modifiée à la main.'; refresh(); });
   $$('#tiers [data-del]').forEach(b => b.onclick = () => { S.tiers.splice(+b.dataset.del, 1); S.edited = true; drawTiers(); refresh(); });
   $('#t_src').textContent = S.edited ? 'Table modifiée à la main.' : SITES[S.site].src;
 }
+// table utilisée pour (site, buy-in) : celle modifiée à la main si c'est la room choisie
+const ownTable = () => S.edited || S.site === 'custom';
+function tiersFor(site, bi) { if (site === S.site && (bi === S.bi || ownTable())) return S.tiers; return rawTiers(site, bi); }
+
 // =================== modèle exact ===================
-function places(cev) {
-  if (S.places && cev === undefined) return S.places;
-  const st = Math.max(1, num('#stack')), n = Math.max(2, Math.round(num('#players'))) || 3, c = cev !== undefined ? cev : num('#cev');
+function placesFor(c) {
+  const st = Math.max(1, num('#stack')), n = Math.max(2, Math.round(num('#players')) || 3);
   const p1 = Math.max(0, Math.min(1, (st + c) / (st * n))), rest = (1 - p1) / (n - 1);
-  return [p1, n >= 2 ? rest : 0, n >= 3 ? rest : 0];
+  return [p1, rest, n >= 3 ? rest : 0];
 }
-function model(cev) {
-  const tiers = S.tiers.filter(t => t.p > 0 && t.m > 0), tot = tiers.reduce((a, t) => a + t.p, 0) || 1;
-  const pr = places(cev), bi = S.bi;
-  let meanPool = 0, ev = 0, e2 = 0;
-  for (const t of tiers) { const q = t.p / tot; meanPool += q * t.m * (t.s[0] + t.s[1] + t.s[2]) / 100; for (let k = 0; k < 3; k++) { const w = t.m * t.s[k] / 100; ev += q * pr[k] * w; e2 += q * pr[k] * w * w; } }
-  const rakePct = SITES[S.site].rake(bi), rbPer = rakePct / 100 * Math.max(0, num('#rb')) / 100, bonPer = Math.max(0, num('#bon')) / bi / Math.max(1, num('#bonn'));
-  const evNet = ev - 1 + rbPer + bonPer, sd = Math.sqrt(Math.max(0, e2 - ev * ev)), sph = Math.max(1, num('#tables')) * Math.max(0.5, num('#spt'));
-  return { tiers, tot, pr, bi, meanPool, ev, evNet, sd, rbPer, bonPer, rakePct, sph, roiPre: (ev - 1) * 100, roi: evNet * 100, effRake: 1 - meanPool / 3, only1: tiers.every(t => t.s[1] === 0 && t.s[2] === 0) };
+function chipSd(c) { const st = Math.max(1, num('#stack')), n = Math.max(2, Math.round(num('#players')) || 3), p1 = placesFor(c)[0]; return Math.sqrt(Math.max(1, p1 * ((n - 1) * st) ** 2 + (1 - p1) * st * st - c * c)); }
+// o : { site, bi, rb (% du rake), bonus (bool), pr (places imposées) }
+function model(cev, o = {}) {
+  const site = o.site || S.site, bi = o.bi || S.bi, rbPct = o.rb !== undefined ? o.rb : Math.max(0, num('#rb'));
+  const tiers = (o.tiers || tiersFor(site, bi)).filter(t => t.p > 0 && t.m > 0), tot = tiers.reduce((a, t) => a + t.p, 0) || 1;
+  const pr = o.pr || (cev === undefined && S.places ? S.places : placesFor(cev === undefined ? num('#cev') : cev));
+  let meanPool = 0, meanM = 0, ev = 0, e2 = 0, evRare = 0, e2Rare = 0;
+  for (const t of tiers) { const q = t.p / tot, rare = q < RARE; meanM += q * t.m; meanPool += q * t.m * (t.s[0] + t.s[1] + t.s[2]) / 100;
+    for (let k = 0; k < 3; k++) { const w = t.m * t.s[k] / 100, a = q * pr[k] * w, b = a * w; ev += a; e2 += b; if (rare) { evRare += a; e2Rare += b; } } }
+  const rakePct = SITES[site].rake(bi), rbPer = rakePct / 100 * rbPct / 100, bonPer = o.bonus === false ? 0 : Math.max(0, num('#bon')) / bi / Math.max(1, num('#bonn'));
+  const evNet = ev - 1 + rbPer + bonPer, sd = Math.sqrt(Math.max(0, e2 - ev * ev));
+  const evP = ev - evRare, sdP = Math.sqrt(Math.max(0, (e2 - e2Rare) - evP * evP)); // « en pratique » : sans les jackpots rarissimes
+  const sph = o.sph || Math.max(1, num('#tables')) * Math.max(0.5, num('#spt'));
+  return { site, bi, tiers, tot, pr, meanPool, meanM, ev, evNet, sd, evRare, sdP, rbPer, bonPer, rakePct, sph, roiPre: (ev - 1) * 100, roi: evNet * 100, only1: tiers.every(t => !t.s[1] && !t.s[2]) };
 }
-function breakeven() { let lo = -500, hi = 1500; for (let k = 0; k < 60; k++) { const mid = (lo + hi) / 2; if (model(mid).evNet > 0) hi = mid; else lo = mid; } return (lo + hi) / 2; }
-const U = () => S.unit === 'eur';
+function solveCev(f, lo = -300, hi = 1500) { if (f(hi) <= 0) return null; if (f(lo) > 0) return lo; for (let k = 0; k < 60; k++) { const mid = (lo + hi) / 2; if (f(mid) > 0) hi = mid; else lo = mid; } return (lo + hi) / 2; }
+const breakeven = (o) => solveCev(c => model(c, o).evNet);
 const money = (v, d) => U() ? `${nf(v * S.bi, d ?? (Math.abs(v * S.bi) < 100 ? 2 : 0))} €` : `${nf(v, d ?? (Math.abs(v) < 10 ? 2 : 1))} BI`;
 const moneyS = (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '') + money(Math.abs(v), d);
+const eur = (v, d = 0) => `${nf(v, d)} €`, eurS = (v, d = 0) => (v > 0 ? '+' : v < 0 ? '−' : '') + eur(Math.abs(v), d);
 
 function refresh() {
   const M = model(), X = SITES[S.site];
-  if (!S.places) { $('#p1').value = nf(M.pr[0] * 100, 1).replace(',', '.'); $('#p2').value = nf(M.pr[1] * 100, 1).replace(',', '.'); }
-  $('#p3').value = nf(M.pr[2] * 100, 1).replace(',', '.');
+  if (!S.places) { $('#p1').value = (M.pr[0] * 100).toFixed(1); $('#p2').value = (M.pr[1] * 100).toFixed(1); }
+  $('#p3').value = (M.pr[2] * 100).toFixed(1);
   $('#room_sub').textContent = `${X.game} · ${fmtBi(S.bi)}`;
   const p3plus = M.tiers.filter(t => t.m >= 3).reduce((a, t) => a + t.p, 0) / M.tot;
-  $('#facts').innerHTML = `<span>Rake <b>${nf(M.rakePct, 1)} %</b></span><span>Multiplicateur moyen <b>×${nf(M.meanPool, 3)}</b></span><span>x3 ou plus <b>${nf(p3plus * 100, 1)} %</b></span><span>Plus gros lot <b>×${nf(Math.max(...M.tiers.map(t => t.m)))}</b></span>`;
+  $('#facts').innerHTML = `<span>Rake <b>${nf(M.rakePct, 1)} %</b></span><span>Multiplicateur moyen <b>×${nf(M.meanM, 3)}</b></span><span>x3 ou plus <b>${nf(p3plus * 100, 1)} %</b></span><span>Plus gros lot <b>×${nf(Math.max(...M.tiers.map(t => t.m)))}</b></span>`;
   $('#t_sum').textContent = `${nf(M.tot)} chances au total${Math.abs(M.tot - 1e6) > 0.5 ? ' (ramenées à 1 000 000)' : ''}`;
   const be = breakeven();
-  $('#lv_hint').innerHTML = `Rentable à partir d’un CEV de <b>${nf(be, 1)}</b>${M.rbPer > 0 ? ' avec ton rakeback' : ''}. ${S.places ? '<button class="lnk" id="pl_reset">Recalculer les places depuis le CEV</button>' : 'Places calculées depuis ton CEV : tu peux les corriger.'}`;
+  $('#lv_hint').innerHTML = `1re <b>${nf(M.pr[0] * 100, 1)} %</b> · 2e <b>${nf(M.pr[1] * 100, 1)} %</b> · 3e <b>${nf(M.pr[2] * 100, 1)} %</b>. Rentable dès un CEV de <b>${be === null ? '–' : nf(be, 1)}</b>${M.rbPer > 0 ? ' avec ton rakeback' : ''}.`;
+  $('#pl_hint').innerHTML = S.places ? 'Places corrigées à la main. <button class="lnk" id="pl_reset">Recalculer depuis le CEV</button>' : 'Calculées depuis ton CEV. Tu peux les corriger à la main.';
   if ($('#pl_reset')) $('#pl_reset').onclick = () => { S.places = null; refresh(); };
-  $('#vol_hint').innerHTML = `<b>${nf(M.sph, 0)} spins par heure</b> · ${nf(num('#games'), 0)} spins = ${nf(num('#games') / M.sph, 1)} h de jeu.`;
+  $('#vol_hint').innerHTML = `<b>${nf(M.sph, 0)} spins par heure</b>${S.view === 'sim' ? ` · ${nf(num('#games'), 0)} spins = ${nf(num('#games') / M.sph, 1)} h de jeu` : ''}.`;
   $('#rb_hint').innerHTML = `Rake payé : ${nf(M.rakePct * S.bi / 100, 2)} € par spin → rakeback ${nf(M.rbPer * S.bi, 3)} € par spin.`;
+  $('#res_rb_l').textContent = `Mes résultats incluent le rakeback (${nf(num('#rb'))} % du rake, soit ${nf(M.rbPer * S.bi, 3)} € par spin)`;
+  $('#ctx_res').innerHTML = `Réglages utilisés : <b>${X.name} ${fmtBi(S.bi)}</b> · rakeback <b>${nf(num('#rb'))} %</b> · <b>${nf(M.sph)}</b> spins/h. Change-les dans les réglages.`;
+  $('#ctx_rooms').innerHTML = `Ton CEV : <b>${nf(num('#cev'), 1)}</b> (dans les réglages). Rakeback, nombre de tables et vitesse se règlent dans chaque carte, site par site.`;
+  $('#ctx_bk').innerHTML = `Réglages utilisés : <b>${X.name} ${fmtBi(S.bi)}</b> (ta limite actuelle), CEV <b>${nf(num('#cev'), 1)}</b> · rakeback <b>${nf(num('#rb'))} %</b> · <b>${nf(M.sph)}</b> spins/h. Change-les dans les réglages.`;
+  bkHints();
+  if (S.view === 'rooms') updateRooms();
+  if (S.view === 'sim' && S.res && S.tab === 'cev') renderTab();
   save();
 }
 
-// =================== simulation (Web Worker) ===================
+// =================== simulation (Web Workers) ===================
+const RNG = `let a = (o.seed >>> 0) || 1, b = 0x9e3779b9, c = 0x243f6a88, d = 0xb7e15162;
+  const rnd = () => { a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0; c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0; return (t >>> 0) / 4294967296; };
+  for (let k = 0; k < 40; k++) rnd();`;
 const WORKER = `
 self.onmessage = (e) => {
   const o = e.data, N = o.games, P = o.sims, K = o.K, nT = o.cum.length;
-  let a = (o.seed >>> 0) || 1, b = 0x9e3779b9, c = 0x243f6a88, d = 0xb7e15162;
-  const rnd = () => { a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0; c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0; return (t >>> 0) / 4294967296; };
-  for (let k = 0; k < 40; k++) rnd();
+  ${RNG}
   const marks = new Int32Array(K); for (let k = 0; k < K; k++) marks[k] = Math.max(1, Math.round((k + 1) * N / K));
   const at = new Float32Array(P * K), fin = new Float32Array(P), mn = new Float32Array(P), dd = new Float32Array(P), dlen = new Int32Array(P);
   const NS = Math.min(P, 25), paths = new Float32Array(NS * K);
@@ -369,7 +573,7 @@ self.onmessage = (e) => {
       let r = -1;
       const v = rnd(), place = v < p1 ? 0 : v < p12 ? 1 : 2;
       if (!(only1 && place)) { const u = rnd(); let t = 0; while (t < nT - 1 && u > cum[t]) t++; r += win[t * 3 + place]; }
-      if (g % o.rbN === 0) r += o.rb * o.rbN;
+      if (o.rb && g % o.rbN === 0) r += o.rb * o.rbN;
       if (o.bonN && g % o.bonN === 0) r += o.bon;
       bank += r;
       if (bank > peak) { peak = bank; since = 0; } else { since++; if (since > longest) longest = since; if (peak - bank > mdd) mdd = peak - bank; }
@@ -381,17 +585,21 @@ self.onmessage = (e) => {
   }
   self.postMessage({ done: true, marks, at, fin, mn, dd, dlen, paths, NS, K, P, N }, [at.buffer, fin.buffer, mn.buffer, dd.buffer, dlen.buffer, paths.buffer]);
 };`;
-const workerURL = URL.createObjectURL(new Blob([WORKER], { type: 'text/javascript' }));
-function simulate(M, onProg) {
+const wURL = URL.createObjectURL(new Blob([WORKER], { type: 'text/javascript' }));
+function tableArrays(M) { const cum = [], win = []; let c = 0; for (const t of M.tiers) { c += t.p / M.tot; cum.push(c); for (let k = 0; k < 3; k++) win.push(t.m * t.s[k] / 100); } cum[cum.length - 1] = 1; return { cum, win }; }
+function runWorker(url, msg, onProg) {
   return new Promise((res, rej) => {
-    const w = new Worker(workerURL), cum = [], win = []; let c = 0;
-    for (const t of M.tiers) { c += t.p / M.tot; cum.push(c); for (let k = 0; k < 3; k++) win.push(t.m * t.s[k] / 100); }
-    cum[cum.length - 1] = 1;
-    const games = Math.max(100, Math.min(200000, Math.round(num('#games'))));
-    w.onmessage = (e) => { if (e.data.prog !== undefined) onProg(e.data.prog); if (e.data.done) { w.terminate(); res(e.data); } };
+    const w = new Worker(url);
+    w.onmessage = (e) => { if (e.data.prog !== undefined && onProg) onProg(e.data.prog); if (e.data.done) { w.terminate(); res(e.data); } };
     w.onerror = (e) => { w.terminate(); rej(e); };
-    w.postMessage({ games, sims: +$('#sims').value, K: Math.min(200, games), cum, win, pr: M.pr, rb: M.rbPer, rbN: Math.max(1, Math.round(num('#rbn'))), bon: Math.max(0, num('#bon')) / M.bi, bonN: num('#bon') > 0 ? Math.max(1, Math.round(num('#bonn'))) : 0, only1: M.only1, seed: (Math.random() * 4294967296) >>> 0 });
+    w.postMessage({ ...msg, seed: (Math.random() * 4294967296) >>> 0 });
   });
+}
+function simulate(M, onProg, o = {}) {
+  const games = o.games || Math.max(100, Math.min(200000, Math.round(num('#games')))), { cum, win } = tableArrays(M);
+  const bonOn = o.bonus !== false && num('#bon') > 0;
+  return runWorker(wURL, { games, sims: o.sims || 3000, K: o.K || Math.min(200, games), cum, win, pr: M.pr, only1: M.only1,
+    rb: o.rb !== undefined ? o.rb : M.rbPer, rbN: Math.max(1, Math.round(num('#rbn'))), bon: bonOn ? num('#bon') / M.bi : 0, bonN: bonOn ? Math.max(1, Math.round(num('#bonn'))) : 0 }, onProg);
 }
 const sorted = (arr) => Float64Array.from(arr).sort();
 const qs = (s, x) => s[Math.min(s.length - 1, Math.max(0, Math.floor(x * (s.length - 1) + 0.5)))];
@@ -406,47 +614,49 @@ async function run() {
   refresh(); const M = model(), btn = $('#run'), both = $('#b_on').checked, t0 = performance.now();
   btn.disabled = true; $('#status').textContent = 'Simulation en cours…'; $('#prog').style.width = '0';
   try {
-    S.res = await simulate(M, (p) => { $('#prog').style.width = (p * (both ? 50 : 100)) + '%'; }); S.res.M = M; prep(S.res);
-    if (both) { const MB = model(num('#cevb')); S.resB = await simulate(MB, (p) => { $('#prog').style.width = (50 + p * 50) + '%'; }); S.resB.M = MB; S.resB.cev = num('#cevb'); prep(S.resB); } else S.resB = null;
-    S.res.cev = num('#cev');
-    $('#status').textContent = `${nf(S.res.P)} simulations de ${nf(S.res.N)} spins en ${nf((performance.now() - t0) / 1000, 1)} s.`;
+    const A = await simulate(M, (p) => { $('#prog').style.width = (p * (both ? 50 : 100)) + '%'; }); A.M = M; A.cev = num('#cev'); prep(A); S.res = A;
+    if (both) { const MB = model(num('#cevb')); const B = await simulate(MB, (p) => { $('#prog').style.width = (50 + p * 50) + '%'; }); B.M = MB; B.cev = num('#cevb'); prep(B); S.resB = B; } else S.resB = null;
+    $('#status').textContent = `${nf(A.P)} simulations de ${nf(A.N)} spins en ${nf((performance.now() - t0) / 1000, 1)} s.`;
     render();
-    if (matchMedia('(max-width: 1020px)').matches && S.ran) $('#kpis').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (S.ran && matchMedia('(max-width: 1020px)').matches) $('#kpis').scrollIntoView({ behavior: 'smooth', block: 'start' });
     S.ran = true;
   } catch (e) { $('#status').innerHTML = '<span class="neg">La simulation n’a pas pu tourner dans ce navigateur.</span>'; console.error(e); }
   btn.disabled = false; $('#prog').style.width = '100%';
 }
 
-// =================== affichage ===================
+// =================== graphiques ===================
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-function chart(id) { if (!S.charts[id]) S.charts[id] = echarts.init(document.getElementById(id), null, { renderer: 'canvas' }); return S.charts[id]; }
+function chart(id) { const el = document.getElementById(id); if (!S.charts[id] || S.charts[id].getDom() !== el) S.charts[id] = echarts.init(el, null, { renderer: 'canvas' }); return S.charts[id]; }
 const axis = () => ({ axisLine: { lineStyle: { color: css('--line2') } }, axisTick: { show: false }, axisLabel: { color: css('--muted'), fontSize: 11, fontFamily: 'Public Sans, system-ui, sans-serif' }, splitLine: { lineStyle: { color: css('--line') } } });
 const tip = () => ({ backgroundColor: css('--panel'), borderColor: css('--line2'), textStyle: { color: css('--text'), fontSize: 12 }, extraCssText: 'border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.2)' });
 const uv = (v) => U() ? v * S.bi : v, ul = () => U() ? ' €' : ' BI';
 const BANDS = { 95: [0.025, 0.975, '--b95'], 90: [0.05, 0.95, '--b90'], 75: [0.125, 0.875, '--b75'], 50: [0.25, 0.75, '--b50'] };
+const band = (xs, H, L, col) => ({ type: 'custom', data: [[0, 0]], silent: true, z: 0, tooltip: { show: false }, renderItem: (pr, api) => ({ type: 'polygon', shape: { points: [...xs.map((x, i) => api.coord([x, H[i]])), ...xs.map((x, i) => api.coord([x, L[i]])).reverse()] }, style: { fill: css(col) } }) });
+const zeroLine = () => ({ type: 'line', data: [], markLine: { silent: true, symbol: 'none', data: [{ yAxis: 0 }], lineStyle: { color: css('--muted'), width: 1 }, label: { show: false } } });
+const xVal = (N) => ({ type: 'value', min: 0, max: N, ...axis(), splitLine: { show: false }, axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) } });
 
+// =================== vue Simulateur ===================
 function render() {
-  const R = S.res; if (!R) return; const M = R.M, N = R.N, hours = N / M.sph;
-  const n95 = M.evNet > 0 ? Math.pow(1.96 * M.sd / M.evNet, 2) : null;
+  const R = S.res; if (!R || S.view !== 'sim') return; const M = R.M, N = R.N, hours = N / M.sph;
+  const mu = M.evNet - M.evRare, n95 = mu > 0 ? Math.pow(1.645 * M.sdP / mu, 2) : null;
   $('#kpis').innerHTML = `
-    <div class="kpi hl"><div class="l">Gains attendus</div><div class="v ${cls(M.evNet)}">${moneyS(M.evNet * N, 0)}</div><div class="s">sur ${nf(N)} spins · ROI <b>${sg(M.roi, 1)} %</b> (${nf(M.roiPre, 1)} % hors rakeback)</div></div>
+    <div class="kpi hl"><div class="l">Gains attendus</div><div class="v ${cls(M.evNet)}">${moneyS(M.evNet * N, 0)}</div><div class="s">sur ${nf(N)} spins · ROI <b>${sg(M.roi, 1)} %</b> (${sg(M.roiPre, 1)} % sans rakeback)</div></div>
     <div class="kpi"><div class="l">Taux horaire</div><div class="v ${cls(M.evNet)}">${moneyS(M.evNet * M.sph, 2)}<span style="font-size:16px"> / h</span></div><div class="s">${nf(num('#tables'))} tables × ${nf(num('#spt'), 1)} spins · ${nf(hours, 0)} h au total</div></div>
     <div class="kpi"><div class="l">Chance d’être gagnant</div><div class="v">${nf(R.pPos[R.K - 1] * 100, 0)} %</div><div class="s">au bout de ${nf(N)} spins · médiane <b>${moneyS(qs(R.sFin, 0.5), 0)}</b></div></div>
-    <div class="kpi"><div class="l">Fourchette à 90 %</div><div class="v" style="font-size:22px;margin-top:9px">${moneyS(qs(R.sFin, 0.05), 0)} <span style="color:var(--dim)">→</span> ${moneyS(qs(R.sFin, 0.95), 0)}</div><div class="s">${n95 === null ? 'pas rentable avec ces réglages' : `ton niveau ressort à 95 % après <b>${nf(n95, 0)}</b> spins`}</div></div>`;
+    <div class="kpi"><div class="l">Fourchette à 90 %</div><div class="v" style="font-size:22px;margin-top:9px">${moneyS(qs(R.sFin, 0.05), 0)} <span style="color:var(--dim)">→</span> ${moneyS(qs(R.sFin, 0.95), 0)}</div><div class="s">${n95 === null ? 'pas rentable avec ces réglages' : `95 % de chances d’être gagnant après <b>${nf(n95, 0)}</b> spins`}</div></div>`;
   const xs = Array.from(R.marks), P = R.pct, sc = (arr) => Array.from(arr, v => +uv(v).toFixed(2)), ser = [];
-  for (const b of [95, 90, 75, 50]) if (S.bands.has(b)) { const [lo, hi, col] = BANDS[b], L = sc(P[lo]), H = sc(P[hi]); ser.push({ type: 'custom', data: [[0, 0]], silent: true, z: 0, tooltip: { show: false }, renderItem: (pr, api) => ({ type: 'polygon', shape: { points: [...xs.map((x, i) => api.coord([x, H[i]])), ...xs.map((x, i) => api.coord([x, L[i]])).reverse()] }, style: { fill: css(col) } }) }); }
+  for (const b of [95, 90, 75, 50]) if (S.bands.has(b)) ser.push(band(xs, sc(P[BANDS[b][1]]), sc(P[BANDS[b][0]]), BANDS[b][2]));
   if ($('#paths').checked) for (let s = 0; s < R.NS; s++) ser.push({ type: 'line', data: xs.map((x, k) => [x, +uv(R.paths[s * R.K + k]).toFixed(2)]), symbol: 'none', lineStyle: { width: 1, color: css('--path') }, silent: true, tooltip: { show: false }, z: 1 });
   const top = Math.max(...S.bands, 0), [qlo, qhi] = top ? BANDS[top] : [0.05, 0.95];
   ser.push({ name: 'Plus', type: 'line', data: sc(P[qhi]).map((v, i) => [xs[i], v]), symbol: 'none', lineStyle: { width: 1.3, color: css('--good'), type: 'dashed' }, z: 3 });
   ser.push({ name: 'Moins', type: 'line', data: sc(P[qlo]).map((v, i) => [xs[i], v]), symbol: 'none', lineStyle: { width: 1.3, color: css('--bad'), type: 'dashed' }, z: 3 });
-  ser.push({ name: 'Courbe attendue', type: 'line', data: xs.map(x => [x, +uv(M.evNet * x).toFixed(2)]), symbol: 'none', lineStyle: { width: 3, color: css('--accent') }, z: 4 });
-  if (S.resB) { const B = S.resB; ser.push({ name: 'B attendue', type: 'line', data: xs.map(x => [x, +uv(B.M.evNet * x).toFixed(2)]), symbol: 'none', lineStyle: { width: 2.4, color: css('--blue') }, z: 5 }, { name: 'B moins', type: 'line', data: sc(B.pct[qlo]).map((v, i) => [xs[i], v]), symbol: 'none', lineStyle: { width: 1.2, color: css('--blue'), type: 'dotted' }, z: 5 }); }
+  ser.push({ name: 'Attendu', type: 'line', data: xs.map(x => [x, +uv(M.evNet * x).toFixed(2)]), symbol: 'none', lineStyle: { width: 3, color: css('--accent') }, z: 4 });
+  if (S.resB) { const B = S.resB; ser.push({ name: 'B', type: 'line', data: xs.map(x => [x, +uv(B.M.evNet * x).toFixed(2)]), symbol: 'none', lineStyle: { width: 2.4, color: css('--blue') }, z: 5 }, { name: 'B moins', type: 'line', data: sc(B.pct[qlo]).map((v, i) => [xs[i], v]), symbol: 'none', lineStyle: { width: 1.2, color: css('--blue'), type: 'dotted' }, z: 5 }); }
   chart('c_fan').setOption({
     animation: false, grid: { left: 66, right: 18, top: 16, bottom: 34 },
     tooltip: { ...tip(), trigger: 'axis', formatter: (ps) => { const x = +ps[0].axisValue, k = xs.indexOf(x); if (k < 0) return ''; const f = (q) => moneyS(P[q][k], 0); return `<b>${nf(x)} spins</b> · ${nf(x / M.sph, 1)} h<br>Attendu : <b>${moneyS(M.evNet * x, 0)}</b><br>${[...S.bands].sort((a, b) => a - b).map(b => `${b} % : ${f(BANDS[b][0])} à ${f(BANDS[b][1])}`).join('<br>')}<br>Gagnant : ${nf(R.pPos[k] * 100, 0)} %${S.resB ? `<br><span style="color:${css('--blue')}">B attendu : ${moneyS(S.resB.M.evNet * x, 0)}</span>` : ''}`; } },
-    xAxis: { type: 'value', min: 0, max: N, ...axis(), splitLine: { show: false }, axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) } },
-    yAxis: { type: 'value', ...axis(), axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) + ul() } },
-    series: [...ser, { type: 'line', data: [], markLine: { silent: true, symbol: 'none', data: [{ yAxis: 0 }], lineStyle: { color: css('--muted'), width: 1 }, label: { show: false } } }],
+    xAxis: xVal(N), yAxis: { type: 'value', ...axis(), axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) + ul() } },
+    series: [...ser, zeroLine()],
   }, true);
   $('#fan_t').textContent = `Ta courbe attendue sur ${nf(N)} spins`;
   $('#fan_lg').innerHTML = `<span><i style="background:${css('--accent')};height:3px"></i>Courbe attendue</span><span><i style="background:${css('--good')};height:2px"></i>Le plus (haut de la bande ${top || 90} %)</span><span><i style="background:${css('--bad')};height:2px"></i>Le moins</span>${[...S.bands].sort((a, b) => b - a).map(b => `<span><i style="background:${css(BANDS[b][2])}"></i>${b} % des cas</span>`).join('')}${S.resB ? `<span><i style="background:${css('--blue')};height:3px"></i>Scénario B (CEV ${nf(S.resB.cev)})</span>` : ''}`;
@@ -467,7 +677,7 @@ function renderTab() {
   if (S.tab === 'win') {
     const xs = Array.from(R.marks);
     chart('c_win').setOption({ animation: false, grid: { left: 44, right: 34, top: 14, bottom: 30 }, tooltip: { ...tip(), trigger: 'axis', formatter: (ps) => ps.filter(p => p.seriesName).map(p => `${p.seriesName} : <b>${nf(p.data[1], 0)} %</b>`).join('<br>') + `<br>${nf(ps[0].data[0])} spins` },
-      xAxis: { type: 'value', min: 0, max: R.N, ...axis(), splitLine: { show: false }, axisLabel: { ...axis().axisLabel, formatter: (v) => nf(v) } }, yAxis: { type: 'value', min: 0, max: 100, ...axis(), axisLabel: { ...axis().axisLabel, formatter: '{value} %' } },
+      xAxis: xVal(R.N), yAxis: { type: 'value', min: 0, max: 100, ...axis(), axisLabel: { ...axis().axisLabel, formatter: '{value} %' } },
       series: [{ name: 'A', type: 'line', data: xs.map((x, k) => [x, +(R.pPos[k] * 100).toFixed(1)]), symbol: 'none', smooth: true, lineStyle: { width: 2.6, color: css('--accent') }, areaStyle: { color: css('--b90') } }, ...(S.resB ? [{ name: 'B', type: 'line', data: xs.map((x, k) => [x, +(S.resB.pPos[k] * 100).toFixed(1)]), symbol: 'none', smooth: true, lineStyle: { width: 2.2, color: css('--blue') } }] : []),
         { type: 'line', data: [], markLine: { silent: true, symbol: 'none', data: [{ yAxis: 50 }, { yAxis: 90 }], lineStyle: { color: css('--line2'), type: 'dashed' }, label: { color: css('--dim'), formatter: '{c} %', fontSize: 10 } } }] }, true);
     const at = (p) => { const k = R.pPos.findIndex(v => v >= p); return k < 0 ? null : R.marks[k]; };
@@ -482,7 +692,8 @@ function renderTab() {
       series: [{ name: 'ROI', type: 'line', data: roi, symbol: 'none', lineStyle: { width: 2.6, color: css('--accent') }, markLine: { silent: true, symbol: 'none', data: [{ xAxis: String(Math.max(-40, Math.min(140, Math.round(cur / 2) * 2))) }, { yAxis: 0 }], lineStyle: { color: css('--muted'), type: 'dashed' }, label: { show: false } } },
         { name: '€ / heure', type: 'line', yAxisIndex: 1, data: ph, symbol: 'none', lineStyle: { width: 2, color: css('--blue') } }] }, true);
     const be = breakeven(), per10 = (model(cur + 10).evNet - model(cur).evNet);
-    $('#cev_kv').innerHTML = `<div><span>Rentable à partir de</span><b>CEV ${nf(be, 1)}</b></div><div><span>+10 de CEV te rapporte</span><b>${moneyS(per10 * M.sph, 2)} / h <small>· ${sg(per10 * 100, 2)} % de ROI</small></b></div>${[20, 40, 60, 80].map(c => { const m = model(c); return `<div><span>Avec un CEV de ${c}</span><b class="${cls(m.evNet)}">${moneyS(m.evNet * m.sph, 2)} / h <small>· ROI ${sg(m.roi, 1)} %</small></b></div>`; }).join('')}`;
+    $('#cev_kv').innerHTML = `<div><span>Rentable à partir de</span><b>CEV ${be === null ? '–' : nf(be, 1)}</b></div><div><span>+10 de CEV te rapporte</span><b>${eurS(per10 * M.sph * S.bi, 2)} / h <small>· ${sg(per10 * 100, 2)} % de ROI</small></b></div>${[20, 40, 60, 80].map(c => { const m = model(c); return `<div><span>Avec un CEV de ${c}</span><b class="${cls(m.evNet)}">${eurS(m.evNet * m.sph * S.bi, 2)} / h <small>· ROI ${sg(m.roi, 1)} %</small></b></div>`; }).join('')}`;
+    objective();
   } else if (S.tab === 'ruin') {
     const loss = R.sLoss, maxB = Math.max(10, loss[Math.floor(loss.length * 0.995)]) * 1.05, pts = [];
     for (let k = 0; k <= 60; k++) { const B = maxB * k / 60; let n = 0; for (const v of loss) if (v >= B) n++; pts.push([+uv(B).toFixed(1), +(n / loss.length * 100).toFixed(2)]); }
@@ -491,10 +702,10 @@ function renderTab() {
       yAxis: { type: 'value', max: 100, ...axis(), axisLabel: { ...axis().axisLabel, formatter: '{value} %' } },
       series: [{ type: 'line', data: pts, smooth: true, symbol: 'none', lineStyle: { width: 2.6, color: css('--bad') }, areaStyle: { color: css('--b90') } }] }, true);
     const need = (r) => loss[Math.min(loss.length - 1, Math.floor(loss.length * (1 - r)))];
-    $('#ruin_kv').innerHTML = [[0.2, 'Risque 20 %'], [0.1, 'Risque 10 %'], [0.05, 'Risque 5 % (conseillée)'], [0.01, 'Risque 1 % (prudente)']].map(([r, l]) => `<div><span>${l}</span><b>${U() ? nf(need(r) * S.bi, 0) + ' € ' : ''}<small>${nf(need(r), 0)} BI</small></b></div>`).join('');
+    $('#ruin_kv').innerHTML = [[0.2, 'Risque 20 %'], [0.1, 'Risque 10 %'], [0.05, 'Risque 5 % (conseillée)'], [0.01, 'Risque 1 % (prudente)']].map(([r, l]) => `<div><span>${l}</span><b>${eur(need(r) * S.bi)} <small>${nf(need(r), 0)} BI</small></b></div>`).join('');
   } else if (S.tab === 'dd') {
     barChart('c_dd', hist(R.sDd, 40), () => css('--bad'), 'pire downswing', (b) => `${nf(uv(b.x0), 0)} à ${nf(uv(b.x1), 0)}${ul()}<br>${nf(b.c * 100, 1)} % des simulations`);
-    const L = R.sLen, row = (l, q) => `<div><span>${l}</span><b>${U() ? nf(qs(R.sDd, q) * S.bi, 0) + ' € ' : ''}<small>${nf(qs(R.sDd, q), 0)} BI</small></b></div>`;
+    const L = R.sLen, row = (l, q) => `<div><span>${l}</span><b>${eur(qs(R.sDd, q) * S.bi)} <small>${nf(qs(R.sDd, q), 0)} BI</small></b></div>`;
     $('#dd_kv').innerHTML = row('Downswing typique', 0.5) + row('1 fois sur 5', 0.8) + row('1 fois sur 20', 0.95) + row('1 fois sur 100', 0.99) + `<div><span>Plus long passage sans nouveau record</span><b>${nf(qs(L, 0.5), 0)} spins <small>· ${nf(qs(L, 0.5) / M.sph, 0)} h</small></b></div><div><span>… 1 fois sur 20</span><b>${nf(qs(L, 0.95), 0)} spins <small>· ${nf(qs(L, 0.95) / M.sph, 0)} h</small></b></div>`;
   } else if (S.tab === 'fin') {
     barChart('c_fin', hist(R.sFin, 44), (b) => (b.x0 + b.x1) / 2 >= 0 ? css('--good') : css('--bad'), 'résultat à la fin', (b) => `${moneyS(b.x0, 0)} à ${moneyS(b.x1, 0)}<br>${nf(b.c * 100, 1)} % des simulations`);
@@ -502,12 +713,18 @@ function renderTab() {
     goal();
   }
 }
+function objective() {
+  const M = model(), g = Math.max(0, num('#obj')), h = Math.max(1, num('#objh')), now = M.evNet * M.sph * S.bi * h;
+  const need = solveCev(c => model(c).evNet * M.sph * S.bi * h - g), tb = M.evNet > 0 ? g / (M.evNet * Math.max(0.5, num('#spt')) * S.bi * h) : null;
+  $('#obj_kv').innerHTML = `<div><span>Avec tes réglages actuels</span><b class="${cls(now)}">${eurS(now)} / mois</b></div><div><span>CEV nécessaire</span><b>${need === null ? '<small>hors de portée</small>' : nf(need, 1)}</b></div><div><span>Ou, avec ton CEV, tables nécessaires</span><b>${tb === null ? '<small>pas rentable</small>' : nf(Math.ceil(tb * 10) / 10, 1)}</b></div>`;
+}
 function goal() { const R = S.res; if (!R) return; const g = num('#goal') / (U() ? S.bi : 1); let n = 0; for (const v of R.fin) if (v >= g) n++; $('#goal_u').textContent = U() ? '€' : 'BI'; $('#goal_o').textContent = nf(n / R.P * 100, 0) + ' %'; }
 function renderJackpots() {
   const R = S.res; if (!R) return; const M = R.M, N = R.N;
+  const g = (t, k) => { const v = t.m * t.s[k] / 100 * S.bi; return t.s[k] > 0 ? nf(v, Math.abs(v - Math.round(v)) < 0.005 ? 0 : 2) + ' €' : '–'; };
   $('#jp_t').innerHTML = `<thead><tr><th>Multiplicateur</th><th>Fréquence</th><th>Tirés sur ${nf(N)} spins</th><th>En voir au moins un</th><th>En toucher au moins un</th><th>Gain 1er / 2e / 3e</th></tr></thead><tbody>${M.tiers.slice().sort((a, b) => b.m - a.m).map(t => {
-    const q = t.p / M.tot, w = q * ((t.s[0] > 0 ? M.pr[0] : 0) + (t.s[1] > 0 ? M.pr[1] : 0) + (t.s[2] > 0 ? M.pr[2] : 0)), g = (k) => { const v = t.m * t.s[k] / 100 * S.bi; return t.s[k] > 0 ? nf(v, Number.isInteger(Math.round(v * 100) / 100) ? 0 : 2) + ' €' : '–'; };
-    return `<tr><td><b>×${nf(t.m)}</b></td><td>1 sur ${nf(1 / q, q > 0.01 ? 1 : 0)}</td><td>${nf(q * N, q * N < 10 ? 1 : 0)}</td><td>${nf((1 - Math.pow(1 - q, N)) * 100, 1)} %</td><td>${nf((1 - Math.pow(1 - w, N)) * 100, 1)} %</td><td>${g(0)}${t.s[1] || t.s[2] ? ` / ${g(1)} / ${g(2)}` : ''}</td></tr>`; }).join('')}</tbody>`;
+    const q = t.p / M.tot, w = q * ((t.s[0] > 0 ? M.pr[0] : 0) + (t.s[1] > 0 ? M.pr[1] : 0) + (t.s[2] > 0 ? M.pr[2] : 0));
+    return `<tr><td><b>×${nf(t.m)}</b></td><td>1 sur ${nf(1 / q, q > 0.01 ? 1 : 0)}</td><td>${nf(q * N, q * N < 10 ? 1 : 0)}</td><td>${nf((1 - Math.pow(1 - q, N)) * 100, 1)} %</td><td>${nf((1 - Math.pow(1 - w, N)) * 100, 1)} %</td><td>${g(t, 0)}${t.s[1] || t.s[2] ? ` / ${g(t, 1)} / ${g(t, 2)}` : ''}</td></tr>`; }).join('')}</tbody>`;
 }
 function renderTable() {
   const R = S.res; if (!R) return; const M = R.M, ks = [];
@@ -523,38 +740,323 @@ function renderCmp() {
   $('#cmp').innerHTML = box(A, 'A', '') + box(B, 'B', 'b') + `<div class="kpi hl"><div class="l">Ce que B rapporte en plus</div><div class="v ${cls(d)}">${moneyS(d * A.N, 0)}</div><div class="s">${moneyS(d * A.M.sph, 2)} par heure · ${moneyS(d, 3)} par spin</div></div>`;
 }
 
-// =================== réglages ===================
-const KEYS = ['cev', 'stack', 'players', 'cevb', 'games', 'tables', 'spt', 'rb', 'rbn', 'bon', 'bonn', 'sims'];
-function save() { try { localStorage.setItem('spinscope-sim2', JSON.stringify({ site: S.site, bi: S.bi, ...Object.fromEntries(KEYS.map(k => [k, $('#' + k).value])) })); } catch (e) { /* stockage indisponible */ } }
-function restore() { try { const o = JSON.parse(localStorage.getItem('spinscope-sim2') || 'null'); if (!o) return null; for (const k of KEYS) if (o[k] !== undefined && o[k] !== '') $('#' + k).value = o[k]; return o; } catch (e) { return null; } }
+// =================== vue Mes résultats ===================
+function verdict(pc) {
+  if (pc < 0.1) return ['bad', 'Très malchanceux']; if (pc < 0.3) return ['bad', 'Malchanceux'];
+  if (pc <= 0.7) return ['mid', 'Dans la normale']; if (pc <= 0.9) return ['good', 'Chanceux']; return ['good', 'Très chanceux'];
+}
+async function finDist(cev, N, onProg) { // résultats possibles (en BI, sans rakeback) sur N spins avec ce CEV
+  const M = model(cev, { rb: 0, bonus: false, pr: placesFor(cev) });
+  if (N > 100000) return { M, normal: true };
+  const R = await simulate(M, onProg, { games: N, sims: N > 20000 ? 2000 : 4000, K: 1, rb: 0, bonus: false });
+  return { M, s: sorted(R.fin) };
+}
+function pctOf(D, N, x) {
+  if (D.normal) return Phi((x - N * (D.M.ev - 1)) / (Math.sqrt(N) * D.M.sd));
+  let lo = 0, hi = D.s.length; while (lo < hi) { const m = (lo + hi) >> 1; if (D.s[m] <= x) lo = m + 1; else hi = m; } return lo / D.s.length;
+}
+function periodCard(P, tag, title, refNote) {
+  const [vc, vt] = verdict(P.pc), pcTxt = P.pc < 0.5 ? `<b>${nf((1 - P.pc) * 100, 0)} joueurs sur 100</b> de ton niveau auraient fait mieux.` : `Tu fais mieux que <b>${nf(P.pc * 100, 0)} joueurs sur 100</b> de ton niveau.`;
+  const se = chipSd(P.c) / Math.sqrt(P.n), ci = 1.96 * se, be = breakeven(), pWin = be === null ? 0 : Phi((P.c - be) / se);
+  const nFor10 = Math.pow(1.96 * chipSd(P.c) / 10, 2);
+  const mult = P.mult ? `<div><span>dont chance sur les multiplicateurs</span><b class="${cls(P.luckMult)}">${moneyS(P.luckMult, 0)} <small>×${nf(P.mult, 3)} au lieu de ×${nf(P.D.M.meanM, 3)}</small></b></div><div><span>dont chance en partie (all-in, places)</span><b class="${cls(P.luck - P.luckMult)}">${moneyS(P.luck - P.luckMult, 0)}</b></div>` : '';
+  return `<section class="card"><div class="hd"><h3><span class="tag ${tag === 2 ? 'b' : ''}">${tag}</span>${title} · ${nf(P.n)} spins</h3><span class="verdict ${vc}">${vt}</span></div>
+    <div class="meter" role="img" aria-label="Chance : ${nf(P.pc * 100)} sur 100"><i style="left:${Math.max(2, Math.min(98, P.pc * 100))}%"></i></div><div class="mlab"><span>malchanceux</span><span>normal</span><span>chanceux</span></div>
+    <p class="say">${pcTxt}</p>
+    <div class="split" style="margin-top:4px"><div class="kv">
+      <div><span>Ton résultat</span><b class="${cls(P.r)}">${moneyS(P.r, 0)}</b></div>
+      <div><span>Attendu ${refNote}</span><b class="${cls(P.exp)}">${moneyS(P.exp, 0)}</b></div>${P.rb > 0 ? `<div><span>dont rakeback</span><b class="pos">${moneyS(P.rb, 0)}</b></div>` : ''}
+      <div><span>Écart = ta chance</span><b class="${cls(P.luck)}">${moneyS(P.luck, 0)}</b></div>${mult}
+      <div><span>Ton vrai CEV, à 95 %</span><b>${nf(P.c - ci, 0).replace('-', '−')} à ${nf(P.c + ci, 0).replace('-', '−')}</b></div>
+      <div><span>Chance d’être vraiment gagnant</span><b>${nf(pWin * 100, 0)} % <small>(rentable dès ${be === null ? '–' : nf(be, 1)})</small></b></div>
+      <div><span>Spins pour connaître ton CEV à ±10</span><b>${nf(Math.ceil(nFor10 / 1000) * 1000)}${P.n >= nFor10 ? ' <small>✓ atteint</small>' : ` <small>encore ${nf(Math.ceil((nFor10 - P.n) / 1000) * 1000)}</small>`}</b></div>
+    </div><div><div class="chart xs" id="c_res${tag}" role="img" aria-label="Résultats possibles et le tien"></div><div class="hint" style="text-align:center">Les résultats possibles avec ce niveau ; la barre foncée, c’est toi.</div></div></div></section>`;
+}
+async function analyse() {
+  const btn = $('#res_go'); btn.disabled = true; $('#res_prog').style.width = '0';
+  const toBI = (v) => U() ? v / S.bi : v, rOn = $('#r_on').checked, rbPer = $('#res_rb').checked ? model().rbPer : 0;
+  const L = { n: Math.max(1, Math.round(num('#l_n'))), c: num('#l_c'), r: toBI(num('#l_r')), mult: num('#l_m') || 0 };
+  const R = rOn ? { n: Math.max(1, Math.round(num('#r_n'))), c: num('#r_c'), r: toBI(num('#r_r')), mult: num('#r_m') || 0 } : null;
+  try {
+    L.D = await finDist(L.c, L.n, (p) => { $('#res_prog').style.width = (p * (rOn ? 50 : 100)) + '%'; });
+    // la période récente est jugée avec ton niveau long terme (plus fiable que le CEV de quelques centaines de spins)
+    if (R) R.D = await finDist(L.c, R.n, (p) => { $('#res_prog').style.width = (50 + p * 50) + '%'; });
+  } catch (e) { $('#res_out').innerHTML = '<div class="card neg">Le calcul n’a pas pu tourner dans ce navigateur.</div>'; btn.disabled = false; return; }
+  for (const P of [L, R].filter(Boolean)) {
+    P.rb = P.n * rbPer; P.rPre = P.r - P.rb; P.exp = P.n * (P.D.M.ev - 1) + P.rb; P.luck = P.r - P.exp; P.pc = pctOf(P.D, P.n, P.rPre);
+    P.luckMult = P.mult ? P.n * (P.mult - P.D.M.meanM) * (P.D.M.ev / P.D.M.meanM) : 0;
+  }
+  let html = periodCard(L, 1, 'Ton long terme', 'avec ton CEV');
+  if (R) {
+    html += periodCard(R, 2, 'Ta période récente', `avec ton niveau habituel (CEV ${nf(L.c, 1)})`);
+    // le CEV a-t-il vraiment changé ? On compare la période récente au reste du long terme.
+    const inside = $('#r_in').checked && L.n > R.n, restN = inside ? L.n - R.n : L.n, restC = inside ? (L.c * L.n - R.c * R.n) / restN : L.c;
+    const diff = R.c - restC, se = chipSd(L.c) * Math.sqrt(1 / R.n + 1 / restN), z = diff / se, p2 = 2 * (1 - Phi(Math.abs(z)));
+    let v;
+    if (Math.abs(z) < 1.645) v = ['mid', 'Variance normale', diff >= 0
+      ? `Ton CEV récent est meilleur que d’habitude, mais l’écart reste dans la variance : <b>${nf(p2 * 100, 0)} joueurs sur 100</b> l’auraient sans avoir progressé. Attends plus de volume avant de conclure.`
+      : `Un écart de CEV comme celui-ci arrive à <b>${nf(p2 * 100, 0)} joueurs sur 100</b> sur ${nf(R.n)} spins, sans que leur niveau change. Rien d’inquiétant : continue à jouer ton jeu.`];
+    else if (diff > 0) v = ['good', 'Vraie progression', `Un écart pareil n’arrive qu’à <b>${nf(p2 * 100, 1)} joueurs sur 100</b> par variance : tu as très probablement progressé.`];
+    else if (Math.abs(z) < 2.576) v = ['bad', 'À surveiller', `Un écart pareil n’arrive qu’à <b>${nf(p2 * 100, 1)} joueurs sur 100</b> par pure variance. Ce n’est peut-être pas que la variance : regarde tes mains récentes (fatigue, tilt, nouvelle limite, adversaires plus forts).`];
+    else v = ['bad', 'Écart anormal', `Un écart pareil n’arrive qu’à <b>${nf(p2 * 100, 2)} joueurs sur 100</b> par pure variance. Il y a très probablement un changement dans ton jeu ou dans tes adversaires.`];
+    html += `<section class="card"><div class="hd"><h3>Ton niveau a-t-il changé ?</h3><span class="verdict ${v[0]}">${v[1]}</span></div>
+      <p class="say">CEV récent <b>${nf(R.c, 1)}</b> contre <b>${nf(restC, 1)}</b> le reste du temps, soit <b class="${cls(diff)}">${sg(diff, 1)}</b>.</p><p class="say">${v[2]}</p>
+      <div class="hint">Le CEV de quelques centaines de spins bouge beaucoup : c’est pour ça que tes résultats récents sont jugés avec ton niveau long terme.</div></section>`;
+  }
+  $('#res_out').innerHTML = html;
+  for (const [P, t] of [[L, 1], [R, 2]]) if (P) resChart(P, t);
+  btn.disabled = false; $('#res_prog').style.width = '100%';
+  if (matchMedia('(max-width: 1020px)').matches) $('#res_out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function inverf(x) { const a = 0.147, l = Math.log(1 - x * x), t = 2 / (Math.PI * a) + l / 2; return Math.sign(x) * Math.sqrt(Math.sqrt(t * t - l / a) - t); }
+function resChart(P, t) {
+  let s = P.D.s; if (!s) { const m = P.n * (P.D.M.ev - 1), sd = Math.sqrt(P.n) * P.D.M.sd; s = Float64Array.from({ length: 2000 }, (_, i) => m + sd * Math.SQRT2 * inverf(2 * (i + 0.5) / 2000 - 1)); }
+  const h = hist(s, 30); let mi = h.findIndex(b => P.rPre < b.x1); if (mi < 0) mi = h.length - 1;
+  chart('c_res' + t).setOption({ animation: false, grid: { left: 8, right: 8, top: 10, bottom: 26 }, tooltip: { ...tip(), trigger: 'axis', formatter: (ps) => { const b = h[ps[0].dataIndex]; return `${moneyS(b.x0 + P.rb, 0)} à ${moneyS(b.x1 + P.rb, 0)}<br>${nf(b.c * 100, 1)} % des joueurs de ton niveau`; } },
+    xAxis: { type: 'category', data: h.map(b => nf(uv((b.x0 + b.x1) / 2 + P.rb), 0)), ...axis(), splitLine: { show: false }, axisLabel: { ...axis().axisLabel, interval: 6 } }, yAxis: { type: 'value', show: false },
+    series: [{ type: 'bar', barCategoryGap: '6%', data: h.map((b, i) => ({ value: i === mi ? Math.max(b.c, Math.max(...h.map(x => x.c)) * 0.12) : b.c, itemStyle: { color: i === mi ? css('--text') : (b.x0 + b.x1) / 2 + P.rb >= 0 ? css('--good') : css('--bad'), opacity: i === mi ? 1 : .5, borderRadius: [2, 2, 0, 0] } })) }] }, true);
+}
+
+// =================== vue Quelle room ===================
+const LVLS = [1, 2, 5, 10, 20, 50, 100];
+const nearOf = (arr, v) => arr.reduce((a, x) => Math.abs(Math.log(x / v)) < Math.abs(Math.log(a / v)) ? x : a);
+function buildRooms() {
+  if (S.lvl === null) S.lvl = nearOf(LVLS, S.bi);
+  $('#lvls').innerHTML = LVLS.map(l => `<button data-l="${l}" class="${l === S.lvl ? 'on' : ''}">${l} €</button>`).join('');
+  $$('#lvls [data-l]').forEach(b => b.onclick = () => { S.lvl = +b.dataset.l; buildRooms(); });
+  $('#rooms').innerHTML = REAL.map(k => `<article class="room" id="room_${k}">
+    <h4>${SITES[k].name}<small id="rm_bi_${k}"></small></h4><div class="hint" style="margin-top:-6px">${SITES[k].game}</div><span class="badge" hidden>Le meilleur pour toi</span>
+    <div><div class="v" id="rm_h_${k}"></div><div class="hint" id="rm_hh_${k}">par heure, rakeback compris</div></div>
+    <div class="rset">
+      <label class="rbf">Rakeback (% du rake) <input class="inp" type="number" min="0" max="100" step="1" data-rs="rbs" data-k="${k}" value="${S.rbs[k] ?? num('#rb')}"></label>
+      <label class="rbf">Tables en même temps <input class="inp" type="number" min="1" max="24" step="1" data-rs="tbs" data-k="${k}" value="${S.tbs[k] ?? num('#tables')}"></label>
+      <label class="rbf">Spins / h par table <input class="inp" type="number" min="1" step="0.5" data-rs="spts" data-k="${k}" value="${S.spts[k] ?? num('#spt')}"></label>
+      <div class="hint" id="rm_sph_${k}"></div>
+    </div>
+    <div class="kv" id="rm_kv_${k}"></div>
+    <div><div class="mlab" style="margin-bottom:4px"><span>Variance</span><span id="rm_vt_${k}"></span></div><div class="vbar"><i id="rm_vb_${k}"></i></div></div>
+    <div class="warnline" id="rm_w_${k}"></div></article>`).join('');
+  $$('[data-rs]').forEach(el => el.oninput = () => { const v = parseFloat(String(el.value).replace(',', '.')); if (Number.isFinite(v) && v > 0 || (el.dataset.rs === 'rbs' && v === 0)) { S[el.dataset.rs][el.dataset.k] = v; updateRooms(); save(); } });
+  updateRooms();
+}
+function updateRooms() {
+  if (!$('#room_betclic')) return;
+  const cev = num('#cev'), out = {};
+  for (const k of REAL) { const bi = nearOf(SITES[k].buyins, S.lvl), rb = S.rbs[k] ?? num('#rb'), sph = Math.max(1, S.tbs[k] ?? num('#tables')) * Math.max(0.5, S.spts[k] ?? num('#spt')); out[k] = { bi, rb, sph, m: model(cev, { site: k, bi, rb, sph, bonus: false, pr: placesFor(cev) }) }; }
+  const prac = (k) => (out[k].m.evNet - out[k].m.evRare) * out[k].bi * out[k].sph, best = REAL.reduce((a, k) => prac(k) > prac(a) ? k : a), maxSd = Math.max(...REAL.map(k => out[k].m.sdP));
+  for (const k of REAL) {
+    const { bi, m, rb } = out[k], ph = m.evNet * m.sph * bi, mu = m.evNet - m.evRare, n95 = mu > 0 ? Math.pow(1.645 * m.sdP / mu, 2) : null, br = mu > 0 ? -Math.log(0.05) * m.sdP * m.sdP / (2 * mu) : null, be = breakeven({ site: k, bi, rb, bonus: false });
+    $('#rm_sph_' + k).textContent = `= ${nf(m.sph, 1)} spins par heure`;
+    $('#rm_bi_' + k).textContent = ' · ' + fmtBi(bi);
+    $('#rm_h_' + k).innerHTML = `<span class="${cls(ph)}">${eurS(ph, 2)}</span>`;
+    $('#rm_hh_' + k).innerHTML = m.evRare * 100 > 0.05 ? `par heure, rakeback compris · <b>${eurS(mu * m.sph * bi, 2)}</b> en pratique, sans le jackpot géant` : 'par heure, rakeback compris';
+    $('#rm_kv_' + k).innerHTML = `<div><span>ROI</span><b class="${cls(m.roi)}">${sg(m.roi, 1)} % <small>(${sg(m.roiPre, 1)} % sans RB)</small></b></div><div><span>Rake</span><b>${nf(m.rakePct, 1)} %</b></div><div><span>Rentable dès</span><b>CEV ${be === null ? '–' : nf(be, 0)}</b></div><div><span>Bankroll conseillée</span><b>${br === null ? '<small>pas rentable</small>' : `${eur(br * bi)} <small>${nf(br, 0)} BI</small>`}</b></div><div><span>95 % gagnant après</span><b>${n95 === null ? '–' : `${nf(Math.ceil(n95 / 100) * 100)} spins <small>· ${nf(n95 / m.sph, 0)} h</small>`}</b></div><div><span>Plus gros lot</span><b>${eur(Math.max(...m.tiers.map(t => t.m)) * bi)}</b></div>`;
+    const r = maxSd ? m.sdP / maxSd : 0; $('#rm_vb_' + k).style.width = (r * 100) + '%'; $('#rm_vt_' + k).textContent = r > 0.999 ? 'la plus forte' : r > 0.85 ? 'très forte' : r > 0.6 ? 'forte' : 'modérée';
+    const w = []; if (m.evRare * 100 > 0.05) w.push(`Dont <b>${nf(m.evRare * 100, 2)} %</b> de ROI qui vient d’un jackpot à moins d’1 chance sur 1 000 000 : tu ne le verras sans doute jamais.`); if (k === 'pmu') w.push('Table PMU à vérifier dans le lobby.');
+    $('#rm_w_' + k).innerHTML = w.join('<br>');
+    $('#room_' + k).classList.toggle('best', k === best && prac(k) > 0); $('#room_' + k).querySelector('.badge').hidden = !(k === best && prac(k) > 0);
+  }
+  const colors = { betclic: css('--accent'), winamax: css('--bad'), unibet: css('--good'), pmu: css('--blue') }, Hmax = 1000, xs = [];
+  for (let h = 0; h <= Hmax; h += 20) xs.push(h);
+  chart('c_rooms').setOption({ animation: false, grid: { left: 44, right: 34, top: 30, bottom: 36 }, legend: { top: 0, right: 0, textStyle: { color: css('--muted'), fontSize: 11 }, itemWidth: 14, itemHeight: 3 },
+    tooltip: { ...tip(), trigger: 'axis', formatter: (ps) => `<b>${nf(+ps[0].axisValue)} h de jeu</b><br>` + ps.map(p => `${p.marker}${p.seriesName} : ${nf(p.data[1], 0)} %`).join('<br>') },
+    xAxis: { ...xVal(Hmax), name: 'heures de jeu', nameLocation: 'middle', nameGap: 24, nameTextStyle: { color: css('--muted'), fontSize: 11 } },
+    yAxis: { type: 'value', min: 0, max: 100, ...axis(), axisLabel: { ...axis().axisLabel, formatter: '{value} %' } },
+    series: REAL.map(k => { const m = out[k].m, mu = m.evNet - m.evRare; return { name: `${SITES[k].name} ${fmtBi(out[k].bi)}`, type: 'line', symbol: 'none', smooth: true, lineStyle: { width: 2.2, color: colors[k] }, itemStyle: { color: colors[k] },
+      data: xs.map(h => [h, h === 0 ? 50 : +(Phi(mu * Math.sqrt(h * m.sph) / (m.sdP || 1)) * 100).toFixed(1)]) }; }) }, true);
+}
+
+// =================== vue Bankroll : puis-je monter ? ===================
+// bankroll nécessaire (en BI) pour un risque de ruine r, jeu illimité à une limite : -ln(r)·σ²/(2μ), sans les jackpots rarissimes
+const tgtCev = () => num('#cev') - num('#bk_drop');
+// pool EV : chaque place est payée à son gain moyen (on retire la loterie des multiplicateurs)
+function poolTiers(site, bi) {
+  const t = tiersFor(site, bi).filter(x => x.p > 0 && x.m > 0), tot = t.reduce((a, x) => a + x.p, 0) || 1, w = [0, 1, 2].map(k => t.reduce((a, x) => a + x.p / tot * x.m * x.s[k], 0));
+  return [{ m: 1, p: 1e6, s: w }];
+}
+const bkModel = (cev, bi, pool) => model(cev, { bi, pr: placesFor(cev), ...(pool ? { tiers: poolTiers(S.site, bi) } : {}) });
+const needBI = (m, r) => { const mu = m.evNet - m.evRare; return mu > 0 ? -Math.log(r) * m.sdP * m.sdP / (2 * mu) : null; };
+function bkHints() {
+  const b = SITES[S.site].buyins, i0 = b.indexOf(S.bi);
+  $('#bk_start').textContent = fmtBi(S.bi); $('#bk_cur').textContent = nf(num('#cev'), 1);
+  $('#bk_cev_h').textContent = `→ CEV estimé au ${fmtBi(+$('#bk_tg').value || S.bi)} : ${nf(tgtCev(), 1)}`;
+  $('#bk_go').disabled = i0 >= b.length - 1 && !S.bkBusy;
+  if (i0 >= b.length - 1) $('#bk_go').textContent = 'Tu es déjà à la plus haute limite'; else if (!S.bkBusy) $('#bk_go').textContent = 'Vérifier';
+}
+function fillBkSelects() {
+  const b = SITES[S.site].buyins, i0 = b.indexOf(S.bi), tg = $('#bk_tg'), keep = +tg.value;
+  tg.innerHTML = b.map((x, i) => i > i0 ? `<option value="${x}">${fmtBi(x)}</option>` : '').join('');
+  const v = b.includes(keep) && b.indexOf(keep) > i0 ? keep : b[i0 + 1]; if (v !== undefined) tg.value = v;
+  if (v !== keep && keep) $('#bk_drop').value = 3 * Math.max(1, b.indexOf(v) - i0);
+  bkHints();
+}
+const SHOT_WORKER = `
+self.onmessage = (e) => {
+  const o = e.data, P = o.sims, nT = o.cum.length, A = o.A, Smax = o.Smax, Nmax = o.Nmax;
+  ${RNG}
+  const succ = new Int32Array(P), minB = new Float32Array(P), endG = new Int32Array(P);
+  const p1 = o.pr[0], p12 = o.pr[0] + o.pr[1], cum = o.cum, win = o.win, only1 = o.only1;
+  for (let s = 0; s < P; s++) {
+    let br = 0, low = 0, g = 0; succ[s] = -1;
+    while (g < Nmax) {
+      g++; let r = -1 + o.rb;
+      const v = rnd(), place = v < p1 ? 0 : v < p12 ? 1 : 2;
+      if (!(only1 && place)) { const u = rnd(); let t = 0; while (t < nT - 1 && u > cum[t]) t++; r += win[t * 3 + place]; }
+      br += r; if (br < low) low = br;
+      if (br >= A) { succ[s] = g; break; }
+      if (br <= -Smax) break;
+    }
+    minB[s] = low; endG[s] = g;
+    if ((s & 63) === 63) self.postMessage({ prog: (s + 1) / P });
+  }
+  self.postMessage({ done: true, succ, minB, endG, P }, [succ.buffer, minB.buffer, endG.buffer]);
+};`;
+const shotURL = URL.createObjectURL(new Blob([SHOT_WORKER], { type: 'text/javascript' }));
+async function runBk() {
+  const b = SITES[S.site].buyins, i0 = b.indexOf(S.bi); if (i0 >= b.length - 1) return;
+  const btn = $('#bk_go'); S.bkBusy = true; btn.disabled = true; btn.textContent = 'Calcul en cours…'; $('#bk_prog').style.width = '0';
+  const tgBi = +$('#bk_tg').value, r = S.risk / 100, br = Math.max(0, num('#bk_br'));
+  const mC = bkModel(num('#cev'), S.bi, S.pool), mT = bkModel(tgtCev(), tgBi, S.pool), oT = needBI(bkModel(tgtCev(), tgBi, !S.pool), r);
+  const nC = needBI(mC, r), nT = needBI(mT, r), K = { tgBi, r, br, mC, mT, nC, nT, pool: S.pool, otherT: oT === null ? null : oT * tgBi, needC: nC === null ? null : nC * S.bi, needT: nT === null ? null : nT * tgBi };
+  K.room = K.needC === null ? null : br - K.needC; // € que tu peux perdre en gardant assez pour ta limite actuelle
+  K.sizes = []; K.res = null;
+  if (K.needT !== null && br < K.needT && br >= tgBi) {
+    const brT = br / tgBi, A = nT - brT, maxShot = Math.floor(Math.max(0, K.room || 0) / tgBi), cap = Math.floor(brT);
+    K.maxShot = Math.min(maxShot, cap);
+    const set = new Set([10, 15, 20, 30, 40, 50, 75, 100, 150, 200].filter(x => x <= cap)); if (K.maxShot >= 5) set.add(K.maxShot);
+    K.sizes = [...set].sort((a, b) => a - b).slice(0, 8); if (K.maxShot >= 5 && !K.sizes.includes(K.maxShot)) K.sizes.push(K.maxShot);
+    if (K.sizes.length) {
+      const { cum, win } = tableArrays(mT);
+      try { K.res = await runWorker(shotURL, { sims: 2000, cum, win, pr: mT.pr, only1: mT.only1, rb: mT.rbPer + mT.bonPer, A, Smax: Math.max(...K.sizes), Nmax: 150000 }, (p) => { $('#bk_prog').style.width = (p * 100) + '%'; }); }
+      catch (e) { console.error(e); }
+    }
+  }
+  S.bk = K; S.bkBusy = false; btn.disabled = false; bkHints(); $('#bk_prog').style.width = '100%'; renderBk();
+  if (matchMedia('(max-width: 1020px)').matches) $('#bk_out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function renderBk() {
+  const K = S.bk; if (!K || S.view !== 'bankroll') return; $('#bk_out').hidden = false;
+  const tg = fmtBi(K.tgBi), cur = fmtBi(S.bi), rp = nf(K.r * 100) + ' %', sph = K.mT.sph;
+  const v = (id, c, t) => { $(id).className = 'verdict ' + c; $(id).textContent = t; };
+  $('#bk_t1').textContent = `Jouer le ${tg} pour de bon${K.pool ? ' · en pool EV' : ''}`;
+  const curLine = K.needC === null ? `<li>Attention : avec un CEV de ${nf(num('#cev'), 1)}, tu n’es pas rentable au ${cur} non plus.</li>`
+    : `<li>Au ${cur} (CEV ${nf(num('#cev'), 1)}), il te faut <b>${eur(K.needC)}</b> (${nf(K.nC, 0)} buy-ins) : ${K.br >= K.needC ? '<span class="pos">✓ c’est bon</span>' : `<span class="neg">il te manque ${eur(K.needC - K.br)}</span>`}.</li>`;
+  if (K.needT === null) {
+    v('#bk_v1', 'bad', 'Pas rentable');
+    $('#bk_say1').innerHTML = `<p class="say" style="margin:0">Avec un CEV de <b>${nf(tgtCev(), 1)}</b> au ${tg}, tu perds de l’argent sur le long terme (il faut au moins <b>${(() => { const be = breakeven({ bi: K.tgBi }); return be === null ? '–' : nf(be, 1); })()}</b>, rakeback compris). Peu importe ta bankroll : ne monte pas tant que ton niveau n’est pas là.</p><ul>${curLine}</ul>`;
+    $('#bk_shot').hidden = true; return;
+  }
+  const ok = K.br >= K.needT;
+  v('#bk_v1', ok ? 'good' : 'bad', ok ? 'Tu as assez' : `Il te manque ${eur(K.needT - K.br)}`);
+  $('#bk_say1').innerHTML = `<p class="say" style="margin:0">Pour jouer le ${tg} avec un CEV de <b>${nf(tgtCev(), 1)}</b> et moins de <b>${rp}</b> de risque de tout perdre, il faut <b>${eur(K.needT)}</b>, soit <b>${nf(K.nT, 0)} buy-ins</b>. Tu as <b>${eur(K.br)}</b> (${nf(K.br / K.tgBi, 0)} buy-ins du ${tg}).</p>
+    <ul>${ok ? `<li class="pos">Tu peux monter au ${tg} directement.</li>` : ''}${curLine}${K.otherT === null ? '' : `<li>${K.pool ? 'Hors pool EV' : 'En pool EV'}, il faudrait <b>${eur(K.otherT)}</b> (${nf(K.otherT / K.tgBi, 0)} buy-ins) au lieu de ${eur(K.needT)}.</li>`}</ul>
+    <p class="hint" style="margin:4px 0 0">Plus ton CEV est haut, moins il faut de buy-ins : avec 10 points de CEV en plus au ${tg}, il en faudrait ${(() => { const m2 = bkModel(tgtCev() + 10, K.tgBi, K.pool), n2 = needBI(m2, K.r); return n2 === null ? '–' : nf(n2, 0); })()}.</p>`;
+  // shot
+  $('#bk_shot').hidden = ok;
+  if (ok) return;
+  $('#bk_t2').textContent = `Tenter un shot au ${tg}`;
+  if (K.br < K.tgBi) { v('#bk_v2', 'bad', 'Impossible'); $('#bk_say2').innerHTML = `<p class="say">Ta bankroll ne couvre même pas un buy-in du ${tg}.</p>`; $('#bk_t').innerHTML = ''; return; }
+  const safe = K.maxShot >= 5;
+  v('#bk_v2', safe ? 'good' : 'bad', safe ? `Jusqu’à ${nf(K.maxShot)} buy-ins` : 'Pas de shot conseillé');
+  $('#bk_say2').innerHTML = `<p class="say" style="margin:0">Le principe : tu montes au ${tg} avec une partie de ta bankroll. Si ta bankroll atteint <b>${eur(K.needT)}</b>, tu restes au ${tg} pour de bon. Si tu perds les buy-ins mis en jeu, tu redescends au ${cur}.</p>
+    <p class="say">${safe ? `Tu peux mettre en jeu jusqu’à <b>${nf(K.maxShot)} buy-ins (${eur(K.maxShot * K.tgBi)})</b> : si le shot rate, il te reste ${eur(K.br - K.maxShot * K.tgBi)}, assez pour ton ${cur} avec moins de ${rp} de risque.`
+      : K.needC === null ? `Tu n’es pas rentable au ${cur} : travaille ton jeu avant de tenter un shot.` : (K.room < 0 ? `Ta bankroll est déjà trop courte pour ton ${cur} (il faut ${eur(K.needC)}) : pas de shot pour l’instant, reconstruis d’abord ta bankroll. Les lignes ci-dessous montrent quand même ce que ça donnerait.` : `Ta bankroll est tout juste suffisante pour ton ${cur} (il faut ${eur(K.needC)}) : si un shot rate, tu serais en danger à ta limite actuelle. Les lignes ci-dessous montrent quand même ce que ça donnerait.`)}</p>`;
+  if (!K.res) { $('#bk_t').innerHTML = ''; return; }
+  const R = K.res, rows = K.sizes.map(Sz => {
+    let win = 0, lose = 0, open = 0; const tms = [];
+    for (let s = 0; s < R.P; s++) { if (R.minB[s] <= -Sz) lose++; else if (R.succ[s] >= 0) { win++; tms.push(R.succ[s]); } else open++; }
+    tms.sort((a, b) => a - b); const med = tms.length ? tms[Math.floor(tms.length / 2)] : null, good = Sz <= K.maxShot;
+    return `<tr${Sz === K.maxShot && safe ? ' style="background:var(--good-soft)"' : ''}><td><b>${nf(Sz)} BI</b> <small style="color:var(--dim)">${eur(Sz * K.tgBi)}</small></td><td class="pos">${nf(win / R.P * 100, 0)} %</td><td class="neg">${nf(lose / R.P * 100, 0)} %</td><td>${open / R.P >= 0.005 ? nf(open / R.P * 100, 0) + ' %' : '–'}</td><td>${med === null ? '–' : `${nf(med)} spins <small style="color:var(--dim)">· ${nf(med / sph, 0)} h</small>`}</td><td style="font-family:var(--f-body)">${good ? '<span class="pos">✓ sans risque pour ton ' + cur + '</span>' : '<span style="color:var(--warn)">⚠ met ton ' + cur + ' en danger</span>'}</td></tr>`;
+  });
+  $('#bk_t').innerHTML = `<thead><tr><th>Mis en jeu</th><th>Réussir</th><th>Échouer</th><th>Pas fini en 150 000 spins</th><th>Réussite en général après</th><th>Ta limite actuelle</th></tr></thead><tbody>${rows.join('')}</tbody>`;
+}
+
+// =================== vues, partage, réglages ===================
+const VIEWS = ['sim', 'resultats', 'rooms', 'bankroll'];
+function showView(v, push) {
+  if (!VIEWS.includes(v)) v = 'sim';
+  S.view = v; $('.wrap').dataset.mode = v;
+  $$('[data-view]').forEach(e => { e.hidden = e.dataset.view !== v; });
+  $$('#modes [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  if (push && location.hash.slice(1) !== v) { try { location.hash = v; } catch (e) { /* lien non modifiable */ } }
+  refresh();
+  requestAnimationFrame(() => {
+    if (v === 'rooms') buildRooms();
+    if (v === 'sim') { if (S.res) render(); else if (window.echarts) run(); }
+    if (v === 'bankroll') renderBk();
+    Object.values(S.charts).forEach(c => { try { c.resize(); } catch (e) { /* graphique caché */ } });
+  });
+}
+const enc = (v) => (v < 0 ? 'm' : '') + String(+Math.abs(v).toFixed(4)).replace('.', 'p');
+const dec = (s) => (s[0] === 'm' ? -1 : 1) * parseFloat(s.replace(/^m/, '').replace('p', '.'));
+const CODE = { c: 'cev', g: 'games', t: 'tables', h: 'spt', r: 'rb', n: 'rbn', o: 'bon', q: 'bonn' };
+function shareCode() {
+  const t = ['p', S.site, 'b' + enc(S.bi), ...Object.entries(CODE).map(([k, id]) => k + enc(num('#' + id))), 'v' + S.view];
+  if (ownTable()) S.tiers.forEach(x => t.push('k' + [x.m, x.p, ...x.s].map(enc).join('x')));
+  return t.join('-');
+}
+function applyCode(h) {
+  const t = h.split('-'); if (t[0] !== 'p' || !SITES[t[1]]) return false;
+  const k = t.filter(x => x[0] === 'k'), b = t.find(x => x[0] === 'b'), v = t.find(x => x[0] === 'v');
+  setSite(t[1]); if (b && SITES[t[1]].buyins.includes(dec(b.slice(1)))) { S.bi = dec(b.slice(1)); drawBuyins(); loadTable(); }
+  for (const x of t.slice(2)) if (CODE[x[0]] && x.length > 1) $('#' + CODE[x[0]]).value = dec(x.slice(1));
+  $('#cev_r').value = $('#cev').value;
+  if (k.length) { S.tiers = k.map(x => { const a = x.slice(1).split('x').map(dec); return { m: a[0], p: a[1], s: [a[2], a[3], a[4]] }; }); S.edited = true; drawTiers(); }
+  S.res = null; showView(v ? v.slice(1) : 'sim'); return true;
+}
+function share() {
+  const code = shareCode(), base = /github\.io$/.test(location.hostname) ? location.href.split('#')[0] : 'https://matdps.github.io/replayer/index-sim.html';
+  const url = base + '#' + code; $('#sharebox').hidden = false; $('#share_url').value = url;
+  const ok = () => { $('#share_msg').textContent = 'Lien copié : envoie-le, la personne retrouvera exactement tes réglages.'; };
+  const ko = () => { $('#share_msg').textContent = 'Copie ce lien et envoie-le : la personne retrouvera exactement tes réglages.'; $('#share_url').select(); };
+  try { navigator.clipboard.writeText(url).then(ok, ko); } catch (e) { ko(); }
+}
+const KEYS = ['cev', 'stack', 'players', 'cevb', 'games', 'tables', 'spt', 'rb', 'rbn', 'bon', 'bonn', 'obj', 'objh', 'l_n', 'l_c', 'l_r', 'l_m', 'r_n', 'r_c', 'r_r', 'r_m', 'bk_br', 'bk_drop'];
+function save() { try { localStorage.setItem('spinscope-sim4', JSON.stringify({ site: S.site, bi: S.bi, rbs: S.rbs, tbs: S.tbs, spts: S.spts, unit: S.unit, ...Object.fromEntries(KEYS.map(k => [k, $('#' + k).value])) })); } catch (e) { /* stockage indisponible */ } }
+function restore() { try { const o = JSON.parse(localStorage.getItem('spinscope-sim4') || 'null'); if (!o) return null; for (const k of KEYS) if (o[k] !== undefined && o[k] !== '') $('#' + k).value = o[k]; if (o.rbs) S.rbs = o.rbs; if (o.tbs) S.tbs = o.tbs; if (o.spts) S.spts = o.spts; return o; } catch (e) { return null; } }
+function renderAll() { $$('.u_lbl').forEach(e => e.textContent = U() ? '(€)' : '(buy-ins)'); if (S.view === 'sim') render(); if (S.view === 'bankroll') renderBk(); if (S.view === 'rooms') updateRooms(); }
 function bind() {
   $('#t_add').onclick = () => { S.tiers.push({ m: 2, p: 0, s: [100, 0, 0] }); S.edited = true; drawTiers(); refresh(); };
+  $('#t_reset').onclick = () => { loadTable(); refresh(); };
   const syncCev = (v) => { $('#cev').value = v; $('#cev_r').value = v; S.places = null; refresh(); };
   $('#cev').oninput = (e) => syncCev(e.target.value); $('#cev_r').oninput = (e) => syncCev(e.target.value);
   ['#stack', '#players'].forEach(id => $(id).addEventListener('input', () => { S.places = null; refresh(); }));
   ['#p1', '#p2'].forEach(id => $(id).addEventListener('input', () => { const a = Math.max(0, Math.min(100, num('#p1'))), b = Math.max(0, Math.min(100 - a, num('#p2'))); S.places = [a / 100, b / 100, Math.max(0, 1 - a / 100 - b / 100)]; refresh(); }));
-  ['#games', '#tables', '#spt', '#rb', '#rbn', '#bon', '#bonn', '#cevb', '#sims'].forEach(id => $(id).addEventListener('input', refresh));
+  ['#games', '#tables', '#spt', '#rb', '#rbn', '#bon', '#bonn', '#cevb'].forEach(id => $(id).addEventListener('input', refresh));
+  ['#obj', '#objh'].forEach(id => $(id).addEventListener('input', () => { objective(); save(); }));
+  KEYS.filter(k => /^(l_|r_|bk_)/.test(k)).forEach(k => $('#' + k).addEventListener('input', save));
+  $('#bk_tg').addEventListener('change', () => { const b = SITES[S.site].buyins; $('#bk_drop').value = 3 * (b.indexOf(+$('#bk_tg').value) - b.indexOf(S.bi)); bkHints(); save(); });
+  $('#bk_drop').addEventListener('input', bkHints);
+  $$('#bk_pool [data-p]').forEach(x => x.onclick = () => { S.pool = x.dataset.p === '1'; $$('#bk_pool [data-p]').forEach(y => y.classList.toggle('on', y === x)); if (S.bk) runBk(); });
+  $$('#bk_risk [data-r]').forEach(x => x.onclick = () => { S.risk = +x.dataset.r; $$('#bk_risk [data-r]').forEach(y => y.classList.toggle('on', y === x)); if (S.bk) runBk(); });
   $$('[data-tb]').forEach(b => b.onclick = () => { $('#tables').value = Math.max(1, Math.min(24, num('#tables') + +b.dataset.tb)); refresh(); });
   $('#games_q').innerHTML = [1000, 5000, 10000, 25000, 50000].map(n => `<button data-g="${n}">${nf(n)}</button>`).join('');
   $$('#games_q [data-g]').forEach(b => b.onclick = () => { $('#games').value = b.dataset.g; refresh(); });
   $('#b_on').onchange = () => { $('#b_row').hidden = !$('#b_on').checked; };
-  $('#run').onclick = run;
+  $('#r_on').onchange = () => { $('#r_fields').hidden = !$('#r_on').checked; };
+  $('#run').onclick = run; $('#res_go').onclick = analyse; $('#bk_go').onclick = runBk; $('#share').onclick = share;
   $('#paths').onchange = render;
   $$('#bands [data-b]').forEach(b => b.onclick = () => { const v = +b.dataset.b; if (S.bands.has(v)) S.bands.delete(v); else S.bands.add(v); b.classList.toggle('on', S.bands.has(v)); render(); });
-  const unit = (u) => { S.unit = u; $('#u_eur').classList.toggle('on', u === 'eur'); $('#u_bi').classList.toggle('on', u === 'bi'); render(); };
+  const unit = (u) => { const old = S.unit; S.unit = u; $('#u_eur').classList.toggle('on', u === 'eur'); $('#u_bi').classList.toggle('on', u === 'bi');
+    if (old !== u) for (const id of ['#l_r', '#r_r']) { const v = num(id); $(id).value = +(u === 'eur' ? v * S.bi : v / S.bi).toFixed(2); }
+    save(); renderAll(); };
   $('#u_eur').onclick = () => unit('eur'); $('#u_bi').onclick = () => unit('bi');
   $$('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; renderTab(); requestAnimationFrame(() => Object.values(S.charts).forEach(c => c.resize())); });
+  $$('#modes [data-v]').forEach(b => b.onclick = () => showView(b.dataset.v, true));
   $('#goal').oninput = goal;
+  window.addEventListener('hashchange', () => { const h = decodeURIComponent(location.hash.slice(1)); if (h.startsWith('p-')) applyCode(h); else if (VIEWS.includes(h) && h !== S.view) showView(h); });
   window.addEventListener('resize', () => Object.values(S.charts).forEach(c => c.resize()));
-  const mq = matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', render);
-  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  const mq = matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', renderAll);
+  new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
 bind();
 const saved = restore();
-setSite(saved && SITES[saved.site] ? saved.site : 'betclic', false);
+setSite(saved && SITES[saved.site] ? saved.site : 'betclic');
 if (saved && SITES[S.site].buyins.includes(+saved.bi)) { S.bi = +saved.bi; drawBuyins(); loadTable(); if (saved.stack) $('#stack').value = saved.stack; }
+if (saved && saved.unit === 'bi') { S.unit = 'bi'; $('#u_eur').classList.remove('on'); $('#u_bi').classList.add('on'); $$('.u_lbl').forEach(e => e.textContent = '(buy-ins)'); }
 $('#cev_r').value = $('#cev').value;
-refresh();
-if (window.echarts) run(); else $('#status').innerHTML = '<span class="neg">Les graphiques n’ont pas pu se charger : vérifie ta connexion internet.</span>';
+if (!window.echarts) $('#status').innerHTML = '<span class="neg">Les graphiques n’ont pas pu se charger : vérifie ta connexion internet.</span>';
+const h0 = decodeURIComponent(location.hash.slice(1));
+if (!(h0.startsWith('p-') && applyCode(h0))) showView(VIEWS.includes(h0) ? h0 : 'sim');
 </script>
 </body></html>
