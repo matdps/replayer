@@ -1,0 +1,687 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body><title>Mental Edge</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Application de progression pour joueurs de Spin : warm-up, suivi de session et tilt, cooldown, A/B/C game, axes techniques, planning de grind et hygiène de vie.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout : barre d'onglets en haut, chaque onglet = une page en cartes ; la session en direct prend tout l'écran. */
+:root {
+  --bg: #f1f4f3; --panel: #ffffff; --panel2: #f4f7f6; --line: #dde5e2; --line2: #c6d2ce;
+  --text: #13201d; --muted: #566661; --dim: #8a9a95;
+  --accent: #0f8f7e; --accent-ink: #ffffff; --accent-soft: rgba(15,143,126,.11);
+  --a: #16a34a; --b: #d39b12; --c: #dc3c31; --a-soft: rgba(22,163,74,.12); --b-soft: rgba(211,155,18,.14); --c-soft: rgba(220,60,49,.12);
+  --blue: #3368d6; --violet: #7c4dd8;
+  --f-display: "Sora", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --r: 16px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b1211; --panel: #121c1a; --panel2: #172321; --line: #22312e; --line2: #2f413d;
+  --text: #e8f0ed; --muted: #9db0aa; --dim: #6d807a;
+  --accent: #2fd1b8; --accent-ink: #062320; --accent-soft: rgba(47,209,184,.13);
+  --a: #3ddc84; --b: #f2c14b; --c: #ff6b5e; --a-soft: rgba(61,220,132,.13); --b-soft: rgba(242,193,75,.14); --c-soft: rgba(255,107,94,.13);
+  --blue: #6c9cff; --violet: #a98bff;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0b1211; --panel: #121c1a; --panel2: #172321; --line: #22312e; --line2: #2f413d;
+  --text: #e8f0ed; --muted: #9db0aa; --dim: #6d807a;
+  --accent: #2fd1b8; --accent-ink: #062320; --accent-soft: rgba(47,209,184,.13);
+  --a: #3ddc84; --b: #f2c14b; --c: #ff6b5e; --a-soft: rgba(61,220,132,.13); --b-soft: rgba(242,193,75,.14); --c-soft: rgba(255,107,94,.13);
+  --blue: #6c9cff; --violet: #a98bff;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--text); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 16px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.brand { display: flex; align-items: center; gap: 11px; }
+.brand svg { width: 40px; height: 40px; flex: none; }
+.brand h1 { font: 800 24px/1 var(--f-display); letter-spacing: -.3px; }
+.brand h1 span { color: var(--accent); }
+.brand p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+.navw { overflow-x: auto; margin: 0 -4px 18px; padding: 0 4px; }
+.nav { display: inline-flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 4px; }
+.nav button { border: 0; background: none; padding: 8px 14px; border-radius: 10px; font-weight: 700; color: var(--muted); cursor: pointer; white-space: nowrap; display: inline-flex; gap: 7px; align-items: center; }
+.nav button.on { background: var(--accent); color: var(--accent-ink); }
+.nav button .live { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px var(--c-soft); }
+
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g21 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+@media (max-width: 980px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g3, .g21 { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .g2 { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; min-width: 0; }
+.card h3 { font: 700 16px/1.3 var(--f-display); }
+.hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.hint { color: var(--dim); font-size: 12.5px; line-height: 1.5; }
+.hint b { color: var(--muted); }
+.lbl { font-size: 11.5px; font-weight: 800; color: var(--muted); letter-spacing: .6px; text-transform: uppercase; }
+.kpi .v { font: 800 30px/1.1 var(--f-display); margin-top: 6px; letter-spacing: -.5px; }
+.kpi .s { font-size: 12.5px; color: var(--dim); margin-top: 3px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.btn { border: 0; border-radius: 12px; padding: 11px 18px; background: var(--accent); color: var(--accent-ink); font-weight: 800; cursor: pointer; font-size: 15px; }
+.btn.big { padding: 15px 22px; font-size: 17px; width: 100%; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.ghost { border: 1px solid var(--line2); background: var(--panel2); border-radius: 10px; padding: 8px 13px; font-weight: 700; cursor: pointer; font-size: 13.5px; }
+.ghost:hover { border-color: var(--accent); }
+.ghost.sm { padding: 5px 10px; font-size: 12.5px; }
+.ghost.danger { color: var(--c); }
+.inp { background: var(--panel2); border: 1px solid var(--line2); border-radius: 10px; padding: 8px 11px; min-width: 0; width: 100%; }
+.inp:focus { border-color: var(--accent); outline: none; }
+textarea.inp { min-height: 70px; resize: vertical; }
+.bar { height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
+.gA { color: var(--a); background: var(--a-soft); border-color: transparent; } .gB { color: var(--b); background: var(--b-soft); border-color: transparent; } .gC { color: var(--c); background: var(--c-soft); border-color: transparent; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1px solid var(--line2); background: var(--panel2); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.chips button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.empty { text-align: center; padding: 28px 14px; color: var(--muted); }
+
+/* questionnaire */
+.q { display: grid; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.q:last-child { border-bottom: 0; }
+.q > label, .q > .ql { font-weight: 700; }
+.scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.scale button { border: 1px solid var(--line2); background: var(--panel2); border-radius: 10px; padding: 8px 2px; cursor: pointer; display: grid; gap: 1px; justify-items: center; font-weight: 800; }
+.scale button small { font-size: 10.5px; font-weight: 600; color: var(--dim); }
+.scale button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.scale button.on small { color: var(--accent-ink); opacity: .8; }
+.seg { display: inline-grid; grid-auto-flow: column; gap: 4px; background: var(--panel2); border: 1px solid var(--line2); border-radius: 12px; padding: 3px; }
+.seg button { border: 0; background: none; padding: 7px 14px; border-radius: 9px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.seg button.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+.seg button.on.yes { color: var(--a); } .seg button.on.mid { color: var(--b); } .seg button.on.no { color: var(--c); }
+.abc { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 640px) { .abc { grid-template-columns: 1fr; } }
+.abc button { text-align: left; border: 2px solid var(--line); background: var(--panel2); border-radius: 14px; padding: 12px 14px; cursor: pointer; display: grid; gap: 4px; }
+.abc button b { font: 800 22px var(--f-display); }
+.abc button span { font-size: 12.5px; color: var(--muted); }
+.abc button[data-g="A"] b { color: var(--a); } .abc button[data-g="B"] b { color: var(--b); } .abc button[data-g="C"] b { color: var(--c); }
+.abc button.on[data-g="A"] { border-color: var(--a); background: var(--a-soft); } .abc button.on[data-g="B"] { border-color: var(--b); background: var(--b-soft); } .abc button.on[data-g="C"] { border-color: var(--c); background: var(--c-soft); }
+.abc button .sug { font-size: 11px; font-weight: 800; color: var(--accent); }
+.steps { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--dim); font-weight: 700; flex-wrap: wrap; }
+.steps span.on { color: var(--accent); }
+.steps i { width: 18px; height: 2px; background: var(--line2); }
+
+/* session en direct */
+.live-wrap { display: grid; gap: 14px; }
+.clock { text-align: center; padding: 26px 16px; border-radius: 22px; background: linear-gradient(160deg, var(--panel) 0%, var(--panel2) 100%); border: 1px solid var(--line); }
+.clock .t { font: 700 clamp(48px, 12vw, 96px)/1 var(--f-num); letter-spacing: -2px; }
+.clock .st { font-weight: 800; margin-top: 8px; color: var(--muted); }
+.clock.paused .t { color: var(--b); }
+.clock .pg { max-width: 420px; margin: 14px auto 0; }
+.ctrl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ctrl button { border: 0; border-radius: 16px; padding: 18px 10px; font: 800 17px var(--f-display); cursor: pointer; display: grid; gap: 2px; justify-items: center; }
+.ctrl button small { font: 600 12px var(--f-body); opacity: .8; }
+.ctrl .pause { background: var(--b-soft); color: var(--b); border: 2px solid var(--b); }
+.ctrl .tilt { background: var(--c); color: #fff; }
+.ctrl .end { background: var(--panel2); color: var(--text); border: 2px solid var(--line2); }
+.remind { border-left: 4px solid var(--accent); }
+.remind .big { font: 700 18px/1.35 var(--f-display); margin-top: 4px; }
+.breakalert { background: var(--b-soft); border: 1px solid var(--b); color: var(--text); border-radius: 14px; padding: 12px 14px; font-weight: 700; }
+.tiltbox { display: grid; gap: 10px; }
+.tlog { display: grid; gap: 4px; font-size: 13px; }
+.tlog div { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+
+/* listes */
+.list { display: grid; gap: 8px; }
+.item { border: 1px solid var(--line); background: var(--panel2); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.item .t { font-weight: 800; }
+.kv { display: grid; }
+.kv div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.kv div:last-child { border-bottom: 0; }
+.kv span { color: var(--muted); }
+.axe { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 8px; background: var(--panel); }
+.axe.prio { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.axe .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.st0 { color: var(--c); background: var(--c-soft); border-color: transparent; } .st1 { color: var(--b); background: var(--b-soft); border-color: transparent; } .st2 { color: var(--a); background: var(--a-soft); border-color: transparent; }
+.form2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 640px) { .form2 { grid-template-columns: 1fr; } }
+.form2 > div { display: grid; gap: 5px; }
+.form2 label { font-size: 12.5px; font-weight: 700; color: var(--muted); }
+.full { grid-column: 1 / -1; }
+
+/* planning */
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 860px) { .week { grid-template-columns: 1fr; } }
+.day { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--panel2); display: grid; gap: 6px; align-content: start; min-height: 120px; }
+.day.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.day .dh { display: flex; justify-content: space-between; font-weight: 800; font-size: 13px; }
+.slot { border-radius: 9px; padding: 6px 8px; font-size: 12.5px; background: var(--accent-soft); border: 1px solid transparent; display: grid; gap: 1px; }
+.slot.done { background: var(--a-soft); }
+.slot.miss { background: var(--c-soft); }
+.slot.real { background: var(--panel); border: 1px dashed var(--line2); }
+.slot b { font-family: var(--f-num); }
+.slot button { border: 0; background: none; color: var(--dim); cursor: pointer; padding: 0; justify-self: end; font-size: 12px; }
+
+/* hygiène */
+.days7 { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.d7 { display: grid; gap: 4px; justify-items: center; font-size: 11.5px; color: var(--dim); cursor: pointer; border: 1px solid transparent; border-radius: 10px; padding: 6px 2px; background: none; }
+.d7.on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.d7 .col { width: 100%; max-width: 30px; height: 60px; background: var(--line); border-radius: 6px; position: relative; overflow: hidden; }
+.d7 .col i { position: absolute; bottom: 0; left: 0; right: 0; background: var(--blue); border-radius: 6px; }
+.d7 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line2); }
+.d7 .dot.on { background: var(--a); }
+.sportl { display: grid; gap: 6px; }
+.sportl div { display: flex; gap: 8px; align-items: center; }
+
+/* graphiques svg */
+svg.ch { width: 100%; height: auto; display: block; overflow: visible; }
+svg.ch text { font: 600 11px var(--f-body); fill: var(--dim); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.hbar { display: grid; gap: 8px; }
+.hbar div { display: grid; grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 40px; gap: 10px; align-items: center; font-size: 13px; }
+.hbar .tr { height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.hbar .tr i { display: block; height: 100%; background: var(--c); border-radius: 99px; }
+.abcbar { display: flex; height: 14px; border-radius: 99px; overflow: hidden; background: var(--line); margin-top: 10px; }
+.insight { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.insight:last-child { border-bottom: 0; }
+.insight .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex: none; font-weight: 800; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 700; z-index: 50; max-width: calc(100% - 32px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.foot { color: var(--dim); font-size: 12px; margin-top: 22px; line-height: 1.6; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><rect x="1.5" y="1.5" width="37" height="37" rx="11" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/><path d="M9 26 L15 18 L20 22 L26 12 L31 16" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="31" cy="16" r="2.6" fill="var(--accent)"/></svg>
+      <div><h1>Mental <span>Edge</span></h1><p>Ton mental, tes sessions et ta vie hors table, au même endroit.</p></div>
+    </div>
+    <div class="row"><button class="ghost sm" id="bkExport">Sauvegarder</button><button class="ghost sm" id="bkImport">Importer</button><input type="file" id="bkFile" accept=".json,application/json" hidden></div>
+  </header>
+  <div class="navw"><nav class="nav" id="nav" aria-label="Sections">
+    <button data-v="accueil" class="on">Accueil</button>
+    <button data-v="session">Session</button>
+    <button data-v="technique">Technique</button>
+    <button data-v="planning">Planning</button>
+    <button data-v="hygiene">Hygiène de vie</button>
+    <button data-v="journal">Journal</button>
+  </nav></div>
+  <main id="main"></main>
+  <p class="foot">Tes données restent sur cet appareil, dans ce navigateur. Fais « Sauvegarder » de temps en temps pour en garder une copie, ou pour les passer sur un autre appareil avec « Importer ».</p>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+// =================== données ===================
+const KEY = 'mental-edge-v1';
+const blank = () => ({ v: 1, sessions: [], live: null, cool: null, axes: [], plan: { weekHours: 15, monthHours: 60, weekSessions: 5, sportTarget: 150, sleepTarget: 7.5, slots: [] }, days: {}, settings: { breakEvery: 50 }, demo: false });
+let D; try { D = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { D = null; }
+if (!D || !Array.isArray(D.sessions)) D = blank();
+D = Object.assign(blank(), D); D.plan = Object.assign(blank().plan, D.plan || {}); D.settings = Object.assign(blank().settings, D.settings || {});
+function save() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { toast('Impossible d’enregistrer : fais « Sauvegarder »'); } }
+
+// =================== outils ===================
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nf = (v, d = 0) => (Number.isFinite(v) ? v : 0).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const uid = () => Math.random().toString(36).slice(2, 10);
+const pad = (n) => String(n).padStart(2, '0');
+const dkey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromKey = (k) => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const today = () => dkey(new Date());
+const DOW = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'], DOWs = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const dowOf = (d) => (d.getDay() + 6) % 7;
+const monday = (d) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - dowOf(x)); return x; };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const fmtDur = (min) => { min = Math.round(min); const h = Math.floor(min / 60), m = min % 60; return h ? `${h} h${m ? ' ' + pad(m) : ''}` : `${m} min`; };
+const fmtClock = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
+const fmtDate = (t, opt = { weekday: 'short', day: 'numeric', month: 'short' }) => new Date(t).toLocaleDateString('fr-FR', opt);
+const hfmt = (x) => nf(x, x % 1 ? 1 : 0);
+const avg = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+let toastT; function toast(m) { const t = $('#toast'); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2400); }
+
+// =================== listes de choix ===================
+const TRIGGERS = ['Bad beat', 'Cooler', 'Downswing', 'Erreur de jeu', 'Adversaire / table', 'Fatigue', 'Distraction', 'Impatience', 'Autre'];
+const MENTAL_GOALS = ['Rester calme après un bad beat', 'Respecter mes pauses', 'Rester concentré jusqu’au bout', 'Ne pas ajouter de tables en cours de route', 'Arrêter si je sens le tilt', 'Prendre mon temps sur les spots difficiles'];
+const CATS = ['HU', '3 joueurs', 'BvB', 'Préflop', 'Postflop', 'Push / fold', 'Lecture adverse', 'Autre'];
+const POSS = ['HU SB', 'HU BB', 'BTN', 'SB', 'BB', 'BvB SB vs BB', 'BvB BB vs SB', 'Toutes'];
+const SITS = ['Préflop', 'Postflop', 'Limp pot', 'Pot relancé', 'Push / fold', 'Face à un jam', 'River', 'Autre'];
+const STATUS = ['À travailler', 'En progression', 'Maîtrisé'];
+const SPORTS = ['Musculation', 'Course', 'Vélo', 'Marche', 'Sport collectif', 'Natation', 'Yoga / étirements', 'Autre'];
+const YN = [['yes', 'Oui'], ['mid', 'En partie'], ['no', 'Non']];
+
+// =================== calculs ===================
+// score mental 0-100 : objectif mental, tilt, concentration, pauses, niveau A/B/C (indépendant des résultats)
+function mentalScore(s) {
+  const c = s.cool || {}; let sc = 0;
+  sc += { yes: 25, mid: 12, no: 0 }[c.goalOk] ?? 12;
+  sc += { none: 25, some: 12, lot: 0 }[c.tilt] ?? 12;
+  sc += ((c.focus || 3) - 1) / 4 * 25;
+  sc += { yes: 10, mid: 5, no: 0 }[c.pauses] ?? 5;
+  sc += { A: 15, B: 8, C: 0 }[s.game] ?? 8;
+  sc -= Math.min(10, (s.tilts || []).length * 2);
+  return Math.max(0, Math.min(100, Math.round(sc)));
+}
+function suggestGame(c, tilts) {
+  const tiltN = (tilts || []).length;
+  if (c.tilt === 'lot' || c.goalOk === 'no' && (c.focus || 3) <= 2 || tiltN >= 3) return 'C';
+  if (c.tilt === 'none' && (c.focus || 3) >= 4 && c.goalOk === 'yes' && c.pauses !== 'no' && tiltN === 0) return 'A';
+  return 'B';
+}
+const done = () => D.sessions.filter(s => s.cool);
+const playMin = (s) => s.durMin || 0;
+function weekSessions(ref = new Date()) { const m = monday(ref).getTime(), e = m + 7 * 864e5; return done().filter(s => s.start >= m && s.start < e); }
+function monthSessions(ref = new Date()) { return done().filter(s => { const d = new Date(s.start); return d.getMonth() === ref.getMonth() && d.getFullYear() === ref.getFullYear(); }); }
+const axeById = (id) => D.axes.find(a => a.id === id);
+const prioAxe = () => D.axes.find(a => a.prio && a.status !== 2) || D.axes.find(a => a.status !== 2) || null;
+function nextSlot() { // prochaine session prévue dans la semaine type
+  if (!D.plan.slots.length) return null; const now = new Date(); let best = null;
+  for (const sl of D.plan.slots) { const [h, m] = sl.time.split(':').map(Number); for (let k = 0; k < 8; k++) { const d = addDays(monday(now), sl.dow + 7 * Math.floor(k / 7)); d.setHours(h, m, 0, 0); if (k >= 7) d.setDate(d.getDate() + 7); if (d.getTime() > now.getTime() - 30 * 60000) { if (!best || d < best.d) best = { d, sl }; break; } } }
+  return best;
+}
+const dayLog = (k) => D.days[k] || null;
+
+// =================== graphiques ===================
+function lineChart(pts, opt = {}) { // pts: [{x(label), y, c(couleur)}]
+  const W = 640, H = opt.h || 200, L = 34, R = 10, T = 10, B = 26, n = pts.length; if (!n) return '';
+  const ymin = opt.min ?? 0, ymax = opt.max ?? 100, X = (i) => L + (n === 1 ? (W - L - R) / 2 : i * (W - L - R) / (n - 1)), Y = (v) => T + (1 - (v - ymin) / (ymax - ymin)) * (H - T - B);
+  let g = ''; for (const v of opt.ticks || [0, 25, 50, 75, 100]) g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' ');
+  const area = `${path} L${X(n - 1).toFixed(1)},${Y(ymin)} L${X(0).toFixed(1)},${Y(ymin)} Z`;
+  const step = Math.max(1, Math.ceil(n / 8));
+  return `<svg class="ch" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(opt.label || 'Graphique')}">${g}<path d="${area}" fill="var(--accent-soft)"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>${pts.map((p, i) => `<circle cx="${X(i)}" cy="${Y(p.y)}" r="4.5" fill="${p.c || 'var(--accent)'}" stroke="var(--panel)" stroke-width="2"><title>${esc(p.tip || p.y)}</title></circle>${i % step === 0 || i === n - 1 ? `<text x="${X(i)}" y="${H - 6}" text-anchor="middle">${esc(p.x)}</text>` : ''}`).join('')}</svg>`;
+}
+function hbars(items, color = 'var(--c)') { const mx = Math.max(1, ...items.map(i => i[1])); return `<div class="hbar">${items.map(([l, v, extra]) => `<div><span>${esc(l)}</span><span class="tr"><i style="width:${v / mx * 100}%;background:${color}"></i></span><b class="num">${extra ?? v}</b></div>`).join('')}</div>`; }
+const gameColor = (g) => ({ A: 'var(--a)', B: 'var(--b)', C: 'var(--c)' }[g] || 'var(--accent)');
+
+// =================== navigation ===================
+const VIEWS = ['accueil', 'session', 'technique', 'planning', 'hygiene', 'journal'];
+let VIEW = 'accueil', tick = null;
+function show(v, push) {
+  if (!VIEWS.includes(v)) v = 'accueil'; VIEW = v; clearInterval(tick); tick = null;
+  $$('#nav [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  const lb = $('#nav [data-v="session"]'); lb.innerHTML = D.live ? '<span class="live"></span>Session en cours' : D.cool ? 'Session · cooldown' : 'Session';
+  if (push && location.hash.slice(1) !== v) { try { location.hash = v; } catch (e) { /* lien non modifiable */ } }
+  ({ accueil: vHome, session: vSession, technique: vTech, planning: vPlan, hygiene: vHyg, journal: vJournal })[v]();
+  window.scrollTo({ top: 0 });
+}
+$$('#nav [data-v]').forEach(b => b.onclick = () => show(b.dataset.v, true));
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (VIEWS.includes(h) && h !== VIEW) show(h); });
+
+// =================== ACCUEIL ===================
+function vHome() {
+  const S = done(), last = S.slice(-20), wk = weekSessions(), mo = monthSessions(), wkMin = wk.reduce((a, s) => a + playMin(s), 0), moMin = mo.reduce((a, s) => a + playMin(s), 0);
+  const scores = S.map(mentalScore), last10 = scores.slice(-10), prev10 = scores.slice(-20, -10), m10 = avg(last10), p10 = avg(prev10);
+  const cnt = { A: 0, B: 0, C: 0 }; S.forEach(s => cnt[s.game] = (cnt[s.game] || 0) + 1); const tot = S.length || 1;
+  const nx = nextSlot(), ax = prioAxe();
+  const trig = {}; S.forEach(s => (s.tilts || []).forEach(t => trig[t.trig] = (trig[t.trig] || 0) + 1));
+  const probs = []; if (S.length) { const pct = (f) => Math.round(S.filter(f).length / S.length * 100);
+    probs.push(['Pauses pas respectées', pct(s => s.cool.pauses === 'no' || s.cool.pauses === 'mid')], ['Objectif mental raté', pct(s => s.cool.goalOk === 'no')], ['Concentration faible', pct(s => (s.cool.focus || 3) <= 2)], ['Tilt ressenti', pct(s => s.cool.tilt !== 'none')]); probs.sort((a, b) => b[1] - a[1]); }
+  // hygiène 7 jours
+  const days = [...Array(7)].map((_, i) => dkey(addDays(new Date(), i - 6))), logs = days.map(dayLog);
+  const sl = logs.filter(l => l && l.sleepH).map(l => l.sleepH), sportMin = logs.reduce((a, l) => a + (l && l.sport ? l.sport.reduce((x, s) => x + (+s.min || 0), 0) : 0), 0);
+  const hello = new Date().getHours() < 12 ? 'Bonjour' : new Date().getHours() < 18 ? 'Bon après-midi' : 'Bonsoir';
+  $('#main').innerHTML = `
+  <div class="grid" style="gap:16px">
+    <section class="card" style="display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+      <div><h2 style="font:800 22px var(--f-display)">${hello} 👋</h2><div class="hint" style="font-size:13.5px;margin-top:3px">${D.live ? 'Une session est en cours.' : nx ? `Prochaine session prévue : <b>${fmtDate(nx.d, { weekday: 'long', day: 'numeric', month: 'long' })} à ${nx.sl.time}</b> (${fmtDur(nx.sl.dur)})` : 'Aucune session prévue : remplis ta semaine type dans Planning.'}</div></div>
+      <div class="row"><button class="btn" id="hGo">${D.live ? 'Reprendre la session' : D.cool ? 'Finir le cooldown' : 'Commencer une session'}</button>${!S.length && !D.demo ? '<button class="ghost" id="hDemo">Voir avec des données d’exemple</button>' : ''}${D.demo ? '<button class="ghost danger" id="hDemoOff">Effacer l’exemple</button>' : ''}</div>
+    </section>
+    <div class="grid g4">
+      <section class="card kpi"><div class="lbl">Sessions</div><div class="v num">${S.length}</div><div class="s">dont <b>${wk.length}</b> cette semaine (objectif ${D.plan.weekSessions})</div></section>
+      <section class="card kpi"><div class="lbl">Grind de la semaine</div><div class="v num">${fmtDur(wkMin)}</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100, wkMin / (D.plan.weekHours * 60) * 100)}%"></i></div><div class="s">objectif ${D.plan.weekHours} h · mois ${nf(moMin / 60, 1)} / ${D.plan.monthHours} h</div></section>
+      <section class="card kpi"><div class="lbl">Score mental moyen</div><div class="v num">${m10 === null ? '–' : nf(m10)}<span style="font-size:15px;color:var(--dim)"> /100</span></div><div class="s">${m10 === null ? 'après ta première session' : p10 === null ? 'sur tes 10 dernières sessions' : `${m10 >= p10 ? '▲' : '▼'} ${nf(Math.abs(m10 - p10))} pts vs les 10 d’avant`}</div></section>
+      <section class="card kpi"><div class="lbl">A / B / C Game</div><div class="row" style="margin-top:8px;gap:6px"><span class="pill gA">A ${Math.round(cnt.A / tot * 100)} %</span><span class="pill gB">B ${Math.round(cnt.B / tot * 100)} %</span><span class="pill gC">C ${Math.round(cnt.C / tot * 100)} %</span></div><div class="abcbar"><i style="width:${cnt.A / tot * 100}%;background:var(--a)"></i><i style="width:${cnt.B / tot * 100}%;background:var(--b)"></i><i style="width:${cnt.C / tot * 100}%;background:var(--c)"></i></div></section>
+    </div>
+    <div class="grid g21">
+      <section class="card"><div class="hd"><h3>Évolution de ton mental</h3><span class="hint">20 dernières sessions · point = A / B / C</span></div>
+        ${last.length ? lineChart(last.map(s => ({ x: fmtDate(s.start, { day: 'numeric', month: 'numeric' }), y: mentalScore(s), c: gameColor(s.game), tip: `${fmtDate(s.start)} · ${s.game} Game · ${mentalScore(s)}/100` })), { label: 'Score mental par session' }) + `<div class="legend"><span><i style="background:var(--a)"></i>A Game</span><span><i style="background:var(--b)"></i>B Game</span><span><i style="background:var(--c)"></i>C Game</span></div>` : '<div class="empty">Ton évolution apparaîtra ici après tes premières sessions.</div>'}</section>
+      <section class="card"><div class="hd"><h3>Axe technique prioritaire</h3><button class="ghost sm" data-go="technique">Gérer</button></div>
+        ${ax ? axeSummary(ax) : '<div class="empty">Crée ton premier axe de travail dans l’onglet Technique.</div>'}</section>
+    </div>
+    <div class="grid g3">
+      <section class="card"><div class="hd"><h3>Déclencheurs de tilt</h3></div>${Object.keys(trig).length ? hbars(Object.entries(trig).sort((a, b) => b[1] - a[1]).slice(0, 6)) : '<div class="hint">Aucun tilt noté. Pendant la session, appuie sur « Tilt » dès que tu le sens monter.</div>'}</section>
+      <section class="card"><div class="hd"><h3>Problèmes les plus fréquents</h3></div>${probs.length ? hbars(probs.map(([l, v]) => [l, v, v + ' %']), 'var(--b)') : '<div class="hint">Se remplit avec tes cooldowns.</div>'}</section>
+      <section class="card"><div class="hd"><h3>Hors table · 7 jours</h3><button class="ghost sm" data-go="hygiene">Remplir</button></div>
+        <div class="kv"><div><span>Sommeil moyen</span><b class="num">${sl.length ? nf(avg(sl), 1) + ' h' : '–'} <small class="hint">/ ${hfmt(D.plan.sleepTarget)} h</small></b></div><div><span>Sport</span><b class="num">${fmtDur(sportMin)} <small class="hint">/ ${fmtDur(D.plan.sportTarget)}</small></b></div><div><span>Énergie moyenne</span><b class="num">${(() => { const e = logs.filter(l => l && l.energy).map(l => l.energy); return e.length ? nf(avg(e), 1) + ' / 5' : '–'; })()}</b></div><div><span>Jours remplis</span><b class="num">${logs.filter(Boolean).length} / 7</b></div></div></section>
+    </div>
+    <section class="card"><div class="hd"><h3>Ce que disent tes données</h3><span class="hint">Les liens entre ta vie hors table et ton mental</span></div>${insights()}</section>
+  </div>`;
+  $('#hGo').onclick = () => show('session', true);
+  if ($('#hDemo')) $('#hDemo').onclick = () => { loadDemo(); show('accueil'); toast('Exemple chargé : explore les onglets'); };
+  if ($('#hDemoOff')) $('#hDemoOff').onclick = () => { if (!confirmBtn($('#hDemoOff'), 'Confirmer : tout effacer')) return; D = blank(); save(); show('accueil'); toast('Exemple effacé'); };
+  $$('[data-go]').forEach(b => b.onclick = () => show(b.dataset.go, true));
+}
+function confirmBtn(b, txt) { if (b.dataset.arm === '1') return true; b.dataset.arm = '1'; b.dataset.old = b.textContent; b.textContent = txt; setTimeout(() => { if (b.isConnected) { b.dataset.arm = ''; b.textContent = b.dataset.old; } }, 4000); return false; }
+function insights() {
+  const S = done().map(s => ({ s, sc: mentalScore(s), log: dayLog(dkey(new Date(s.start))), prev: dayLog(dkey(addDays(new Date(s.start), -1))) })), out = [];
+  const cmp = (label, inA, la, lb, icon) => { const A = S.filter(inA), B = S.filter(x => !inA(x)); if (A.length < 3 || B.length < 3) return; const a = avg(A.map(x => x.sc)), b = avg(B.map(x => x.sc)), d = a - b; if (Math.abs(d) < 3) return; out.push(`<div class="insight"><span class="ic">${icon}</span><div><b>${esc(label)}</b> : ton score mental moyen est de <b>${nf(a)}</b> ${esc(la)}, contre <b>${nf(b)}</b> ${esc(lb)} (${d > 0 ? '+' : '−'}${nf(Math.abs(d))} pts).</div></div>`); };
+  const sleepOf = (x) => (x.log && x.log.sleepH) || null;
+  cmp('Sommeil', x => sleepOf(x) !== null && sleepOf(x) >= D.plan.sleepTarget, `quand tu as dormi au moins ${hfmt(D.plan.sleepTarget)} h`, 'les autres jours', '☾');
+  cmp('Sport', x => !!(x.log && x.log.sport && x.log.sport.length) || !!(x.prev && x.prev.sport && x.prev.sport.length), 'les jours où tu as fait du sport (ou la veille)', 'sans sport', '⚡');
+  cmp('Fatigue au warm-up', x => (x.s.warm.fatigue || 3) >= 4, 'quand tu démarres fatigué (4-5/5)', 'quand tu es en forme', '◔');
+  cmp('Heure de début', x => new Date(x.s.start).getHours() >= 22 || new Date(x.s.start).getHours() < 5, 'pour les sessions commencées après 22 h', 'pour les autres', '◷');
+  cmp('Durée', x => playMin(x.s) > 180, 'pour les sessions de plus de 3 h', 'pour les plus courtes', '⧗');
+  cmp('Écrans', x => !!(x.prev && x.prev.screens), 'après une soirée d’écrans au coucher', 'sinon', '▭');
+  return out.length ? out.join('') : '<div class="hint">Il faut au moins 3 sessions dans chaque cas pour comparer. Remplis ton hygiène de vie chaque jour : les tendances apparaîtront ici (sommeil, sport, fatigue, heure de jeu, durée…).</div>';
+}
+function axeSummary(a) {
+  const H = D.sessions.filter(s => s.cool && s.warm.axeId === a.id), ok = H.filter(s => s.cool.applied === 'yes').length;
+  return `<div class="axe ${a.prio ? 'prio' : ''}" style="border:0;padding:0;box-shadow:none"><div class="tags"><span class="pill">${esc(a.cat)}</span><span class="pill">${esc(a.pos)}</span><span class="pill">${esc(a.sit)}</span><span class="pill st${a.status}">${STATUS[a.status]}</span></div>
+    <div style="font:700 17px/1.35 var(--f-display)">${esc(a.point)}</div>${a.goal ? `<div class="hint">Objectif : ${esc(a.goal)}</div>` : ''}
+    <div class="kv"><div><span>Sessions travaillées</span><b class="num">${H.length}</b></div><div><span>Appliqué correctement</span><b class="num">${H.length ? Math.round(ok / H.length * 100) + ' %' : '–'}</b></div></div></div>`;
+}
+
+// =================== SESSION ===================
+function vSession() { if (D.live) return vLive(); if (D.cool) return vCool(); vWarm(); }
+const W = { mental: null, fatigue: null, focus: null, motiv: null, goalMental: '', axeId: null, plannedMin: 120 };
+function scaleHTML(id, lo, hi) { return `<div class="scale" data-scale="${id}">${[1, 2, 3, 4, 5].map(v => `<button type="button" data-v="${v}" class="${W[id] === v ? 'on' : ''}">${v}<small>${v === 1 ? lo : v === 5 ? hi : ''}</small></button>`).join('')}</div>`; }
+function vWarm() {
+  const ax = prioAxe(); if (W.axeId === null && ax) W.axeId = ax.id;
+  const nx = nextSlot(); if (nx && W._planSet !== true) { W.plannedMin = nx.sl.dur; W._planSet = true; }
+  const lastNight = dayLog(today()) || dayLog(dkey(addDays(new Date(), -1)));
+  $('#main').innerHTML = `<div class="grid g21">
+    <section class="card"><div class="steps"><span class="on">1 · Warm-up</span><i></i><span>2 · Session</span><i></i><span>3 · Cooldown</span></div>
+      <h2 style="font:800 22px var(--f-display);margin:10px 0 2px">Warm-up</h2><div class="hint">2 minutes pour démarrer dans le bon état d’esprit.</div>
+      <div class="q"><span class="ql">Mon état mental</span>${scaleHTML('mental', 'mauvais', 'excellent')}</div>
+      <div class="q"><span class="ql">Mon niveau de fatigue</span>${scaleHTML('fatigue', 'reposé', 'épuisé')}</div>
+      <div class="q"><span class="ql">Mon niveau de concentration</span>${scaleHTML('focus', 'dispersé', 'à fond')}</div>
+      <div class="q"><span class="ql">Ma motivation</span>${scaleHTML('motiv', 'aucune', 'énorme')}</div>
+      <div class="q"><label for="wGoal">Mon objectif mental de la session</label><div class="chips" id="wGoalChips">${MENTAL_GOALS.map(g => `<button type="button" class="${W.goalMental === g ? 'on' : ''}">${esc(g)}</button>`).join('')}</div><input class="inp" id="wGoal" placeholder="Ou écris le tien…" value="${esc(W.goalMental)}"></div>
+      <div class="q"><label for="wAxe">Mon objectif technique (axe à travailler)</label>
+        ${D.axes.filter(a => a.status !== 2).length ? `<select class="inp" id="wAxe"><option value="">— aucun pour cette session —</option>${D.axes.filter(a => a.status !== 2).map(a => `<option value="${a.id}" ${W.axeId === a.id ? 'selected' : ''}>${a.prio ? '★ ' : ''}${esc(a.cat)} · ${esc(a.pos)} · ${esc(a.point)}</option>`).join('')}</select>` : `<div class="hint">Pas encore d’axe technique. <button class="ghost sm" data-go="technique">Créer un axe</button></div>`}</div>
+      <div class="q"><label for="wDur">Durée prévue</label><div class="row"><div class="chips" id="wDurChips">${[60, 90, 120, 180, 240].map(m => `<button type="button" data-m="${m}" class="${W.plannedMin === m ? 'on' : ''}">${fmtDur(m)}</button>`).join('')}</div><input class="inp" id="wDur" type="number" min="10" step="10" value="${W.plannedMin}" style="width:90px"> <span class="hint">min · pause toutes les</span><input class="inp" id="wBreak" type="number" min="10" step="5" value="${D.settings.breakEvery}" style="width:70px"><span class="hint">min</span></div></div>
+      <div style="margin-top:12px"><button class="btn big" id="wGo">Lancer la session</button><div class="hint" id="wMiss" style="text-align:center;margin-top:6px"></div></div>
+    </section>
+    <div class="grid" style="align-content:start">
+      ${W.fatigue >= 4 || (lastNight && lastNight.sleepH && lastNight.sleepH < D.plan.sleepTarget - 1) ? `<section class="card" style="border-color:var(--b)"><h3>⚠ Attention à la fatigue</h3><p class="hint" style="margin-top:6px">${lastNight && lastNight.sleepH ? `Tu as dormi ${nf(lastNight.sleepH, 1)} h. ` : ''}Pense à une session plus courte, avec moins de tables et des pauses plus fréquentes.</p></section>` : ''}
+      <section class="card"><h3>Routine avant de jouer</h3><div class="list" style="margin-top:8px">${['Téléphone loin, notifications coupées', 'Une bouteille d’eau à côté', '2 minutes de respiration (4 s inspire, 6 s expire)', 'Relire mes notes d’étude sur mon axe', 'Je décide quand j’arrête (durée ou stop-loss)'].map((t, i) => `<label class="chk row" style="cursor:pointer"><input type="checkbox" style="accent-color:var(--accent);width:17px;height:17px"> ${esc(t)}</label>`).join('')}</div></section>
+      ${W.axeId && axeById(W.axeId) ? `<section class="card"><h3>Ton axe du jour</h3><div style="margin-top:8px">${axeSummary(axeById(W.axeId))}</div>${(axeById(W.axeId).notes || []).slice(-2).map(n => `<div class="item" style="margin-top:8px"><span class="hint">${fmtDate(n.d)}</span>${esc(n.txt)}</div>`).join('')}</section>` : ''}
+    </div></div>`;
+  $$('[data-scale]').forEach(sc => $$('button', sc).forEach(b => b.onclick = () => { W[sc.dataset.scale] = +b.dataset.v; $$('button', sc).forEach(x => x.classList.toggle('on', x === b)); if (sc.dataset.scale === 'fatigue') vWarm(); }));
+  $$('#wGoalChips button').forEach(b => b.onclick = () => { W.goalMental = b.textContent; $('#wGoal').value = W.goalMental; $$('#wGoalChips button').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#wGoal').oninput = (e) => { W.goalMental = e.target.value; $$('#wGoalChips button').forEach(x => x.classList.toggle('on', x.textContent === W.goalMental)); };
+  if ($('#wAxe')) $('#wAxe').onchange = (e) => { W.axeId = e.target.value || ''; vWarm(); };
+  $$('#wDurChips button').forEach(b => b.onclick = () => { W.plannedMin = +b.dataset.m; $('#wDur').value = W.plannedMin; $$('#wDurChips button').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#wDur').oninput = (e) => { W.plannedMin = Math.max(10, +e.target.value || 120); };
+  $('#wBreak').oninput = (e) => { D.settings.breakEvery = Math.max(10, +e.target.value || 50); save(); };
+  $$('[data-go]').forEach(b => b.onclick = () => show(b.dataset.go, true));
+  $('#wGo').onclick = () => {
+    const miss = ['mental', 'fatigue', 'focus', 'motiv'].filter(k => !W[k]); if (miss.length) { $('#wMiss').textContent = 'Réponds aux 4 échelles avant de lancer.'; return; }
+    D.live = { id: uid(), start: Date.now(), pauses: [], paused: null, tilts: [], warm: { mental: W.mental, fatigue: W.fatigue, focus: W.focus, motiv: W.motiv, goalMental: W.goalMental.trim(), axeId: W.axeId || null, plannedMin: W.plannedMin } };
+    save(); Object.assign(W, { mental: null, fatigue: null, focus: null, motiv: null, goalMental: '', axeId: null, _planSet: false }); show('session');
+  };
+}
+const pausedMs = (L, now = Date.now()) => L.pauses.reduce((a, p) => a + ((p.e || now) - p.s), 0);
+function vLive() {
+  const L = D.live, ax = L.warm.axeId && axeById(L.warm.axeId);
+  $('#main').innerHTML = `<div class="live-wrap">
+    <div class="steps"><span>1 · Warm-up</span><i></i><span class="on">2 · Session</span><i></i><span>3 · Cooldown</span></div>
+    <div class="clock" id="clock"><div class="lbl">Temps de jeu</div><div class="t" id="cT">00:00:00</div><div class="st" id="cSt"></div><div class="pg"><div class="bar"><i id="cBar"></i></div><div class="hint" id="cPl" style="margin-top:4px"></div></div></div>
+    <div id="breakAlert"></div>
+    <div class="ctrl"><button class="pause" id="bPause"></button><button class="tilt" id="bTilt">Tilt<small>je le sens monter</small></button><button class="end" id="bEnd">Terminer<small>la session</small></button></div>
+    <section class="card tiltbox" id="tiltBox" hidden><h3>Qu’est-ce qui t’a fait tilter ?</h3><div class="chips" id="tTrig">${TRIGGERS.map(t => `<button type="button">${esc(t)}</button>`).join('')}</div>
+      <div class="row"><span class="hint">Intensité</span><div class="seg" id="tLvl"><button data-l="1" class="on">Légère</button><button data-l="2">Moyenne</button><button data-l="3">Forte</button></div></div>
+      <div class="hint">Respire 3 fois profondément. Si l’intensité est forte, fais une pause de 5 minutes avant de rejouer.</div>
+      <div class="row"><button class="btn" id="tSave">Noter</button><button class="ghost" id="tCancel">Annuler</button></div></section>
+    <div class="grid g2">
+      <section class="card remind"><div class="lbl">Objectif mental</div><div class="big">${esc(L.warm.goalMental || 'Aucun objectif mental noté')}</div></section>
+      <section class="card remind" style="border-left-color:var(--violet)"><div class="lbl">Objectif technique</div><div class="big">${ax ? esc(ax.point) : 'Aucun axe pour cette session'}</div>${ax ? `<div class="hint" style="margin-top:4px">${esc(ax.cat)} · ${esc(ax.pos)} · ${esc(ax.sit)}${ax.goal ? ' — ' + esc(ax.goal) : ''}</div>` : ''}</section>
+    </div>
+    <section class="card"><div class="hd"><h3>Tilts de la session</h3><span class="pill" id="tCount"></span></div><div class="tlog" id="tLog"></div></section>
+    <div class="row" style="justify-content:center"><button class="ghost sm danger" id="bAbort">Abandonner sans enregistrer</button></div>
+  </div>`;
+  let trig = null, lvl = 1;
+  const draw = () => {
+    const now = Date.now(), el = now - L.start - pausedMs(L, now), pl = L.warm.plannedMin * 60000, paused = !!L.paused;
+    $('#cT').textContent = fmtClock(el); $('#clock').classList.toggle('paused', paused);
+    $('#cSt').textContent = paused ? `En pause depuis ${fmtClock(now - L.paused)}` : `Commencée à ${new Date(L.start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    $('#cBar').style.width = Math.min(100, el / pl * 100) + '%'; $('#cBar').style.background = el > pl ? 'var(--b)' : 'var(--accent)';
+    $('#cPl').textContent = el > pl ? `Durée prévue dépassée de ${fmtDur((el - pl) / 60000)} : pense à t’arrêter.` : `Encore ${fmtDur((pl - el) / 60000)} sur ${fmtDur(L.warm.plannedMin)} prévues`;
+    $('#bPause').innerHTML = paused ? 'Reprendre<small>fin de la pause</small>' : 'Pause<small>je me lève</small>';
+    const lastBreak = Math.max(L.start, ...L.pauses.map(p => p.e || now)), since = (now - lastBreak) / 60000;
+    $('#breakAlert').innerHTML = !paused && since >= D.settings.breakEvery ? `<div class="breakalert">⏸ Tu joues depuis ${fmtDur(since)} sans pause : lève-toi 5 minutes, bois de l’eau.</div>` : '';
+    $('#tCount').textContent = `${L.tilts.length} tilt${L.tilts.length > 1 ? 's' : ''}`;
+    $('#tLog').innerHTML = L.tilts.length ? L.tilts.map(t => `<div><span>${new Date(t.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${esc(t.trig)}</span><b>${['', 'légère', 'moyenne', 'forte'][t.lvl]}</b></div>`).join('') : '<span class="hint">Aucun pour l’instant. Bien joué.</span>';
+  };
+  draw(); tick = setInterval(draw, 1000);
+  $('#bPause').onclick = () => { if (L.paused) { L.pauses.push({ s: L.paused, e: Date.now() }); L.paused = null; } else L.paused = Date.now(); save(); draw(); };
+  $('#bTilt').onclick = () => { $('#tiltBox').hidden = false; $('#tiltBox').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+  $$('#tTrig button').forEach(b => b.onclick = () => { trig = b.textContent; $$('#tTrig button').forEach(x => x.classList.toggle('on', x === b)); });
+  $$('#tLvl button').forEach(b => b.onclick = () => { lvl = +b.dataset.l; $$('#tLvl button').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#tCancel').onclick = () => { $('#tiltBox').hidden = true; };
+  $('#tSave').onclick = () => { L.tilts.push({ t: Date.now(), trig: trig || 'Autre', lvl }); save(); $('#tiltBox').hidden = true; trig = null; $$('#tTrig button').forEach(x => x.classList.remove('on')); toast(lvl === 3 ? 'Noté. Fais une vraie pause avant de rejouer.' : 'Noté. Respire, et reviens à ton plan.'); draw(); };
+  $('#bEnd').onclick = () => { if (!confirmBtn($('#bEnd'), 'Confirmer la fin')) return; const now = Date.now(); if (L.paused) { L.pauses.push({ s: L.paused, e: now }); L.paused = null; }
+    const s = { id: L.id, start: L.start, end: now, durMin: Math.round((now - L.start - pausedMs(L, now)) / 60000), pauseMin: Math.round(pausedMs(L, now) / 60000), pauseCount: L.pauses.length, warm: L.warm, tilts: L.tilts, cool: null, game: null };
+    D.sessions.push(s); D.live = null; D.cool = s.id; save(); show('session'); };
+  $('#bAbort').onclick = () => { if (!confirmBtn($('#bAbort'), 'Confirmer : rien ne sera gardé')) return; D.live = null; save(); show('session'); };
+}
+function vCool() {
+  const s = D.sessions.find(x => x.id === D.cool); if (!s) { D.cool = null; save(); return vWarm(); }
+  const c = s._draft || (s._draft = { goalOk: null, tilt: s.tilts.length ? (s.tilts.some(t => t.lvl >= 2) || s.tilts.length >= 3 ? 'lot' : 'some') : null, focus: null, pauses: null, good: '', improve: '', worked: null, met: null, applied: null, diff: '', review: '', spins: '', result: '' });
+  const ax = s.warm.axeId && axeById(s.warm.axeId);
+  const seg = (k, opts = YN) => `<div class="seg" data-seg="${k}">${opts.map(([v, l]) => `<button type="button" data-v="${v}" class="${c[k] === v ? 'on ' + v : ''} ">${l}</button>`).join('')}</div>`;
+  $('#main').innerHTML = `<div class="grid g21"><section class="card">
+    <div class="steps"><span>1 · Warm-up</span><i></i><span>2 · Session</span><i></i><span class="on">3 · Cooldown</span></div>
+    <h2 style="font:800 22px var(--f-display);margin:10px 0 2px">Cooldown</h2><div class="hint">Session de ${fmtDur(s.durMin)} · ${s.pauseCount} pause${s.pauseCount > 1 ? 's' : ''} · ${s.tilts.length} tilt${s.tilts.length > 1 ? 's' : ''} noté${s.tilts.length > 1 ? 's' : ''}. Tout est enregistré automatiquement.</div>
+    <h3 style="margin-top:14px;color:var(--accent)">Partie mentale</h3>
+    <div class="q"><span class="ql">Ai-je respecté mon objectif ?</span>${s.warm.goalMental ? `<div class="hint">« ${esc(s.warm.goalMental)} »</div>` : ''}${seg('goalOk')}</div>
+    <div class="q"><span class="ql">Ai-je ressenti du tilt ?</span>${seg('tilt', [['none', 'Non'], ['some', 'Un peu'], ['lot', 'Beaucoup']])}</div>
+    <div class="q"><span class="ql">Ai-je été suffisamment concentré ?</span><div class="scale" data-sc="focus">${[1, 2, 3, 4, 5].map(v => `<button type="button" data-v="${v}" class="${c.focus === v ? 'on' : ''}">${v}<small>${v === 1 ? 'pas du tout' : v === 5 ? 'totalement' : ''}</small></button>`).join('')}</div></div>
+    <div class="q"><span class="ql">Ai-je respecté mes pauses ?</span>${seg('pauses')}</div>
+    <div class="q"><label for="cGood">Qu’ai-je bien fait ?</label><textarea class="inp" id="cGood" data-t="good">${esc(c.good)}</textarea></div>
+    <div class="q"><label for="cImp">Que dois-je améliorer ?</label><textarea class="inp" id="cImp" data-t="improve">${esc(c.improve)}</textarea></div>
+    <h3 style="margin-top:14px;color:var(--violet)">Partie technique${ax ? ` · ${esc(ax.point)}` : ''}</h3>
+    ${ax ? `<div class="q"><span class="ql">Ai-je travaillé mon objectif technique ?</span>${seg('worked')}</div>
+    <div class="q"><span class="ql">Ai-je rencontré des situations liées à cet objectif ?</span>${seg('met', [['no', 'Non'], ['mid', '1 ou 2 fois'], ['yes', 'Souvent']])}</div>
+    <div class="q"><span class="ql">Ai-je correctement appliqué ce que j’ai étudié ?</span>${seg('applied')}</div>
+    <div class="q"><label for="cDiff">Quelles difficultés ai-je rencontrées ?</label><textarea class="inp" id="cDiff" data-t="diff">${esc(c.diff)}</textarea></div>
+    <div class="q"><label for="cRev">Que dois-je revoir lors de ma prochaine étude ?</label><textarea class="inp" id="cRev" data-t="review">${esc(c.review)}</textarea></div>` : '<div class="hint" style="padding:8px 0">Pas d’axe technique pour cette session. Choisis-en un au prochain warm-up.</div>'}
+    <h3 style="margin-top:14px">Ton niveau de jeu mental</h3><div class="hint" style="margin:2px 0 8px">Indépendant de tes résultats : un C Game peut gagner, un A Game peut perdre.</div>
+    <div class="abc" id="abc">${[['A', 'Concentration et discipline optimales.'], ['B', 'Quelques erreurs ou baisses d’attention.'], ['C', 'Tilt ou perte de discipline.']].map(([g, d]) => `<button type="button" data-g="${g}" class="${s.game === g ? 'on' : ''}"><b>${g} Game</b><span>${d}</span><span class="sug" data-sug="${g}"></span></button>`).join('')}</div>
+    <details style="margin-top:12px"><summary class="hint" style="cursor:pointer">Ajouter mes résultats (optionnel)</summary><div class="form2" style="margin-top:8px"><div><label for="cSp">Spins joués</label><input class="inp" id="cSp" type="number" min="0" data-t="spins" value="${esc(c.spins)}"></div><div><label for="cRes">Résultat (€)</label><input class="inp" id="cRes" type="number" step="0.01" data-t="result" value="${esc(c.result)}"></div></div></details>
+    <div style="margin-top:14px"><button class="btn big" id="cSave">Enregistrer la session</button><div class="hint" id="cMiss" style="text-align:center;margin-top:6px"></div></div>
+  </section>
+  <div class="grid" style="align-content:start"><section class="card"><h3>Ton warm-up</h3><div class="kv" style="margin-top:6px"><div><span>État mental</span><b>${s.warm.mental}/5</b></div><div><span>Fatigue</span><b>${s.warm.fatigue}/5</b></div><div><span>Concentration</span><b>${s.warm.focus}/5</b></div><div><span>Motivation</span><b>${s.warm.motiv}/5</b></div><div><span>Prévu</span><b>${fmtDur(s.warm.plannedMin)}</b></div><div><span>Joué</span><b>${fmtDur(s.durMin)}</b></div></div></section>
+    ${s.tilts.length ? `<section class="card"><h3>Tes tilts</h3><div class="tlog" style="margin-top:6px">${s.tilts.map(t => `<div><span>${new Date(t.t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${esc(t.trig)}</span><b>${['', 'légère', 'moyenne', 'forte'][t.lvl]}</b></div>`).join('')}</div></section>` : ''}</div></div>`;
+  const sug = () => { const g = suggestGame(c, s.tilts); $$('[data-sug]').forEach(el => el.textContent = el.dataset.sug === g ? 'Suggestion selon tes réponses' : ''); };
+  const persist = () => { save(); sug(); };
+  $$('[data-seg]').forEach(sg => $$('button', sg).forEach(b => b.onclick = () => { c[sg.dataset.seg] = b.dataset.v; $$('button', sg).forEach(x => x.className = x === b ? 'on ' + b.dataset.v : ''); persist(); }));
+  $$('[data-sc]').forEach(sc => $$('button', sc).forEach(b => b.onclick = () => { c[sc.dataset.sc] = +b.dataset.v; $$('button', sc).forEach(x => x.classList.toggle('on', x === b)); persist(); }));
+  $$('[data-t]').forEach(el => el.oninput = () => { c[el.dataset.t] = el.value; save(); });
+  $$('#abc button').forEach(b => b.onclick = () => { s.game = b.dataset.g; $$('#abc button').forEach(x => x.classList.toggle('on', x === b)); save(); });
+  sug();
+  $('#cSave').onclick = () => {
+    const need = [['goalOk', 'objectif'], ['tilt', 'tilt'], ['focus', 'concentration'], ['pauses', 'pauses']].concat(ax ? [['worked', 'objectif technique'], ['met', 'situations'], ['applied', 'application']] : []).filter(([k]) => c[k] === null || c[k] === undefined);
+    if (need.length || !s.game) { $('#cMiss').textContent = `Il manque : ${need.map(n => n[1]).concat(s.game ? [] : ['A/B/C Game']).join(', ')}.`; return; }
+    s.cool = { ...c, spins: c.spins === '' ? null : +c.spins, result: c.result === '' ? null : +c.result }; delete s._draft; D.cool = null;
+    if (ax) { ax.history = ax.history || []; ax.history.push(s.id); if (ax.status === 0 && c.applied === 'yes') ax.status = 1; }
+    save(); toast(`Session enregistrée · ${s.game} Game · score mental ${mentalScore(s)}/100`); show('accueil', true);
+  };
+}
+
+// =================== TECHNIQUE ===================
+let editAxe = null;
+function vTech() {
+  const list = D.axes.slice().sort((a, b) => (b.prio - a.prio) || (a.status - b.status) || b.created - a.created);
+  $('#main').innerHTML = `<div class="grid g21"><div class="grid" style="align-content:start">
+    <section class="card"><div class="hd"><h3>Tes axes de progression</h3><button class="btn" id="aNew">+ Nouvel axe</button></div><div class="hint">Garde plusieurs axes, mais un seul <b>prioritaire</b> (★) : c’est lui qui est proposé au warm-up, pour ne pas te disperser.</div></section>
+    <div id="aForm"></div>
+    ${list.length ? list.map(a => axeCard(a)).join('') : '<section class="card empty">Aucun axe pour l’instant. Exemple : <b>BvB · BB vs SB · Postflop · Défense face aux c-bets de la SB</b>.</section>'}
+  </div>
+  <div class="grid" style="align-content:start"><section class="card"><h3>Comment ça marche</h3><ol class="hint" style="padding-left:18px;margin:8px 0 0;display:grid;gap:6px"><li>Crée l’axe : catégorie, position, situation et le point précis à travailler.</li><li>Choisis-le au <b>warm-up</b> : il s’affiche pendant toute la session.</li><li>Au <b>cooldown</b>, dis si tu l’as rencontré et bien appliqué.</li><li>Ajoute tes <b>notes d’étude</b> ; passe l’axe en « Maîtrisé » quand c’est acquis.</li></ol></section>
+    <section class="card"><h3>Par statut</h3><div class="kv" style="margin-top:6px">${STATUS.map((s, i) => `<div><span><span class="pill st${i}">${s}</span></span><b class="num">${D.axes.filter(a => a.status === i).length}</b></div>`).join('')}</div></section></div></div>`;
+  $('#aNew').onclick = () => { editAxe = { id: null, cat: 'BvB', pos: 'BvB BB vs SB', sit: 'Postflop', point: '', goal: '', status: 0 }; drawAxeForm(); };
+  bindAxeCards(); if (editAxe) drawAxeForm();
+}
+function axeCard(a) {
+  const H = D.sessions.filter(s => s.cool && s.warm.axeId === a.id), ok = H.filter(s => s.cool.applied === 'yes').length, met = H.filter(s => s.cool.met !== 'no').length;
+  return `<section class="axe ${a.prio ? 'prio' : ''}" data-a="${a.id}"><div class="row" style="justify-content:space-between"><div class="tags">${a.prio ? '<span class="pill" style="color:var(--accent);background:var(--accent-soft);border-color:transparent">★ Prioritaire</span>' : ''}<span class="pill">${esc(a.cat)}</span><span class="pill">${esc(a.pos)}</span><span class="pill">${esc(a.sit)}</span></div>
+      <div class="seg" data-st="${a.id}">${STATUS.map((s, i) => `<button type="button" data-v="${i}" class="${a.status === i ? 'on ' + ['no', 'mid', 'yes'][i] : ''}">${s}</button>`).join('')}</div></div>
+    <div style="font:700 18px/1.35 var(--f-display)">${esc(a.point)}</div>${a.goal ? `<div class="hint">Objectif : ${esc(a.goal)}</div>` : ''}
+    <div class="row hint"><span>Sessions travaillées : <b>${H.length}</b></span><span>Situations rencontrées : <b>${met}</b></span><span>Appliqué correctement : <b>${H.length ? Math.round(ok / H.length * 100) + ' %' : '–'}</b></span></div>
+    ${H.length ? `<details><summary class="hint" style="cursor:pointer">Historique des sessions (${H.length})</summary><div class="list" style="margin-top:8px">${H.slice().reverse().map(s => `<div class="item"><div class="row" style="justify-content:space-between"><span class="t">${fmtDate(s.start)}</span><span class="pill g${s.game}">${s.game} Game</span></div><span class="hint">Rencontré : ${({ no: 'non', mid: '1-2 fois', yes: 'souvent' })[s.cool.met]} · appliqué : ${({ yes: 'oui', mid: 'en partie', no: 'non' })[s.cool.applied]}</span>${s.cool.diff ? `<span>Difficultés : ${esc(s.cool.diff)}</span>` : ''}${s.cool.review ? `<span>À revoir : ${esc(s.cool.review)}</span>` : ''}</div>`).join('')}</div></details>` : ''}
+    <div class="list">${(a.notes || []).slice().reverse().map(n => `<div class="item"><span class="hint">${fmtDate(n.d)} · note d’étude</span>${esc(n.txt)}</div>`).join('')}</div>
+    <div class="row"><input class="inp" data-note="${a.id}" placeholder="Ajouter une note d’étude ou une observation…" style="flex:1;min-width:200px"><button class="ghost sm" data-addnote="${a.id}">Ajouter</button></div>
+    <div class="row"><button class="ghost sm" data-prio="${a.id}">${a.prio ? 'Retirer la priorité' : '★ Rendre prioritaire'}</button><button class="ghost sm" data-edit="${a.id}">Modifier</button><button class="ghost sm danger" data-del="${a.id}">Supprimer</button></div></section>`;
+}
+function bindAxeCards() {
+  $$('[data-st]').forEach(sg => $$('button', sg).forEach(b => b.onclick = () => { const a = axeById(sg.dataset.st); a.status = +b.dataset.v; if (a.status === 2) a.prio = false; save(); vTech(); }));
+  $$('[data-prio]').forEach(b => b.onclick = () => { const a = axeById(b.dataset.prio), was = a.prio; D.axes.forEach(x => x.prio = false); a.prio = !was; save(); vTech(); });
+  $$('[data-addnote]').forEach(b => b.onclick = () => { const inp = $(`[data-note="${b.dataset.addnote}"]`), t = inp.value.trim(); if (!t) return; const a = axeById(b.dataset.addnote); (a.notes = a.notes || []).push({ d: Date.now(), txt: t }); save(); vTech(); });
+  $$('[data-note]').forEach(i => i.onkeydown = (e) => { if (e.key === 'Enter') $(`[data-addnote="${i.dataset.note}"]`).click(); });
+  $$('[data-edit]').forEach(b => b.onclick = () => { editAxe = { ...axeById(b.dataset.edit) }; drawAxeForm(); });
+  $$('[data-del]').forEach(b => b.onclick = () => { if (!confirmBtn(b, 'Confirmer')) return; D.axes = D.axes.filter(a => a.id !== b.dataset.del); save(); vTech(); });
+}
+function drawAxeForm() {
+  const a = editAxe, opt = (arr, v) => arr.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
+  $('#aForm').innerHTML = `<section class="card" style="border-color:var(--accent)"><h3>${a.id ? 'Modifier l’axe' : 'Nouvel axe de progression'}</h3><div class="form2" style="margin-top:10px">
+    <div><label for="fCat">Catégorie</label><select class="inp" id="fCat">${opt(CATS, a.cat)}</select></div>
+    <div><label for="fPos">Position</label><select class="inp" id="fPos">${opt(POSS, a.pos)}</select></div>
+    <div><label for="fSit">Situation</label><select class="inp" id="fSit">${opt(SITS, a.sit)}</select></div>
+    <div><label for="fSt">Statut</label><select class="inp" id="fSt">${STATUS.map((s, i) => `<option value="${i}" ${a.status === i ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+    <div class="full"><label for="fPoint">Point technique à travailler</label><input class="inp" id="fPoint" placeholder="Ex. : défense face aux c-bets de la SB" value="${esc(a.point)}"></div>
+    <div class="full"><label for="fGoal">Objectif pour les prochaines sessions</label><input class="inp" id="fGoal" placeholder="Ex. : appliquer ma range de défense à chaque fois, sans overfold" value="${esc(a.goal)}"></div>
+  </div><div class="row" style="margin-top:12px"><button class="btn" id="fSave">${a.id ? 'Enregistrer' : 'Créer l’axe'}</button><button class="ghost" id="fCancel">Annuler</button><label class="row hint" style="cursor:pointer"><input type="checkbox" id="fPrio" ${a.prio || (!a.id && !D.axes.some(x => x.prio)) ? 'checked' : ''} style="accent-color:var(--accent)"> axe prioritaire</label></div></section>`;
+  $('#fCancel').onclick = () => { editAxe = null; $('#aForm').innerHTML = ''; };
+  $('#fSave').onclick = () => { const point = $('#fPoint').value.trim(); if (!point) return toast('Écris le point technique à travailler');
+    const v = { cat: $('#fCat').value, pos: $('#fPos').value, sit: $('#fSit').value, status: +$('#fSt').value, point, goal: $('#fGoal').value.trim() };
+    let a = a0(); if ($('#fPrio').checked) D.axes.forEach(x => x.prio = false); Object.assign(a, v, { prio: $('#fPrio').checked && v.status !== 2 }); editAxe = null; save(); vTech(); toast('Axe enregistré'); };
+  const a0 = () => { if (a.id) return axeById(a.id); const n = { id: uid(), created: Date.now(), notes: [], history: [] }; D.axes.push(n); return n; };
+  $('#aForm').scrollIntoView({ behavior: 'smooth', block: 'start' }); $('#fPoint').focus();
+}
+
+// =================== PLANNING ===================
+let planWeek = monday(new Date());
+function vPlan() {
+  const P = D.plan, m = planWeek, ws = weekSessions(m), wkMin = ws.reduce((a, s) => a + playMin(s), 0), planned = P.slots.reduce((a, s) => a + s.dur, 0), mo = monthSessions(m), moMin = mo.reduce((a, s) => a + playMin(s), 0);
+  const now = new Date(), isCur = monday(now).getTime() === m.getTime();
+  const daysHTML = [...Array(7)].map((_, i) => { const d = addDays(m, i), k = dkey(d), real = ws.filter(s => dkey(new Date(s.start)) === k), slots = P.slots.filter(s => s.dow === i).sort((a, b) => a.time.localeCompare(b.time)), past = d < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return `<div class="day ${k === today() ? 'today' : ''}"><div class="dh"><span>${DOWs[i]} ${d.getDate()}</span><span class="hint">${real.length ? fmtDur(real.reduce((a, s) => a + playMin(s), 0)) : ''}</span></div>
+      ${slots.map(sl => { const st = real.length ? 'done' : past ? 'miss' : ''; return `<div class="slot ${st}"><b>${sl.time}</b><span>${fmtDur(sl.dur)}${sl.label ? ' · ' + esc(sl.label) : ''}</span><button data-rm="${sl.id}" aria-label="Retirer">retirer</button></div>`; }).join('')}
+      ${real.map(s => `<div class="slot real"><b>${new Date(s.start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</b><span>joué ${fmtDur(s.durMin)} · <span class="pill g${s.game}" style="padding:0 6px">${s.game}</span></span></div>`).join('')}
+      <button class="ghost sm" data-add="${i}" style="justify-self:start">+ session</button></div>`; }).join('');
+  $('#main').innerHTML = `<div class="grid" style="gap:16px">
+    <div class="grid g4">
+      <section class="card kpi"><div class="lbl">Cette semaine</div><div class="v num">${fmtDur(wkMin)}</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100, wkMin / (P.weekHours * 60) * 100)}%"></i></div><div class="s">objectif ${P.weekHours} h · ${ws.length}/${P.weekSessions} sessions</div></section>
+      <section class="card kpi"><div class="lbl">Ce mois-ci</div><div class="v num">${nf(moMin / 60, 1)} h</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100, moMin / (P.monthHours * 60) * 100)}%"></i></div><div class="s">objectif ${P.monthHours} h · ${mo.length} sessions</div></section>
+      <section class="card kpi"><div class="lbl">Semaine type prévue</div><div class="v num">${fmtDur(planned)}</div><div class="s">${P.slots.length} sessions · ${planned / 60 >= P.weekHours ? 'couvre ton objectif' : `il manque ${fmtDur(P.weekHours * 60 - planned)}`}</div></section>
+      <section class="card kpi"><div class="lbl">Respect du planning</div><div class="v num">${(() => { const r = planRespect(); return r === null ? '–' : r + ' %'; })()}</div><div class="s">sessions prévues réellement jouées (4 dernières semaines)</div></section>
+    </div>
+    <section class="card"><div class="hd"><h3>Semaine du ${fmtDate(m, { day: 'numeric', month: 'long' })}</h3><div class="row"><button class="ghost sm" id="pPrev">← Semaine d’avant</button>${isCur ? '' : '<button class="ghost sm" id="pNow">Cette semaine</button>'}<button class="ghost sm" id="pNext">Semaine d’après →</button></div></div>
+      <div class="hint" style="margin-bottom:10px">Ta <b>semaine type</b> se répète chaque semaine. En couleur : <span class="pill" style="background:var(--accent-soft)">prévue</span> <span class="pill gA">jouée</span> <span class="pill gC">manquée</span> <span class="pill">session réelle</span></div>
+      <div class="week">${daysHTML}</div>
+      <div id="slotForm"></div></section>
+    <section class="card"><h3>Tes objectifs</h3><div class="form2" style="margin-top:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+      <div><label for="oWH">Heures de grind / semaine</label><input class="inp" id="oWH" type="number" min="0" step="1" value="${P.weekHours}"></div>
+      <div><label for="oMH">Heures de grind / mois</label><input class="inp" id="oMH" type="number" min="0" step="5" value="${P.monthHours}"></div>
+      <div><label for="oWS">Sessions / semaine</label><input class="inp" id="oWS" type="number" min="0" step="1" value="${P.weekSessions}"></div>
+      <div><label for="oSp">Sport / semaine (min)</label><input class="inp" id="oSp" type="number" min="0" step="15" value="${P.sportTarget}"></div>
+      <div><label for="oSl">Sommeil visé (h / nuit)</label><input class="inp" id="oSl" type="number" min="4" max="12" step="0.5" value="${P.sleepTarget}"></div>
+    </div></section></div>`;
+  $('#pPrev').onclick = () => { planWeek = addDays(planWeek, -7); vPlan(); }; $('#pNext').onclick = () => { planWeek = addDays(planWeek, 7); vPlan(); }; if ($('#pNow')) $('#pNow').onclick = () => { planWeek = monday(new Date()); vPlan(); };
+  $$('[data-rm]').forEach(b => b.onclick = () => { P.slots = P.slots.filter(s => s.id !== b.dataset.rm); save(); vPlan(); });
+  $$('[data-add]').forEach(b => b.onclick = () => { const i = +b.dataset.add; $('#slotForm').innerHTML = `<div class="item" style="margin-top:12px;border-color:var(--accent)"><b>Nouvelle session le ${DOW[i].toLowerCase()} (chaque semaine)</b><div class="row"><label class="hint" for="sT">Heure</label><input class="inp" id="sT" type="time" value="20:00" style="width:120px"><label class="hint" for="sD">Durée (min)</label><input class="inp" id="sD" type="number" min="15" step="15" value="120" style="width:90px"><input class="inp" id="sL" placeholder="Note (ex. : 8 tables, 10 €)" style="flex:1;min-width:160px"><button class="btn" id="sOk">Ajouter</button></div></div>`;
+    $('#sOk').onclick = () => { P.slots.push({ id: uid(), dow: i, time: $('#sT').value || '20:00', dur: Math.max(15, +$('#sD').value || 120), label: $('#sL').value.trim() }); save(); vPlan(); toast('Session ajoutée à ta semaine type'); }; $('#sT').focus(); });
+  const bindN = (id, k) => $(id).oninput = (e) => { const v = parseFloat(e.target.value); if (Number.isFinite(v)) { P[k] = v; save(); } };
+  bindN('#oWH', 'weekHours'); bindN('#oMH', 'monthHours'); bindN('#oWS', 'weekSessions'); bindN('#oSp', 'sportTarget'); bindN('#oSl', 'sleepTarget');
+  $$('#oWH,#oMH,#oWS,#oSp,#oSl').forEach(i => i.onchange = () => vPlan());
+}
+function planRespect() { // part des sessions prévues (4 semaines passées) suivies d'une vraie session le même jour
+  if (!D.plan.slots.length) return null; let plan = 0, okc = 0; const m0 = monday(new Date());
+  for (let w = 1; w <= 4; w++) { const m = addDays(m0, -7 * w); for (const sl of D.plan.slots) { const k = dkey(addDays(m, sl.dow)); plan++; if (done().some(s => dkey(new Date(s.start)) === k)) okc++; } }
+  return plan ? Math.round(okc / plan * 100) : null;
+}
+
+// =================== HYGIÈNE DE VIE ===================
+let hygDay = today();
+function vHyg() {
+  const k = hygDay, L = D.days[k] || {}, days = [...Array(7)].map((_, i) => dkey(addDays(fromKey(k), i - 3)));
+  const wk = [...Array(7)].map((_, i) => dkey(addDays(monday(new Date()), i))), wkLogs = wk.map(dayLog);
+  const sportW = wkLogs.reduce((a, l) => a + (l && l.sport ? l.sport.reduce((x, s) => x + (+s.min || 0), 0) : 0), 0), sleepW = wkLogs.filter(l => l && l.sleepH).map(l => l.sleepH);
+  const sc = (id, val, lo, hi) => `<div class="scale" data-hs="${id}">${[1, 2, 3, 4, 5].map(v => `<button type="button" data-v="${v}" class="${val === v ? 'on' : ''}">${v}<small>${v === 1 ? lo : v === 5 ? hi : ''}</small></button>`).join('')}</div>`;
+  $('#main').innerHTML = `<div class="grid g21"><section class="card">
+    <div class="hd"><h3>${k === today() ? 'Aujourd’hui' : fmtDate(fromKey(k), { weekday: 'long', day: 'numeric', month: 'long' })}</h3><div class="row"><button class="ghost sm" id="hPrev">←</button><input class="inp" type="date" id="hDate" value="${k}" style="width:auto"><button class="ghost sm" id="hNext">→</button></div></div>
+    <div class="days7">${days.map(d => { const l = D.days[d], h = l && l.sleepH ? Math.min(100, l.sleepH / 10 * 100) : 0; return `<button class="d7 ${d === k ? 'on' : ''}" data-day="${d}"><span>${DOWs[dowOf(fromKey(d))]}</span><span class="col"><i style="height:${h}%"></i></span><span class="num">${l && l.sleepH ? nf(l.sleepH, 1) : '–'}</span><span class="dot ${l && l.sport && l.sport.length ? 'on' : ''}" title="sport"></span></button>`; }).join('')}</div>
+    <div class="hint" style="margin-top:4px">Barres = heures de sommeil · point vert = sport ce jour-là.</div>
+    <h3 style="margin-top:16px">Sommeil (la nuit dernière)</h3>
+    <div class="form2" style="margin-top:8px"><div><label for="ySl">Heures dormies</label><input class="inp" id="ySl" type="number" min="0" max="16" step="0.25" value="${L.sleepH ?? ''}" placeholder="ex. 7,5"></div><div><label for="yBed">Coucher → lever</label><div class="row" style="flex-wrap:nowrap"><input class="inp" id="yBed" type="time" value="${L.bed || ''}"><span class="hint">→</span><input class="inp" id="yUp" type="time" value="${L.up || ''}"></div></div></div>
+    <div class="q"><span class="ql">Qualité du sommeil</span>${sc('sleepQ', L.sleepQ, 'mauvaise', 'parfaite')}</div>
+    <h3 style="margin-top:10px">Sport</h3>
+    <div class="sportl" id="ySport">${(L.sport || []).map((s, i) => `<div><span class="pill">${esc(s.type)}</span><b class="num">${fmtDur(+s.min)}</b><button class="ghost sm" data-rs="${i}">retirer</button></div>`).join('') || '<span class="hint">Rien noté ce jour-là.</span>'}</div>
+    <div class="row" style="margin-top:6px"><select class="inp" id="ySpT" style="width:auto">${SPORTS.map(s => `<option>${s}</option>`).join('')}</select><input class="inp" id="ySpM" type="number" min="5" step="5" value="45" style="width:80px"><span class="hint">min</span><button class="ghost sm" id="ySpAdd">+ Ajouter</button></div>
+    <h3 style="margin-top:14px">Forme du jour</h3>
+    <div class="q"><span class="ql">Énergie</span>${sc('energy', L.energy, 'à plat', 'au top')}</div>
+    <div class="q"><span class="ql">Humeur / stress</span>${sc('mood', L.mood, 'stressé', 'serein')}</div>
+    <div class="q"><span class="ql">Alimentation</span>${sc('food', L.food, 'mauvaise', 'très saine')}</div>
+    <div class="form2" style="margin-top:6px"><div><label for="yWat">Eau (litres)</label><input class="inp" id="yWat" type="number" min="0" step="0.25" value="${L.water ?? ''}"></div><div><label for="yMed">Méditation / respiration (min)</label><input class="inp" id="yMed" type="number" min="0" step="5" value="${L.medit ?? ''}"></div>
+      <div><label for="yAlc">Alcool (verres)</label><input class="inp" id="yAlc" type="number" min="0" step="1" value="${L.alcohol ?? ''}"></div><div><label>Écrans juste avant de dormir</label><div class="seg" id="yScr"><button type="button" data-v="0" class="${L.screens === false ? 'on yes' : ''}">Non</button><button type="button" data-v="1" class="${L.screens === true ? 'on no' : ''}">Oui</button></div></div>
+      <div class="full"><label for="yNote">Note du jour (hors poker)</label><textarea class="inp" id="yNote" placeholder="Ex. : journée chargée au travail, dispute, bonne nouvelle…">${esc(L.note || '')}</textarea></div></div>
+    <div class="hint" style="margin-top:8px">Tout s’enregistre tout seul.</div>
+  </section>
+  <div class="grid" style="align-content:start">
+    <section class="card"><h3>Cette semaine</h3><div class="kv" style="margin-top:6px">
+      <div><span>Sommeil moyen</span><b class="num">${sleepW.length ? nf(avg(sleepW), 1) + ' h' : '–'} <small class="hint">/ ${hfmt(D.plan.sleepTarget)} h</small></b></div>
+      <div><span>Sport</span><b class="num">${fmtDur(sportW)} <small class="hint">/ ${fmtDur(D.plan.sportTarget)}</small></b></div>
+      <div><span>Jours avec sport</span><b class="num">${wkLogs.filter(l => l && l.sport && l.sport.length).length} / 7</b></div>
+      <div><span>Jours remplis</span><b class="num">${wkLogs.filter(Boolean).length} / 7</b></div></div>
+      <div class="bar" style="margin-top:10px"><i style="width:${Math.min(100, sportW / Math.max(1, D.plan.sportTarget) * 100)}%;background:var(--a)"></i></div><div class="hint" style="margin-top:4px">Objectif sport de la semaine</div></section>
+    <section class="card"><h3>Pourquoi c’est important</h3><p class="hint" style="margin-top:6px">Le sommeil, le sport et le stress pèsent directement sur ta concentration et ta résistance au tilt. Remplis ce journal chaque jour (1 minute) : l’accueil te montrera tes vrais liens entre hors table et mental, par exemple ton score mental quand tu as bien dormi.</p></section>
+  </div></div>`;
+  const L2 = () => (D.days[k] = D.days[k] || {});
+  const setv = (key, v) => { const o = L2(); if (v === '' || v === null || Number.isNaN(v)) delete o[key]; else o[key] = v; save(); };
+  $('#ySl').oninput = (e) => setv('sleepH', e.target.value === '' ? '' : parseFloat(e.target.value));
+  const calc = () => { const b = $('#yBed').value, u = $('#yUp').value; setv('bed', b); setv('up', u); if (b && u) { const [bh, bm] = b.split(':').map(Number), [uh, um] = u.split(':').map(Number); let d = (uh * 60 + um) - (bh * 60 + bm); if (d <= 0) d += 1440; const h = Math.round(d / 60 * 4) / 4; $('#ySl').value = h; setv('sleepH', h); } };
+  $('#yBed').onchange = calc; $('#yUp').onchange = calc;
+  $$('[data-hs]').forEach(scl => $$('button', scl).forEach(b => b.onclick = () => { setv(scl.dataset.hs, +b.dataset.v); $$('button', scl).forEach(x => x.classList.toggle('on', x === b)); }));
+  [['#yWat', 'water'], ['#yMed', 'medit'], ['#yAlc', 'alcohol']].forEach(([id, key]) => $(id).oninput = (e) => setv(key, e.target.value === '' ? '' : parseFloat(e.target.value)));
+  $('#yNote').oninput = (e) => setv('note', e.target.value);
+  $$('#yScr button').forEach(b => b.onclick = () => { setv('screens', b.dataset.v === '1'); $$('#yScr button').forEach(x => x.className = x === b ? 'on ' + (b.dataset.v === '1' ? 'no' : 'yes') : ''); });
+  $('#ySpAdd').onclick = () => { const o = L2(); (o.sport = o.sport || []).push({ type: $('#ySpT').value, min: Math.max(5, +$('#ySpM').value || 30) }); save(); vHyg(); };
+  $$('[data-rs]').forEach(b => b.onclick = () => { L2().sport.splice(+b.dataset.rs, 1); save(); vHyg(); });
+  $$('[data-day]').forEach(b => b.onclick = () => { hygDay = b.dataset.day; vHyg(); });
+  $('#hDate').onchange = (e) => { if (e.target.value) { hygDay = e.target.value; vHyg(); } };
+  $('#hPrev').onclick = () => { hygDay = dkey(addDays(fromKey(hygDay), -1)); vHyg(); }; $('#hNext').onclick = () => { hygDay = dkey(addDays(fromKey(hygDay), 1)); vHyg(); };
+}
+
+// =================== JOURNAL ===================
+let jFilter = 'all';
+function vJournal() {
+  const S = done().slice().reverse().filter(s => jFilter === 'all' || s.game === jFilter);
+  $('#main').innerHTML = `<section class="card"><div class="hd"><h3>Toutes tes sessions</h3><div class="chips" id="jF">${[['all', 'Toutes'], ['A', 'A Game'], ['B', 'B Game'], ['C', 'C Game']].map(([v, l]) => `<button data-f="${v}" class="${jFilter === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+    ${S.length ? `<div class="list">${S.map(s => { const ax = s.warm.axeId && axeById(s.warm.axeId); return `<details class="item"><summary style="cursor:pointer;list-style:none;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap"><span class="t">${fmtDate(s.start, { weekday: 'long', day: 'numeric', month: 'long' })} · ${new Date(s.start).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span><span class="row"><span class="hint">${fmtDur(s.durMin)} · ${s.tilts.length} tilt${s.tilts.length > 1 ? 's' : ''}</span><span class="pill g${s.game}">${s.game} Game</span><b class="num">${mentalScore(s)}/100</b></span></summary>
+      <div class="grid g2" style="margin-top:10px"><div class="kv"><div><span>Objectif mental</span><b style="text-align:right">${esc(s.warm.goalMental || '–')}</b></div><div><span>Respecté</span><b>${({ yes: 'Oui', mid: 'En partie', no: 'Non' })[s.cool.goalOk]}</b></div><div><span>Tilt ressenti</span><b>${({ none: 'Non', some: 'Un peu', lot: 'Beaucoup' })[s.cool.tilt]}</b></div><div><span>Concentration</span><b>${s.cool.focus}/5</b></div><div><span>Pauses respectées</span><b>${({ yes: 'Oui', mid: 'En partie', no: 'Non' })[s.cool.pauses]}</b></div><div><span>Warm-up (mental / fatigue / focus / motiv.)</span><b class="num">${s.warm.mental} / ${s.warm.fatigue} / ${s.warm.focus} / ${s.warm.motiv}</b></div>${s.cool.spins != null || s.cool.result != null ? `<div><span>Résultats</span><b class="num">${s.cool.spins != null ? s.cool.spins + ' spins' : ''} ${s.cool.result != null ? '· ' + nf(s.cool.result, 2) + ' €' : ''}</b></div>` : ''}</div>
+        <div class="list">${s.cool.good ? `<div><b>Bien fait :</b> ${esc(s.cool.good)}</div>` : ''}${s.cool.improve ? `<div><b>À améliorer :</b> ${esc(s.cool.improve)}</div>` : ''}${ax ? `<div><b>Axe :</b> ${esc(ax.point)} — rencontré ${({ no: 'non', mid: '1-2 fois', yes: 'souvent' })[s.cool.met]}, appliqué ${({ yes: 'oui', mid: 'en partie', no: 'non' })[s.cool.applied]}</div>` : ''}${s.cool.diff ? `<div><b>Difficultés :</b> ${esc(s.cool.diff)}</div>` : ''}${s.cool.review ? `<div><b>À revoir :</b> ${esc(s.cool.review)}</div>` : ''}${s.tilts.length ? `<div><b>Tilts :</b> ${s.tilts.map(t => esc(t.trig)).join(', ')}</div>` : ''}</div></div>
+      <div class="row" style="margin-top:8px"><button class="ghost sm danger" data-dels="${s.id}">Supprimer cette session</button></div></details>`; }).join('')}</div>` : '<div class="empty">Aucune session ici pour l’instant.</div>'}</section>`;
+  $$('#jF [data-f]').forEach(b => b.onclick = () => { jFilter = b.dataset.f; vJournal(); });
+  $$('[data-dels]').forEach(b => b.onclick = () => { if (!confirmBtn(b, 'Confirmer la suppression')) return; D.sessions = D.sessions.filter(s => s.id !== b.dataset.dels); save(); vJournal(); });
+}
+
+// =================== exemple ===================
+function loadDemo() {
+  D = blank(); D.demo = true; const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1)), pick = (a) => a[Math.floor(Math.random() * a.length)];
+  D.axes = [{ id: 'ax1', created: Date.now() - 30 * 864e5, cat: 'BvB', pos: 'BvB BB vs SB', sit: 'Postflop', point: 'Défense face aux c-bets de la SB', goal: 'Ne plus overfold les flops secs', status: 1, prio: true, notes: [{ d: Date.now() - 6 * 864e5, txt: 'Sur K72r, je dois défendre tous mes Kx et backdoors.' }], history: [] },
+    { id: 'ax2', created: Date.now() - 40 * 864e5, cat: 'HU', pos: 'HU SB', sit: 'Limp pot', point: 'Jouer mes limps à 12-15 BB', goal: 'Suivre ma range limp/raise', status: 0, prio: false, notes: [], history: [] },
+    { id: 'ax3', created: Date.now() - 60 * 864e5, cat: 'Push / fold', pos: 'BTN', sit: 'Push / fold', point: 'Push BTN à moins de 8 BB', goal: '', status: 2, prio: false, notes: [], history: [] }];
+  D.plan.slots = [{ id: 's1', dow: 0, time: '20:00', dur: 150, label: '8 tables' }, { id: 's2', dow: 1, time: '20:00', dur: 150, label: '' }, { id: 's3', dow: 3, time: '14:00', dur: 120, label: '' }, { id: 's4', dow: 4, time: '20:30', dur: 180, label: '' }, { id: 's5', dow: 6, time: '15:00', dur: 120, label: '' }];
+  for (let i = 27; i >= 0; i--) { const d = addDays(new Date(), -i), k = dkey(d), sleep = Math.round((5.5 + Math.random() * 3) * 4) / 4, sport = Math.random() < 0.45;
+    D.days[k] = { sleepH: sleep, sleepQ: Math.max(1, Math.min(5, Math.round(sleep - 3.5 + Math.random()))), energy: r(2, 5), mood: r(2, 5), food: r(2, 5), screens: Math.random() < 0.4, sport: sport ? [{ type: pick(['Musculation', 'Course', 'Marche', 'Vélo']), min: pick([30, 45, 60]) }] : [] };
+    if (dowOf(d) === 2 || Math.random() < 0.25 || i === 0) continue;
+    const st = new Date(d); st.setHours(pick([14, 20, 20, 21, 22, 23]), pick([0, 15, 30]), 0, 0); const good = sleep >= 7.5 ? 1 : 0, sp = sport ? 1 : 0, dur = pick([90, 120, 150, 180, 210, 240]);
+    const tiltN = Math.max(0, r(0, 3) - good - sp), focus = Math.max(1, Math.min(5, r(2, 4) + good)), axeId = Math.random() < 0.7 ? 'ax1' : 'ax2';
+    const cool = { goalOk: tiltN > 1 ? 'no' : good ? 'yes' : 'mid', tilt: tiltN === 0 ? 'none' : tiltN > 1 ? 'lot' : 'some', focus, pauses: dur > 180 && !good ? 'no' : pick(['yes', 'yes', 'mid']), good: pick(['Bonne discipline sur mes pauses', 'Je suis resté calme après un gros cooler', '']), improve: pick(['Moins de tables quand je suis fatigué', 'Arrêter plus tôt', '']), worked: 'yes', met: pick(['mid', 'yes', 'no']), applied: pick(['yes', 'mid', 'yes', 'no']), diff: '', review: '', spins: r(80, 260), result: null };
+    const s = { id: uid(), start: st.getTime(), end: st.getTime() + dur * 60000, durMin: dur, pauseMin: 10, pauseCount: r(1, 4), warm: { mental: r(2, 5), fatigue: good ? r(1, 3) : r(3, 5), focus: r(2, 5), motiv: r(3, 5), goalMental: pick(MENTAL_GOALS), axeId, plannedMin: dur }, tilts: [...Array(tiltN)].map(() => ({ t: st.getTime() + r(10, dur) * 60000, trig: pick(['Bad beat', 'Cooler', 'Downswing', 'Erreur de jeu', 'Fatigue']), lvl: r(1, 3) })), cool, game: null };
+    s.game = suggestGame(cool, s.tilts); D.sessions.push(s); }
+  save();
+}
+
+// =================== sauvegarde ===================
+$('#bkExport').onclick = () => { const txt = JSON.stringify(D), name = `mental-edge-${today()}.json`; try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'application/json' })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => a.remove(), 500); toast('Sauvegarde créée : ' + name); } catch (e) { toast('Téléchargement bloqué ici'); } };
+$('#bkImport').onclick = () => $('#bkFile').click();
+$('#bkFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { try { const o = JSON.parse(rd.result); if (!Array.isArray(o.sessions)) throw 0; D = Object.assign(blank(), o); save(); show('accueil'); toast('Données importées'); } catch (err) { toast('Ce fichier n’est pas une sauvegarde Mental Edge'); } }; rd.readAsText(f); e.target.value = ''; };
+
+const h0 = location.hash.slice(1);
+show(VIEWS.includes(h0) ? h0 : (D.live ? 'session' : 'accueil'));
+</script>
+</body></html>
