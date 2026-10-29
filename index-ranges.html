@@ -1,0 +1,738 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body><title>SpinScope Ranges</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Range builder pour les Spin : arbre de situations prêt à remplir, ranges par action et fréquence ou par seuil en BB, comparaison, trainer préflop et partage par lien.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700;800&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout : bibliothèque (arbre) à gauche, grille 13×13 au centre, actions et outils à droite ; une colonne sur téléphone. */
+:root {
+  --bg: #f2f0eb; --panel: #ffffff; --panel2: #f6f4ef; --line: #e3ded3; --line2: #cfc8ba;
+  --text: #1c1a15; --muted: #69645a; --dim: #9a9485;
+  --accent: #c7781a; --accent-ink: #ffffff; --accent-soft: rgba(199,120,26,.12);
+  --good: #16803c; --bad: #c4352b; --blue: #2f6fd6; --warn: #b7791f;
+  --good-soft: rgba(22,128,60,.12); --bad-soft: rgba(196,53,43,.12); --blue-soft: rgba(47,111,214,.12);
+  --fold: #e9e5dc; --fold-ink: #8d877a; --cell-ink: #1c1a15; --both: #8b93a7; --onlyA: #2f6fd6; --onlyB: #e07a1f;
+  --card: #fbfaf7; --card-ink: #1c1a15;
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --f-num: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1013; --panel: #161a1f; --panel2: #1c2027; --line: #262b34; --line2: #343b46;
+  --text: #eceae4; --muted: #9da2ac; --dim: #6b717c;
+  --accent: #f0a63a; --accent-ink: #1a1307; --accent-soft: rgba(240,166,58,.14);
+  --good: #3ccf73; --bad: #ff6a5c; --blue: #6aa2ff; --warn: #f0c04a;
+  --good-soft: rgba(60,207,115,.13); --bad-soft: rgba(255,106,92,.13); --blue-soft: rgba(106,162,255,.14);
+  --fold: #232831; --fold-ink: #6f7682; --cell-ink: #101215; --both: #5b6475; --onlyA: #4d8dff; --onlyB: #ff9a3c;
+  --card: #f4f2ec; --card-ink: #15171b;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0e1013; --panel: #161a1f; --panel2: #1c2027; --line: #262b34; --line2: #343b46;
+  --text: #eceae4; --muted: #9da2ac; --dim: #6b717c;
+  --accent: #f0a63a; --accent-ink: #1a1307; --accent-soft: rgba(240,166,58,.14);
+  --good: #3ccf73; --bad: #ff6a5c; --blue: #6aa2ff; --warn: #f0c04a;
+  --good-soft: rgba(60,207,115,.13); --bad-soft: rgba(255,106,92,.13); --blue-soft: rgba(106,162,255,.14);
+  --fold: #232831; --fold-ink: #6f7682; --cell-ink: #101215; --both: #5b6475; --onlyA: #4d8dff; --onlyB: #ff9a3c;
+  --card: #f4f2ec; --card-ink: #15171b;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--f-body); }
+.wrap { max-width: 1440px; margin: 0 auto; padding-block: 18px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h2, h3 { text-wrap: balance; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.logo { width: 42px; height: 42px; flex: none; }
+.brand h1 { margin: 0; font: 800 30px/1 var(--f-display); letter-spacing: .3px; }
+.brand h1 span { color: var(--accent); }
+.brand p { margin: 3px 0 0; color: var(--muted); font-size: 13.5px; }
+.modes { display: inline-flex; border: 1px solid var(--line); border-radius: 12px; padding: 3px; background: var(--panel); gap: 2px; flex-wrap: wrap; }
+.modes button { border: 0; background: none; padding: 7px 14px; border-radius: 9px; font-weight: 700; font-size: 14px; color: var(--muted); cursor: pointer; }
+.modes button.on { background: var(--accent); color: var(--accent-ink); }
+
+.grid3 { display: grid; grid-template-columns: 270px minmax(0, 1fr) 330px; gap: 16px; align-items: start; }
+@media (max-width: 1240px) { .grid3 { grid-template-columns: 250px minmax(0, 1fr); } .grid3 > .right { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; } }
+@media (max-width: 820px) { .grid3 { grid-template-columns: minmax(0, 1fr); } .grid3 > .right { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; min-width: 0; }
+.card h3 { margin: 0; font: 700 18px/1.2 var(--f-display); letter-spacing: .2px; }
+.col { display: grid; gap: 14px; min-width: 0; align-content: start; }
+.hint { color: var(--dim); font-size: 12px; line-height: 1.5; }
+.hint b { color: var(--muted); }
+.lbl { font-size: 11.5px; font-weight: 700; color: var(--muted); letter-spacing: .5px; text-transform: uppercase; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inp { background: var(--panel2); border: 1px solid var(--line2); border-radius: 9px; padding: 6px 9px; min-width: 0; }
+.inp:focus { border-color: var(--accent); outline: none; }
+.btn { border: 0; border-radius: 10px; padding: 9px 14px; background: var(--accent); color: var(--accent-ink); font-weight: 700; cursor: pointer; }
+.ghost { border: 1px solid var(--line2); background: var(--panel2); border-radius: 9px; padding: 6px 11px; font-weight: 600; font-size: 13px; cursor: pointer; color: var(--text); }
+.ghost:hover { border-color: var(--accent); }
+.ghost.danger { color: var(--bad); }
+.ghost.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.ghost.sm { padding: 4px 9px; font-size: 12.5px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button { border: 1px solid var(--line2); background: var(--panel2); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.chips button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chk { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.chk input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+/* bibliothèque */
+.lib { display: grid; gap: 10px; }
+.tree { display: grid; gap: 1px; max-height: 68vh; overflow: auto; margin: 0 -6px; padding: 0 6px; }
+.node { display: flex; align-items: center; gap: 6px; border: 0; background: none; width: 100%; text-align: left; padding: 5px 8px; border-radius: 8px; cursor: pointer; color: var(--text); font-size: 13.5px; min-width: 0; }
+.node:hover { background: var(--panel2); }
+.node.sel { background: var(--accent-soft); box-shadow: inset 2px 0 0 var(--accent); font-weight: 700; }
+.node .ic { width: 16px; flex: none; color: var(--dim); font-size: 11px; text-align: center; }
+.node .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.node .ct { font-size: 11px; color: var(--dim); font-family: var(--f-num); }
+.node .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--line2); }
+.node .dot.full { background: var(--good); }
+.node.f .nm { font-weight: 600; }
+.libbar { display: flex; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 820px) { .tree { max-height: 42vh; } }
+
+/* éditeur */
+.ehead { display: grid; gap: 10px; }
+.namein { font: 700 22px var(--f-display); background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 2px 6px; margin-left: -6px; width: 100%; }
+.namein:hover, .namein:focus { border-color: var(--line2); background: var(--panel2); outline: none; }
+.path { font-size: 12px; color: var(--dim); }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.tabs button.tb { border: 1px solid var(--line2); background: var(--panel2); border-radius: 8px; padding: 5px 11px; font-weight: 700; font-size: 13px; cursor: pointer; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.tabs button.tb.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.tabs button.tb i { width: 6px; height: 6px; border-radius: 50%; background: var(--line2); display: inline-block; }
+.tabs button.tb i.full { background: var(--good); }
+.gwrap { display: grid; gap: 8px; justify-items: center; }
+.rgrid { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 2px; width: min(100%, 640px); touch-action: none; user-select: none; -webkit-user-select: none; }
+.rgrid.small { width: min(100%, 300px); gap: 1px; }
+.c { position: relative; aspect-ratio: 1 / 1; border-radius: 4px; background: var(--fold); color: var(--fold-ink); display: grid; place-items: center; font: 700 clamp(8.5px, 1.45vw, 13.5px)/1 var(--f-body); cursor: crosshair; overflow: hidden; }
+.rgrid.small .c { font-size: 7.5px; border-radius: 2px; cursor: default; }
+.c.has { color: var(--cell-ink); }
+.c span { position: relative; z-index: 1; }
+.c.has span { text-shadow: 0 0 3px rgba(255,255,255,.9), 0 0 1px #fff; }
+@media (max-width: 1100px) { .rgrid:not(.small) .c small { display: none; } }
+.rgrid.small .c small { display: none; }
+.c small { position: absolute; bottom: 1px; right: 2px; font: 600 clamp(6.5px, .9vw, 9px)/1 var(--f-num); z-index: 1; opacity: .85; }
+.c.top { box-shadow: inset 0 0 0 2px var(--accent); }
+.c.mark { box-shadow: inset 0 0 0 2.5px var(--text); z-index: 2; }
+.c.dim { opacity: .28; }
+.gstats { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); justify-content: center; }
+.gstats b { color: var(--text); font-family: var(--f-num); }
+.legend { display: grid; gap: 6px; }
+.act { display: grid; grid-template-columns: 22px 26px minmax(0, 1fr) auto 22px; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 9px; border: 1px solid transparent; cursor: pointer; }
+.act.on { border-color: var(--accent); background: var(--accent-soft); }
+.act .key { font: 700 11px var(--f-num); color: var(--dim); text-align: center; border: 1px solid var(--line2); border-radius: 5px; padding: 1px 0; }
+.act input[type=color] { width: 26px; height: 26px; border: 0; padding: 0; background: none; cursor: pointer; border-radius: 6px; }
+.act input.an { width: 100%; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 3px 5px; font-weight: 700; }
+.act input.an:hover, .act input.an:focus { border-color: var(--line2); background: var(--panel2); outline: none; }
+.act .pc { font: 600 12px var(--f-num); color: var(--muted); text-align: right; white-space: nowrap; }
+.act .x { border: 0; background: none; color: var(--dim); cursor: pointer; font-size: 15px; padding: 0; }
+.swatch { width: 26px; height: 26px; border-radius: 6px; background: var(--fold); border: 1px solid var(--line2); }
+.freq { display: grid; gap: 6px; }
+.range { width: 100%; accent-color: var(--accent); }
+details.box > summary { cursor: pointer; font-weight: 700; list-style: none; display: flex; align-items: center; gap: 6px; }
+details.box > summary::-webkit-details-marker { display: none; }
+details.box > summary::before { content: "▸"; color: var(--dim); } details.box[open] > summary::before { content: "▾"; }
+details.box[open] > .in { margin-top: 10px; display: grid; gap: 8px; }
+textarea.inp { width: 100%; min-height: 76px; resize: vertical; font: 12.5px/1.45 var(--f-num); }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 9px 16px; border-radius: 10px; font-weight: 600; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,.3); max-width: calc(100% - 32px); }
+.banner { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--r); padding: 12px 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: space-between; margin-bottom: 14px; }
+.tip { position: fixed; z-index: 40; pointer-events: none; background: var(--panel); border: 1px solid var(--line2); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 8px 24px rgba(0,0,0,.25); min-width: 140px; }
+.tip b { font-size: 14px; }
+.tip div { display: flex; justify-content: space-between; gap: 12px; }
+.bands { display: grid; gap: 6px; }
+.band { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; }
+.band input[type=color] { width: 26px; height: 26px; border: 0; padding: 0; background: none; border-radius: 6px; cursor: pointer; }
+.empty { text-align: center; padding: 40px 16px; color: var(--muted); }
+.folderlist { display: grid; gap: 6px; margin-top: 10px; }
+.folderlist button { justify-content: space-between; }
+.newr { display: grid; gap: 8px; background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-top: 12px; }
+.newr .row > label { font-size: 13px; color: var(--muted); }
+
+/* comparer */
+.cmpsel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 700px) { .cmpsel { grid-template-columns: 1fr; } }
+.cmpsel > div { display: grid; gap: 6px; }
+.cmpsel select { width: 100%; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 5px; }
+
+/* trainer */
+.trn { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+@media (max-width: 980px) { .trn { grid-template-columns: 1fr; } }
+.felt { background: radial-gradient(ellipse at center, #1f6b45 0%, #134a30 70%, #0e3a26 100%); border-radius: 18px; padding: 22px 18px; color: #eef5ef; display: grid; gap: 14px; justify-items: center; text-align: center; border: 1px solid rgba(0,0,0,.25); }
+.felt .sit { font: 700 22px/1.2 var(--f-display); letter-spacing: .3px; }
+.felt .sub { font-size: 13.5px; opacity: .85; }
+.felt .stack { display: inline-flex; gap: 6px; align-items: baseline; background: rgba(0,0,0,.25); padding: 4px 12px; border-radius: 999px; font-weight: 700; }
+.felt .stack b { font: 800 22px var(--f-display); color: #ffd27a; }
+.cards { display: flex; gap: 10px; justify-content: center; }
+.pc2 { width: 78px; height: 108px; border-radius: 10px; background: var(--card); color: var(--card-ink); display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 10px 24px rgba(0,0,0,.45); font-family: var(--f-display); }
+.pc2 b { font-size: 40px; line-height: 1; } .pc2 i { font-style: normal; font-size: 30px; line-height: 1.1; }
+.pc2.h { color: #d42a2a; } .pc2.d { color: #2563eb; } .pc2.c { color: #15803d; } .pc2.s { color: #15171b; }
+.rng { display: inline-flex; align-items: center; gap: 8px; background: rgba(0,0,0,.28); border-radius: 12px; padding: 6px 14px; font-weight: 700; }
+.rng b { font: 800 26px var(--f-num); color: #fff; }
+.answers { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.answers button { min-width: 110px; padding: 12px 16px; border-radius: 12px; font-weight: 800; font-size: 15px; border: 0; cursor: pointer; color: #111; box-shadow: 0 4px 0 rgba(0,0,0,.25); }
+.answers button:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+.answers button small { display: block; font-size: 10.5px; opacity: .7; font-weight: 700; }
+.verdict { display: grid; gap: 6px; width: 100%; max-width: 560px; text-align: left; border-radius: 12px; padding: 10px 14px; background: rgba(0,0,0,.28); }
+.verdict.ok { box-shadow: inset 0 0 0 2px #4ade80; } .verdict.mid { box-shadow: inset 0 0 0 2px #facc15; } .verdict.ko { box-shadow: inset 0 0 0 2px #f87171; }
+.verdict .vt { font: 800 18px var(--f-display); }
+.verdict.ok .vt { color: #4ade80; } .verdict.mid .vt { color: #facc15; } .verdict.ko .vt { color: #f87171; }
+.bk { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: rgba(255,255,255,.12); }
+.score { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.score div { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; text-align: center; }
+.score b { display: block; font: 800 24px var(--f-display); }
+.score span { font-size: 11.5px; color: var(--muted); }
+.errs { display: grid; gap: 4px; max-height: 260px; overflow: auto; }
+.errs button { display: flex; justify-content: space-between; gap: 8px; border: 1px solid var(--line); background: var(--panel2); border-radius: 8px; padding: 6px 9px; cursor: pointer; font-size: 12.5px; text-align: left; }
+.foot { color: var(--dim); font-size: 12px; margin-top: 18px; line-height: 1.6; max-width: 100ch; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 42 42" aria-hidden="true"><rect x="2" y="2" width="38" height="38" rx="9" fill="var(--panel)" stroke="var(--line2)" stroke-width="1.5"/><g><rect x="8" y="8" width="7" height="7" rx="1.5" fill="var(--accent)"/><rect x="17.5" y="8" width="7" height="7" rx="1.5" fill="var(--accent)"/><rect x="27" y="8" width="7" height="7" rx="1.5" fill="var(--accent)" opacity=".45"/><rect x="8" y="17.5" width="7" height="7" rx="1.5" fill="var(--accent)"/><rect x="17.5" y="17.5" width="7" height="7" rx="1.5" fill="var(--accent)" opacity=".45"/><rect x="27" y="17.5" width="7" height="7" rx="1.5" fill="var(--line2)"/><rect x="8" y="27" width="7" height="7" rx="1.5" fill="var(--accent)" opacity=".45"/><rect x="17.5" y="27" width="7" height="7" rx="1.5" fill="var(--line2)"/><rect x="27" y="27" width="7" height="7" rx="1.5" fill="var(--line2)"/></g></svg>
+      <div><h1>SpinScope <span>Ranges</span></h1><p>Construis tes ranges de Spin, compare-les et entraîne-toi à les jouer sans erreur.</p></div>
+    </div>
+    <nav class="modes" aria-label="Outils"><button data-v="editeur" class="on">Éditeur</button><button data-v="comparer">Comparer</button><button data-v="entrainement">Trainer préflop</button></nav>
+  </header>
+  <div class="banner" id="shareIn" hidden></div>
+
+  <div class="grid3" id="layout">
+    <!-- ===== bibliothèque ===== -->
+    <aside class="card lib" aria-label="Bibliothèque">
+      <div class="row" style="justify-content:space-between"><h3>Bibliothèque</h3><span class="hint" id="saveState"></span></div>
+      <input class="inp" id="search" placeholder="Chercher une range…" aria-label="Chercher">
+      <div class="tree" id="tree" role="tree"></div>
+      <div class="libbar"><button class="ghost sm" id="addFolderRoot">+ Dossier</button><button class="ghost sm" id="libExport">Sauvegarder</button><button class="ghost sm" id="libImport">Restaurer</button><input type="file" id="libFile" accept=".json,application/json" hidden></div>
+      <div class="hint">Tes ranges restent dans ce navigateur. Fais « Sauvegarder » de temps en temps pour en garder une copie.</div>
+      <div id="libBox" hidden style="display:grid;gap:6px"><textarea class="inp" id="libText" aria-label="Sauvegarde"></textarea><div class="row"><button class="ghost sm" id="libCopy">Copier</button><button class="ghost sm" id="libDl">Télécharger le fichier</button><button class="ghost sm" id="libLoad" hidden>Restaurer ce texte</button><button class="ghost sm" id="libClose">Fermer</button></div></div>
+    </aside>
+
+    <!-- ===== centre ===== -->
+    <main class="col" id="center"></main>
+
+    <!-- ===== droite ===== -->
+    <aside class="col right" id="right"></aside>
+  </div>
+
+  <section id="cmpView" hidden></section>
+  <section id="trnView" hidden></section>
+
+  <p class="foot">Raccourcis : <b>1 à 9</b> pour choisir l’action, <b>0</b> ou <b>F</b> pour la gomme (fold), <b>Ctrl+Z</b> pour annuler. Clic droit sur une case = la vider. Le classement « Top % » vient de l’équité de chaque main contre une main au hasard (tête-à-tête) ou contre deux mains (3 joueurs).</p>
+</div>
+<div class="tip" id="tip" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+// =================== mains ===================
+const RK = 'AKQJT98765432';
+const HANDS = [], CELL = []; // CELL[i][j] = main
+for (let i = 0; i < 13; i++) { CELL[i] = []; for (let j = 0; j < 13; j++) { const h = i === j ? RK[i] + RK[j] : j > i ? RK[i] + RK[j] + 's' : RK[j] + RK[i] + 'o'; CELL[i][j] = h; HANDS.push(h); } }
+const POS = {}; for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) POS[CELL[i][j]] = [i, j];
+const combos = (h) => h.length === 2 ? 6 : h[2] === 's' ? 4 : 12;
+const TOTAL = 1326;
+const RANK_HU = ["AA","KK","QQ","JJ","TT","99","88","AKs","AQs","77","AJs","AQo","ATs","AKo","AJo","KJs","ATo","A8s","A9s","KQs","66","55","A8o","A9o","A6s","A7s","KQo","QJs","KTs","KJo","K9s","KTo","A5s","A4s","A7o","QTs","K7s","A3s","K9o","K8s","QJo","A5o","JTs","Q9s","A2s","A6o","A4o","QTo","K6s","J9s","44","JTo","Q8s","K8o","K7o","A2o","K5s","A3o","Q9o","Q6s","K3s","K4s","33","Q8o","K6o","T9s","J8s","Q7s","Q5s","K2s","J9o","T8s","Q4s","K5o","K4o","J7s","K3o","T9o","Q7o","J8o","K2o","Q6o","J6s","Q2s","98s","T8o","Q3s","J5s","Q4o","22","T6s","T7s","Q5o","97s","J7o","J4s","J6o","98o","87s","T7o","J2s","Q3o","J5o","Q2o","96s","J3s","T5s","95s","86s","T3s","J4o","T4s","97o","J3o","T6o","87o","76s","T5o","96o","85s","J2o","T2s","86o","65s","94s","93s","75s","92s","76o","84s","T4o","T3o","95o","85o","T2o","94o","75o","65o","64s","74s","54s","84o","93o","82s","83s","73s","92o","54o","63s","74o","53s","52s","43s","83o","64o","62s","72s","82o","63o","32s","42s","73o","53o","43o","52o","72o","62o","42o","32o"];
+const RANK_3W = ["AA","KK","QQ","JJ","TT","99","AKs","88","AQs","AJs","AKo","KQs","AQo","ATs","KJs","77","AJo","QJs","A9s","KTs","ATo","QTs","A8s","KQo","KJo","66","A9o","A7s","KTo","K9s","A5s","JTs","QJo","A6s","QTo","Q9s","K9o","A4s","55","A8o","K8s","K7s","A7o","A3s","J9s","A2s","JTo","A5o","A6o","T9s","Q9o","K6s","Q8s","A4o","J8s","K5s","K8o","K4s","T8s","44","J9o","A3o","98s","T9o","K7o","Q6s","K3s","J7s","Q7s","K6o","Q8o","A2o","Q5s","T7s","K5o","Q4s","K2s","J8o","J6s","87s","33","K4o","Q3s","T8o","97s","J5s","Q7o","J4s","T6s","98o","Q2s","96s","K3o","76s","Q6o","T7o","J7o","86s","22","97o","Q4o","Q5o","T5s","J3s","65s","85s","75s","T4s","K2o","87o","J2s","J6o","54s","T2s","T6o","95s","T3s","Q3o","J5o","94s","Q2o","74s","96o","J4o","76o","64s","53s","T5o","92s","86o","93s","75o","84s","J2o","J3o","95o","63s","83s","T4o","73s","43s","65o","82s","52s","T3o","85o","62s","74o","T2o","42s","54o","84o","64o","32s","72s","94o","92o","63o","53o","93o","43o","73o","83o","52o","82o","62o","42o","32o","72o"];
+const PALETTE = ['#e5484d', '#f59e0b', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#14b8a6', '#94a3b8'];
+const BAND_DEF = () => [{ min: 20, label: '20+', color: '#e5484d' }, { min: 15, label: '15+', color: '#f59e0b' }, { min: 10, label: '10+', color: '#eab308' }, { min: 5, label: '5+', color: '#22c55e' }, { min: 0.1, label: '< 5', color: '#6366f1' }];
+
+// =================== outils ===================
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const nf = (v, d = 0) => (Number.isFinite(v) ? v : 0).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const clone = (o) => JSON.parse(JSON.stringify(o));
+let toastT; function toast(m) { const t = $('#toast'); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2200); }
+function copyText(txt, okMsg) { const done = () => toast(okMsg || 'Copié'); try { navigator.clipboard.writeText(txt).then(done, () => toast('Sélectionne le texte et copie-le (Ctrl+C)')); } catch (e) { toast('Sélectionne le texte et copie-le (Ctrl+C)'); } }
+
+// =================== bibliothèque par défaut ===================
+const DEPTHS = ['25 BB', '20 BB', '15 BB', '12 BB', '10 BB', '8 BB', '6 BB'];
+const PRESETS = {
+  open: { label: 'Premier à parler (open)', rest: 'Fold', acts: [['Limp', '#22c55e'], ['Minraise', '#eab308'], ['Jam', '#e5484d']] },
+  vsLimpSB: { label: 'SB face à un limp', rest: 'Fold', acts: [['Complète', '#22c55e'], ['Raise', '#f59e0b'], ['Jam', '#e5484d']] },
+  vsLimp: { label: 'BB face à un limp', rest: 'Check', acts: [['Raise', '#f59e0b'], ['Jam', '#e5484d']] },
+  vsRaise: { label: 'Face à un raise', rest: 'Fold', acts: [['Call', '#22c55e'], ['3-bet', '#f59e0b'], ['Jam', '#e5484d']] },
+  vsIso: { label: 'Après limp, face à un raise', rest: 'Fold', acts: [['Call', '#22c55e'], ['Jam', '#e5484d']] },
+  vsJam: { label: 'Face à un jam', rest: 'Fold', acts: [['Call', '#22c55e']] },
+  custom: { label: 'Personnalisé', rest: 'Fold', acts: [['Action 1', '#22c55e'], ['Action 2', '#e5484d']] },
+};
+function newRange(name, preset = 'custom', kind = 'a', tabs = DEPTHS) {
+  if (kind === 'b') return { id: uid(), t: 'r', kind: 'b', name, bb: {}, bands: BAND_DEF(), note: '', rank: 'hu' };
+  const P = PRESETS[preset] || PRESETS.custom;
+  return { id: uid(), t: 'r', kind: 'a', name, rest: P.rest, acts: P.acts.map(([n, c]) => ({ id: uid(), name: n, color: c })), tabs: tabs.map(n => ({ id: uid(), name: n, cells: {} })), note: '', rank: 'hu' };
+}
+function defaultLib() {
+  const L = { nodes: {}, root: [], ver: 1 };
+  const add = (n, parent) => { L.nodes[n.id] = n; (parent ? parent.kids : L.root).push(n.id); return n; };
+  const f = (name, parent) => add({ id: uid(), t: 'f', name, kids: [], open: true }, parent);
+  const r = (name, preset, parent, kind) => add(newRange(name, preset, kind), parent);
+  const s3 = f('Spin 3 joueurs'), btn = f('BTN', s3), sb = f('SB', s3), bb = f('BB', s3);
+  r('Open', 'open', btn);
+  r('Open (BTN fold)', 'open', sb); r('vs limp du BTN', 'vsLimpSB', sb); r('vs minraise du BTN', 'vsRaise', sb); r('vs jam du BTN', 'vsJam', sb);
+  r('vs limp du BTN (SB fold)', 'vsLimp', bb); r('vs limp + complète SB', 'vsLimp', bb); r('vs raise de la SB', 'vsRaise', bb); r('vs jam du BTN', 'vsJam', bb); r('vs jam de la SB', 'vsJam', bb);
+  const hu = f('Spin HU'), hsb = f('SB (bouton)', hu), hbb = f('BB', hu);
+  r('Open', 'open', hsb); r('Limp puis face à un raise', 'vsIso', hsb); r('Face à un 3-bet / jam', 'vsJam', hsb);
+  r('vs limp', 'vsLimp', hbb); r('vs minraise', 'vsRaise', hbb); r('vs jam', 'vsJam', hbb);
+  const pf = f('Push / fold (seuils BB)');
+  r('HU · SB push', null, pf, 'b'); r('HU · BB call vs push', null, pf, 'b'); r('3 joueurs · BTN push', null, pf, 'b').rank = '3w'; r('3 joueurs · SB push (BTN fold)', null, pf, 'b');
+  f('Mes ranges');
+  hu.open = false; pf.open = false;
+  return L;
+}
+
+// =================== état et sauvegarde ===================
+const KEY = 'spinscope-ranges-v1';
+let LIB;
+try { LIB = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { LIB = null; }
+if (!LIB || !LIB.nodes || !Array.isArray(LIB.root)) LIB = defaultLib();
+const S = { sel: null, tab: 0, act: null, freq: 100, bbv: 20, view: 'editeur', undo: [], clip: null, stack: null, top: 0, newOpen: false, delArm: null, search: '' };
+let saveT;
+function save() { clearTimeout(saveT); $('#saveState').textContent = '…'; saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(LIB)); $('#saveState').textContent = 'Enregistré'; } catch (e) { $('#saveState').textContent = 'Non enregistré : fais « Sauvegarder »'; } }, 300); }
+const N = (id) => LIB.nodes[id];
+function parentOf(id) { if (LIB.root.includes(id)) return null; for (const n of Object.values(LIB.nodes)) if (n.t === 'f' && n.kids.includes(id)) return n; return null; }
+function pathOf(id) { const p = []; let x = parentOf(id); while (x) { p.unshift(x.name); x = parentOf(x.id); } return p; }
+function rangesUnder(id) { const n = N(id); if (!n) return []; if (n.t === 'r') return [n]; return n.kids.flatMap(rangesUnder); }
+const tabFull = (t) => Object.keys(t.cells).length > 0;
+const rangeFull = (r) => r.kind === 'b' ? Object.keys(r.bb).length > 0 : r.tabs.some(tabFull);
+
+// =================== arbre ===================
+function renderTree() {
+  const q = S.search.trim().toLowerCase(), out = [];
+  const match = (n) => !q || n.name.toLowerCase().includes(q) || (n.t === 'f' && n.kids.some(k => N(k) && match(N(k))));
+  const walk = (ids, d) => { for (const id of ids) { const n = N(id); if (!n || !match(n)) continue;
+    if (n.t === 'f') { const rs = rangesUnder(id), full = rs.filter(rangeFull).length;
+      out.push(`<button class="node f ${S.sel === id ? 'sel' : ''}" data-id="${id}" style="padding-left:${8 + d * 14}px" role="treeitem" aria-expanded="${n.open || !!q}"><span class="ic">${n.open || q ? '▾' : '▸'}</span><span class="nm">${esc(n.name)}</span><span class="ct">${full}/${rs.length}</span></button>`);
+      if (n.open || q) walk(n.kids, d + 1); }
+    else out.push(`<button class="node ${S.sel === id ? 'sel' : ''}" data-id="${id}" style="padding-left:${8 + d * 14}px" role="treeitem"><span class="ic">${n.kind === 'b' ? 'BB' : '▦'}</span><span class="nm">${esc(n.name)}</span><span class="dot ${rangeFull(n) ? 'full' : ''}"></span></button>`); } };
+  walk(LIB.root, 0);
+  $('#tree').innerHTML = out.join('') || '<div class="hint">Rien trouvé.</div>';
+  $$('#tree .node').forEach(b => b.onclick = () => { const n = N(b.dataset.id); if (n.t === 'f') { if (S.sel === n.id || !n.open) n.open = !n.open; save(); } select(n.id); });
+}
+function select(id) { if (S.sel !== id) { S.tab = 0; S.act = null; S.undo = []; S.newOpen = false; S.delArm = null; S.stack = null; } S.sel = id; renderTree(); renderEditor(); }
+
+// =================== éditeur ===================
+const cellsOf = (r) => r.tabs[Math.min(S.tab, r.tabs.length - 1)].cells;
+function cellStyle(r, h, cells) {
+  if (r.kind === 'b') { const v = r.bb[h]; if (!v) return ''; const b = r.bands.find(x => v >= x.min) || r.bands[r.bands.length - 1]; return `background:${b.color}`; }
+  const c = (cells || cellsOf(r))[h]; if (!c) return '';
+  let acc = 0; const seg = [];
+  for (const a of r.acts) { const f = c[a.id] || 0; if (f > 0) { seg.push(`${a.color} ${acc}% ${acc + f}%`); acc += f; } }
+  if (!seg.length) return '';
+  if (acc < 100) seg.push(`var(--fold) ${acc}% 100%`);
+  return `background:linear-gradient(to right, ${seg.join(', ')})`;
+}
+function cellHTML(r, h, cells, extra = '') {
+  let sm = '';
+  if (r.kind === 'b') { const v = r.bb[h]; if (v) sm = `<small>${v >= 20 ? '20+' : nf(v, v % 1 ? 1 : 0)}</small>`; }
+  else { const c = (cells || cellsOf(r))[h]; if (c) { const tot = Object.values(c).reduce((a, x) => a + x, 0); if (tot < 100 || Object.keys(c).length > 1) sm = `<small>${nf(tot)}</small>`; } }
+  const st = cellStyle(r, h, cells);
+  return `<div class="c ${st ? 'has' : ''} ${extra}" data-h="${h}" style="${st}"><span>${h}</span>${sm}</div>`;
+}
+function stats(r, cells) {
+  const o = { tot: 0, by: {} };
+  if (r.kind === 'b') { for (const b of r.bands) o.by[b.label] = 0; for (const [h, v] of Object.entries(r.bb)) { if (!v) continue; const b = r.bands.find(x => v >= x.min) || r.bands[r.bands.length - 1]; o.by[b.label] += combos(h); o.tot += combos(h); } return o; }
+  for (const a of r.acts) o.by[a.id] = 0;
+  for (const [h, c] of Object.entries(cells || cellsOf(r))) for (const [a, f] of Object.entries(c)) { if (o.by[a] === undefined) continue; o.by[a] += combos(h) * f / 100; o.tot += combos(h) * f / 100; }
+  return o;
+}
+function renderEditor() {
+  const n = N(S.sel);
+  if (!n) { $('#center').innerHTML = `<section class="card empty"><h3>Choisis une range dans la bibliothèque</h3><p>L’arbre Spin est prêt : clique sur une situation (par ex. <b>Spin 3 joueurs › BTN › Open</b>) et peins les mains avec la souris.</p></section>`; $('#right').innerHTML = ''; return; }
+  if (n.t === 'f') return renderFolder(n);
+  const r = n; if (r.kind === 'a') { S.tab = Math.min(S.tab, r.tabs.length - 1); if (!S.act || !r.acts.some(a => a.id === S.act) && S.act !== 'fold') S.act = r.acts[0] ? r.acts[0].id : 'fold'; }
+  const path = pathOf(r.id).join(' › ');
+  $('#center').innerHTML = `<section class="card ehead">
+      <div><div class="path">${esc(path) || 'Bibliothèque'}</div><input class="namein" id="rName" value="${esc(r.name)}" aria-label="Nom de la range"></div>
+      ${r.kind === 'a' ? `<div class="tabs" id="tabs">${r.tabs.map((t, i) => `<button class="tb ${i === S.tab ? 'on' : ''}" data-i="${i}"><i class="${tabFull(t) ? 'full' : ''}"></i>${esc(t.name)}</button>`).join('')}<button class="ghost sm" id="tabAdd" title="Ajouter une profondeur">+</button></div>
+      <div class="row hint" style="gap:6px"><span>Onglet :</span><input class="inp" id="tabName" value="${esc(r.tabs[S.tab].name)}" style="width:110px;padding:3px 8px" aria-label="Nom de l’onglet"><button class="ghost sm" id="tabDup">Dupliquer</button><button class="ghost sm" id="tabCopy">Copier</button><button class="ghost sm" id="tabPaste" ${S.clip ? '' : 'disabled'}>Coller</button><button class="ghost sm" id="tabClear">Vider</button>${r.tabs.length > 1 ? '<button class="ghost sm danger" id="tabDel">Supprimer l’onglet</button>' : ''}</div>`
+      : `<div class="row"><span class="lbl">Voir la range à</span><div class="chips" id="stackChips">${[null, 20, 15, 12, 10, 8, 6, 4, 2].map(v => `<button data-s="${v ?? ''}" class="${S.stack === v ? 'on' : ''}">${v === null ? 'Tout' : v + ' BB'}</button>`).join('')}</div></div>`}
+    </section>
+    <section class="card gwrap">
+      <div class="rgrid" id="grid" role="grid" aria-label="Grille des mains">${HANDS.map(h => cellHTML(r, h, null, r.kind === 'b' && S.stack !== null && !((r.bb[h] || 0) >= S.stack) ? 'dim' : '')).join('')}</div>
+      <div class="gstats" id="gstats"></div>
+    </section>
+`;
+  renderGstats(r); renderRight(r); $('#right').insertAdjacentHTML('beforeend', notesHTML(r)); bindEditor(r);
+}
+function notesHTML(r) { return `<section class="card"><div class="row" style="justify-content:space-between"><span class="lbl">Notes</span><span class="row"><button class="ghost sm" id="rUp" title="Monter">↑</button><button class="ghost sm" id="rDown" title="Descendre">↓</button><button class="ghost sm" id="rDup">Dupliquer</button><button class="ghost sm" id="rShare">Partager</button><button class="ghost sm danger" id="rDel">${S.delArm === r.id ? 'Confirmer la suppression' : 'Supprimer'}</button></span></div>
+      <textarea class="inp" id="rNote" placeholder="Ex. : contre un reg, pas de limp en dessous de 12 BB…" style="margin-top:8px;min-height:54px;font-family:var(--f-body)">${esc(r.note || '')}</textarea>
+      <div class="row hint" style="margin-top:6px">Déplacer dans : <select class="inp" id="rMove" style="padding:3px 6px">${folderOptions(parentOf(r.id)?.id)}</select></div></section>`; }
+function folderOptions(cur) { const o = ['<option value="">(racine)</option>']; const walk = (ids, d) => { for (const id of ids) { const n = N(id); if (n && n.t === 'f') { o.push(`<option value="${id}" ${id === cur ? 'selected' : ''}>${'  '.repeat(d)}${esc(n.name)}</option>`); walk(n.kids, d + 1); } } }; walk(LIB.root, 0); return o.join(''); }
+function renderGstats(r) {
+  const s = stats(r);
+  if (r.kind === 'b') { let atS = 0; if (S.stack !== null) for (const [h, v] of Object.entries(r.bb)) if (v >= S.stack) atS += combos(h);
+    $('#gstats').innerHTML = `<span>Range totale <b>${nf(s.tot / TOTAL * 100, 1)} %</b></span>${S.stack !== null ? `<span>À ${S.stack} BB : <b>${nf(atS / TOTAL * 100, 1)} %</b> (${nf(atS)} combos)</span>` : ''}`; return; }
+  $('#gstats').innerHTML = `<span>Jouées <b>${nf(s.tot / TOTAL * 100, 1)} %</b> · ${nf(s.tot, 0)} combos</span>` + r.acts.map(a => `<span><i class="sw" style="background:${a.color}"></i>${esc(a.name)} <b>${nf(s.by[a.id] / TOTAL * 100, 1)} %</b></span>`).join('');
+}
+function updateCells(r, hs) { const g = $('#grid'); if (!g) return; for (const h of hs) { const el = g.querySelector(`[data-h="${h}"]`); if (el) el.outerHTML = cellHTML(r, h, null, r.kind === 'b' && S.stack !== null && !((r.bb[h] || 0) >= S.stack) ? 'dim' : ''); } renderGstats(r); refreshLegendPct(r); if (r.kind === 'a' && $('#txtOut')) $('#txtOut').value = exportText(r); }
+
+// peinture
+function pushUndo(r) { S.undo.push({ id: r.id, tab: S.tab, data: clone(r.kind === 'b' ? r.bb : cellsOf(r)) }); if (S.undo.length > 60) S.undo.shift(); }
+function undo() { const u = S.undo.pop(); if (!u) return toast('Rien à annuler'); const r = N(u.id); if (!r) return; if (r.kind === 'b') r.bb = u.data; else { S.tab = u.tab; r.tabs[u.tab].cells = u.data; } save(); renderEditor(); renderTree(); }
+function paintCell(r, h, erase) {
+  if (r.kind === 'b') { if (erase || S.bbv <= 0) delete r.bb[h]; else r.bb[h] = S.bbv; return; }
+  const cells = cellsOf(r);
+  if (erase || S.act === 'fold') { delete cells[h]; return; }
+  const c = { ...(cells[h] || {}) }, f = S.freq; c[S.act] = f;
+  const others = Object.keys(c).filter(k => k !== S.act), sum = others.reduce((a, k) => a + c[k], 0), room = 100 - f;
+  if (sum > room) for (const k of others) c[k] = Math.round(c[k] * room / sum * 10) / 10;
+  for (const k of Object.keys(c)) if (!(c[k] > 0)) delete c[k];
+  if (Object.keys(c).length) cells[h] = c; else delete cells[h];
+}
+function bindEditor(r) {
+  const g = $('#grid'); let painting = false, erase = false, done = new Set();
+  const at = (e) => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest ? el.closest('#grid .c') : null; };
+  const doCell = (el) => { if (!el) return; const h = el.dataset.h; if (done.has(h)) return; done.add(h); paintCell(r, h, erase); updateCells(r, [h]); };
+  g.addEventListener('pointerdown', (e) => { if (e.button > 2) return; e.preventDefault(); painting = true; erase = e.button === 2; done = new Set(); pushUndo(r); doCell(at(e)); hideTip(); });
+  g.addEventListener('pointermove', (e) => { if (painting) doCell(at(e)); else showTip(r, at(e), e); });
+  g.addEventListener('pointerleave', hideTip);
+  const end = () => { if (!painting) return; painting = false; if (!done.size) S.undo.pop(); save(); renderTree(); refreshTabs(r); };
+  window.addEventListener('pointerup', end, { once: false }); g.addEventListener('contextmenu', (e) => e.preventDefault());
+  $('#rName').oninput = (e) => { r.name = e.target.value || 'Sans nom'; save(); renderTree(); };
+  $('#rNote').oninput = (e) => { r.note = e.target.value; save(); };
+  $('#rMove').onchange = (e) => { const p = parentOf(r.id); (p ? p.kids : LIB.root).splice((p ? p.kids : LIB.root).indexOf(r.id), 1); const t = e.target.value ? N(e.target.value) : null; (t ? t.kids : LIB.root).push(r.id); if (t) t.open = true; save(); renderTree(); renderEditor(); toast('Range déplacée'); };
+  $('#rUp').onclick = () => moveNode(r.id, -1); $('#rDown').onclick = () => moveNode(r.id, 1);
+  $('#rDup').onclick = () => { const c = clone(r); c.id = uid(); c.name = r.name + ' (copie)'; if (c.tabs) c.tabs.forEach(t => t.id = uid()); LIB.nodes[c.id] = c; const p = parentOf(r.id), arr = p ? p.kids : LIB.root; arr.splice(arr.indexOf(r.id) + 1, 0, c.id); save(); select(c.id); toast('Range dupliquée'); };
+  $('#rDel').onclick = () => { if (S.delArm !== r.id) { S.delArm = r.id; renderEditor(); return; } removeNode(r.id); toast('Range supprimée'); };
+  $('#rShare').onclick = () => shareNode(r.id);
+  if (r.kind === 'a') {
+    $$('#tabs .tb').forEach(b => b.onclick = () => { S.tab = +b.dataset.i; renderEditor(); });
+    $('#tabAdd').onclick = () => { r.tabs.push({ id: uid(), name: 'Nouvelle', cells: {} }); S.tab = r.tabs.length - 1; save(); renderEditor(); $('#tabName').select(); };
+    $('#tabName').oninput = (e) => { r.tabs[S.tab].name = e.target.value || '?'; save(); refreshTabs(r); };
+    $('#tabDup').onclick = () => { const t = clone(r.tabs[S.tab]); t.id = uid(); t.name += ' bis'; r.tabs.splice(S.tab + 1, 0, t); S.tab++; save(); renderEditor(); };
+    $('#tabCopy').onclick = () => { S.clip = { cells: clone(cellsOf(r)), acts: r.acts.map(a => a.name) }; toast('Onglet copié : choisis un autre onglet ou une autre range puis « Coller »'); renderEditor(); };
+    $('#tabPaste').onclick = () => { if (!S.clip) return; pushUndo(r); const map = {}; r.acts.forEach((a, i) => { const j = S.clip.acts.indexOf(a.name); map[j >= 0 ? j : i] = a.id; }); const srcIds = Object.keys(S.clip.cells).length ? null : null; const out = {};
+      const nameOf = {}; // ancien id -> nom via l'ordre du presse-papier
+      for (const [h, c] of Object.entries(S.clip.cells)) { const nc = {}; Object.entries(c).forEach(([aid, f]) => { const k = S.clip.idx ? S.clip.idx[aid] : null; const tgt = k !== null && k !== undefined ? map[k] : null; if (tgt) nc[tgt] = f; }); if (Object.keys(nc).length) out[h] = nc; }
+      r.tabs[S.tab].cells = out; save(); renderEditor(); renderTree(); toast('Collé'); };
+    $('#tabClear').onclick = () => { pushUndo(r); r.tabs[S.tab].cells = {}; save(); renderEditor(); renderTree(); toast('Onglet vidé (Ctrl+Z pour annuler)'); };
+    if ($('#tabDel')) $('#tabDel').onclick = () => { r.tabs.splice(S.tab, 1); S.tab = Math.max(0, S.tab - 1); save(); renderEditor(); renderTree(); };
+  } else {
+    $$('#stackChips [data-s]').forEach(b => b.onclick = () => { S.stack = b.dataset.s === '' ? null : +b.dataset.s; renderEditor(); });
+  }
+}
+function refreshTabs(r) { if (r.kind !== 'a') return; $$('#tabs .tb').forEach((b, i) => { const t = r.tabs[i]; if (!t) return; b.innerHTML = `<i class="${tabFull(t) ? 'full' : ''}"></i>${esc(t.name)}`; }); }
+function moveNode(id, d) { const p = parentOf(id), arr = p ? p.kids : LIB.root, i = arr.indexOf(id), j = i + d; if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; save(); renderTree(); }
+function removeNode(id) { const p = parentOf(id), arr = p ? p.kids : LIB.root; arr.splice(arr.indexOf(id), 1); const kill = (x) => { const n = N(x); if (n && n.t === 'f') n.kids.forEach(kill); delete LIB.nodes[x]; }; kill(id); S.sel = p ? p.id : null; S.delArm = null; save(); renderTree(); renderEditor(); }
+// infobulle
+function showTip(r, el, e) {
+  if (!el || matchMedia('(pointer: coarse)').matches) return hideTip(); const h = el.dataset.h, t = $('#tip'); let body = '';
+  if (r.kind === 'b') { const v = r.bb[h]; body = v ? `<div><span>Jouée jusqu’à</span><b>${v >= 20 ? '20+' : nf(v, 1)} BB</b></div>` : '<div><span>Jamais</span></div>'; }
+  else { const c = cellsOf(r)[h] || {}; let tot = 0; body = r.acts.filter(a => c[a.id]).map(a => { tot += c[a.id]; return `<div><span><i class="sw" style="background:${a.color}"></i>${esc(a.name)}</span><b>${nf(c[a.id])} %</b></div>`; }).join('') + `<div><span><i class="sw" style="background:var(--fold);border:1px solid var(--line2)"></i>${esc(r.rest)}</span><b>${nf(100 - tot)} %</b></div>`; }
+  t.innerHTML = `<b>${h}</b> <span class="hint">${combos(h)} combos</span>${body}`; t.hidden = false;
+  const x = Math.min(e.clientX + 14, innerWidth - t.offsetWidth - 8), y = Math.min(e.clientY + 14, innerHeight - t.offsetHeight - 8); t.style.left = x + 'px'; t.style.top = y + 'px';
+}
+function hideTip() { $('#tip').hidden = true; }
+
+// panneau de droite
+function renderRight(r) {
+  const rank = r.rank === '3w' ? RANK_3W : RANK_HU;
+  const quick = `<section class="card"><h3>Remplir vite</h3><div class="hint" style="margin:4px 0 8px">Applique ${r.kind === 'b' ? 'la valeur choisie' : 'l’action et la fréquence choisies'} à un groupe de mains.</div>
+    <div class="chips" id="quick"><button data-q="pairs">Paires</button><button data-q="ax">Ax</button><button data-q="kx">Kx</button><button data-q="bw">Broadways</button><button data-q="sc">Connecteurs suited</button><button data-q="suited">Tous suited</button><button data-q="off">Tous offsuit</button><button data-q="all">Toutes</button></div>
+    <div class="freq" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="lbl">Top <b id="topV">${S.top}</b> % des mains</span><select class="inp" id="rankSel" style="padding:2px 6px;font-size:12px"><option value="hu" ${r.rank !== '3w' ? 'selected' : ''}>classement tête-à-tête</option><option value="3w" ${r.rank === '3w' ? 'selected' : ''}>classement 3 joueurs</option></select></div>
+      <input type="range" class="range" id="topR" min="0" max="100" step="0.5" value="${S.top}" aria-label="Top % des mains"><div class="row"><button class="ghost sm" id="topApply">Appliquer au top ${S.top} %</button><span class="hint">Les mains concernées sont entourées.</span></div></div></section>`;
+  const text = r.kind === 'a' ? `<section class="card"><details class="box"><summary>Texte : exporter / importer</summary><div class="in">
+      <div class="hint">Format compatible avec la plupart des outils : <b>AA,AKs,A5s:50,KQo:25</b> ou <b>77+, A2s+, KTo+</b>.</div>
+      <textarea class="inp" id="txtOut" readonly aria-label="Export texte">${esc(exportText(r))}</textarea><div class="row"><button class="ghost sm" id="txtCopy">Copier</button></div>
+      <div class="lbl" style="margin-top:6px">Importer dans l’action</div><div class="row"><select class="inp" id="txtAct">${r.acts.map(a => `<option value="${a.id}" ${a.id === S.act ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select><label class="chk"><input type="checkbox" id="txtRepl" checked> remplacer l’action</label></div>
+      <textarea class="inp" id="txtIn" placeholder="Colle ta range ici (FreeBetRange, Flopzilla, GTO Wizard…)" aria-label="Import texte"></textarea><div class="row"><button class="ghost sm" id="txtApply">Importer</button><span class="hint" id="txtMsg"></span></div>
+    </div></details></section>` : '';
+  if (r.kind === 'b') {
+    $('#right').innerHTML = `<section class="card"><h3>Pinceau : seuil en BB</h3><div class="hint" style="margin:4px 0 8px">Chaque main = jusqu’à combien de BB tu la joues. Peins avec la valeur choisie ; clic droit ou 0 pour effacer.</div>
+      <div class="chips" id="bbChips">${[20, 18, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1.5, 1, 0].map(v => `<button data-v="${v}" class="${S.bbv === v ? 'on' : ''}">${v === 0 ? 'Gomme' : v === 20 ? '20+' : nf(v, v % 1 ? 1 : 0)}</button>`).join('')}</div>
+      <div class="row" style="margin-top:8px"><span class="hint">Autre valeur :</span><input class="inp" id="bbIn" type="number" min="0" max="20" step="0.1" value="${S.bbv}" style="width:80px"></div></section>
+      <section class="card"><h3>Couleurs</h3><div class="bands" style="margin-top:8px">${r.bands.map((b, i) => { const s = stats(r); return `<div class="band"><input type="color" data-b="${i}" value="${b.color}" aria-label="Couleur ${esc(b.label)}"><span>${esc(b.label)} BB</span><span class="hint" style="font-family:var(--f-num)">${nf(s.by[b.label] / TOTAL * 100, 1)} %</span></div>`; }).join('')}</div></section>` + quick;
+  } else {
+    $('#right').innerHTML = `<section class="card"><div class="row" style="justify-content:space-between"><h3>Actions</h3><button class="ghost sm" id="actAdd">+ action</button></div>
+      <div class="legend" id="legend" style="margin-top:8px"></div>
+      <div class="freq" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="lbl">Fréquence du pinceau</span><b id="fV" style="font-family:var(--f-num)">${S.freq} %</b></div>
+        <div class="chips" id="fChips">${[100, 75, 50, 25].map(v => `<button data-f="${v}" class="${S.freq === v ? 'on' : ''}">${v} %</button>`).join('')}</div>
+        <input type="range" class="range" id="fR" min="5" max="100" step="5" value="${S.freq}" aria-label="Fréquence"></div>
+      <div class="hint" style="margin-top:6px">Clique ou glisse sur la grille. Une main peut mélanger plusieurs actions : le reste va à « ${esc(r.rest)} ».</div></section>` + quick + text;
+    renderLegend(r);
+  }
+  bindRight(r);
+}
+function renderLegend(r) {
+  const s = stats(r);
+  $('#legend').innerHTML = r.acts.map((a, i) => `<div class="act ${S.act === a.id ? 'on' : ''}" data-a="${a.id}"><span class="key">${i + 1}</span><input type="color" value="${a.color}" data-c="${a.id}" aria-label="Couleur"><input class="an" value="${esc(a.name)}" data-n="${a.id}" aria-label="Nom de l’action"><span class="pc" data-p="${a.id}">${nf(s.by[a.id] / TOTAL * 100, 1)} %</span><button class="x" data-x="${a.id}" aria-label="Supprimer l’action">×</button></div>`).join('')
+    + `<div class="act ${S.act === 'fold' ? 'on' : ''}" data-a="fold"><span class="key">0</span><span class="swatch"></span><input class="an" value="${esc(r.rest)}" data-rest="1" aria-label="Nom de l’action par défaut"><span class="pc">${nf((TOTAL - s.tot) / TOTAL * 100, 1)} %</span><span></span></div>`;
+  $$('#legend .act').forEach(el => el.onclick = (e) => { if (e.target.matches('input, button')) { if (e.target.matches('input.an')) { S.act = el.dataset.a; $$('#legend .act').forEach(x => x.classList.toggle('on', x === el)); } return; } S.act = el.dataset.a; $$('#legend .act').forEach(x => x.classList.toggle('on', x === el)); });
+  $$('#legend [data-c]').forEach(el => el.oninput = () => { r.acts.find(a => a.id === el.dataset.c).color = el.value; save(); $('#grid').innerHTML = HANDS.map(h => cellHTML(r, h)).join(''); renderGstats(r); });
+  $$('#legend [data-n]').forEach(el => el.oninput = () => { r.acts.find(a => a.id === el.dataset.n).name = el.value; save(); renderGstats(r); });
+  $$('#legend [data-rest]').forEach(el => el.oninput = () => { r.rest = el.value || 'Fold'; save(); });
+  $$('#legend [data-x]').forEach(el => el.onclick = () => { const id = el.dataset.x; r.acts = r.acts.filter(a => a.id !== id); for (const t of r.tabs) for (const [h, c] of Object.entries(t.cells)) { delete c[id]; if (!Object.keys(c).length) delete t.cells[h]; } if (S.act === id) S.act = r.acts[0]?.id || 'fold'; save(); renderEditor(); renderTree(); });
+}
+function refreshLegendPct(r) { if (r.kind !== 'a' || !$('#legend')) return; const s = stats(r); r.acts.forEach(a => { const el = $(`#legend [data-p="${a.id}"]`); if (el) el.textContent = nf(s.by[a.id] / TOTAL * 100, 1) + ' %'; }); const last = $$('#legend .act .pc').pop(); if (last) last.textContent = nf((TOTAL - s.tot) / TOTAL * 100, 1) + ' %'; }
+const GROUPS = {
+  pairs: (h) => h.length === 2, ax: (h) => h[0] === 'A' && h.length === 3, kx: (h) => h[0] === 'K' && h.length === 3,
+  bw: (h) => 'AKQJT'.includes(h[0]) && 'AKQJT'.includes(h[1]), sc: (h) => h[2] === 's' && RK.indexOf(h[1]) - RK.indexOf(h[0]) <= 2,
+  suited: (h) => h[2] === 's', off: (h) => h[2] === 'o', all: () => true,
+};
+function topSet(r, pct) { const rank = r.rank === '3w' ? RANK_3W : RANK_HU, out = []; let c = 0; for (const h of rank) { if (c >= pct / 100 * TOTAL - 0.01) break; out.push(h); c += combos(h); } return out; }
+function bindRight(r) {
+  $$('#quick [data-q]').forEach(b => b.onclick = () => { pushUndo(r); const hs = HANDS.filter(GROUPS[b.dataset.q]); hs.forEach(h => paintCell(r, h, false)); save(); updateCells(r, hs); renderTree(); refreshTabs(r); });
+  const markTop = () => { const set = new Set(topSet(r, S.top)); $$('#grid .c').forEach(el => el.classList.toggle('top', set.has(el.dataset.h))); };
+  $('#topR').oninput = (e) => { S.top = +e.target.value; $('#topV').textContent = nf(S.top, S.top % 1 ? 1 : 0); $('#topApply').textContent = `Appliquer au top ${nf(S.top, S.top % 1 ? 1 : 0)} %`; markTop(); };
+  $('#rankSel').onchange = (e) => { r.rank = e.target.value; save(); markTop(); };
+  $('#topApply').onclick = () => { pushUndo(r); const hs = topSet(r, S.top); hs.forEach(h => paintCell(r, h, false)); save(); updateCells(r, hs); markTop(); renderTree(); refreshTabs(r); };
+  if (r.kind === 'b') {
+    $$('#bbChips [data-v]').forEach(b => b.onclick = () => { S.bbv = +b.dataset.v; $('#bbIn').value = S.bbv; $$('#bbChips button').forEach(x => x.classList.toggle('on', x === b)); });
+    $('#bbIn').oninput = (e) => { S.bbv = Math.max(0, Math.min(20, parseFloat(e.target.value) || 0)); $$('#bbChips button').forEach(x => x.classList.toggle('on', +x.dataset.v === S.bbv)); };
+    $$('[data-b]').forEach(el => el.oninput = () => { r.bands[+el.dataset.b].color = el.value; save(); $('#grid').innerHTML = HANDS.map(h => cellHTML(r, h)).join(''); });
+    return;
+  }
+  $('#actAdd').onclick = () => { const used = new Set(r.acts.map(a => a.color)); r.acts.push({ id: uid(), name: 'Action ' + (r.acts.length + 1), color: PALETTE.find(c => !used.has(c)) || PALETTE[0] }); S.act = r.acts[r.acts.length - 1].id; save(); renderEditor(); };
+  const setF = (v) => { S.freq = v; $('#fV').textContent = v + ' %'; $('#fR').value = v; $$('#fChips button').forEach(x => x.classList.toggle('on', +x.dataset.f === v)); };
+  $$('#fChips [data-f]').forEach(b => b.onclick = () => setF(+b.dataset.f)); $('#fR').oninput = (e) => setF(+e.target.value);
+  $('#txtCopy').onclick = () => copyText($('#txtOut').value, 'Range copiée');
+  $('#txtApply').onclick = () => { const aid = $('#txtAct').value, res = parseRange($('#txtIn').value); if (!res.ok.length) { $('#txtMsg').textContent = res.bad.length ? 'Rien compris : ' + res.bad.slice(0, 3).join(', ') : 'Colle une range d’abord.'; return; }
+    pushUndo(r); const cells = cellsOf(r); if ($('#txtRepl').checked) for (const [h, c] of Object.entries(cells)) { delete c[aid]; if (!Object.keys(c).length) delete cells[h]; }
+    const keepA = S.act, keepF = S.freq; S.act = aid; for (const [h, w] of res.ok) { S.freq = Math.max(0, Math.min(100, w)); if (S.freq > 0) paintCell(r, h, false); } S.act = keepA; S.freq = keepF;
+    save(); renderEditor(); renderTree(); toast(`${res.ok.length} mains importées${res.bad.length ? ` · ignoré : ${res.bad.slice(0, 3).join(', ')}` : ''}`); };
+}
+
+// =================== texte : export / import ===================
+function exportText(r) {
+  const cells = cellsOf(r);
+  return r.acts.map(a => { const parts = []; for (const h of RANK_HU.slice().sort((x, y) => HANDS.indexOf(x) - HANDS.indexOf(y))) { const f = cells[h] && cells[h][a.id]; if (f) parts.push(f >= 100 ? h : `${h}:${nf(f / 100, 2).replace(',', '.')}`); } return `${a.name}: ${parts.join(',') || '—'}`; }).join('\n');
+}
+function expandTok(tok) {
+  tok = tok.trim(); if (!tok) return [];
+  const R = (c) => RK.indexOf(c.toUpperCase().replace('1', 'T'));
+  let m;
+  if ((m = /^([2-9TJQKA])\1(\+)?$/i.exec(tok))) { const i = R(m[1]); return m[2] ? RK.slice(0, i + 1).split('').map(c => c + c) : [m[1].toUpperCase() + m[1].toUpperCase()]; }
+  if ((m = /^([2-9TJQKA])\1-([2-9TJQKA])\2$/i.exec(tok))) { let a = R(m[1]), b = R(m[2]); if (a > b) [a, b] = [b, a]; return RK.slice(a, b + 1).split('').map(c => c + c); }
+  if ((m = /^([2-9TJQKA])([2-9TJQKA])([so])?(\+)?$/i.exec(tok))) { let a = R(m[1]), b = R(m[2]); if (a === b) return []; if (a > b) [a, b] = [b, a]; const t = m[3] ? [m[3].toLowerCase()] : ['s', 'o'];
+    const lows = m[4] ? RK.slice(a + 1, b + 1).split('').reverse() : [RK[b]]; // A2s+ : de 2 jusqu’à K
+    if (m[4]) { const out = []; for (let k = b; k > a; k--) for (const s of t) out.push(RK[a] + RK[k] + s); return out; }
+    return t.map(s => RK[a] + RK[b] + s); }
+  if ((m = /^([2-9TJQKA])([2-9TJQKA])([so])-([2-9TJQKA])([2-9TJQKA])\3$/i.exec(tok))) { const a = R(m[1]); if (a !== R(m[4])) return []; let b1 = R(m[2]), b2 = R(m[5]); if (b1 > b2) [b1, b2] = [b2, b1]; const out = []; for (let k = b1; k <= b2; k++) if (k > a) out.push(RK[a] + RK[k] + m[3].toLowerCase()); return out; }
+  return null;
+}
+function parseRange(txt) {
+  const ok = [], bad = [];
+  txt = txt.replace(/\[(\d+(?:\.\d+)?)\]([^\[]*)\[\/\1\]/g, (_, w, body) => body.split(/[,\s]+/).filter(Boolean).map(t => `${t}:${w}`).join(','));
+  for (let raw of txt.split(/[,;\n\s]+/)) { raw = raw.trim(); if (!raw || /^[^:]*:$/.test(raw) || /^[A-Za-zÀ-ÿ-]+:$/.test(raw)) continue;
+    let w = 100; const mm = /^(.*?)[:@](\d+(?:[.,]\d+)?)%?$/.exec(raw); let t = raw; if (mm) { t = mm[1]; w = parseFloat(mm[2].replace(',', '.')); if (w <= 1 && !/%/.test(raw)) w *= 100; }
+    const hs = expandTok(t); if (hs && hs.length) hs.forEach(h => ok.push([h, w])); else bad.push(raw); }
+  return { ok, bad };
+}
+
+// =================== dossiers ===================
+function renderFolder(f) {
+  const rs = rangesUnder(f.id), full = rs.filter(rangeFull).length;
+  $('#center').innerHTML = `<section class="card"><div class="path">${esc(pathOf(f.id).join(' › ') || 'Bibliothèque')}</div><input class="namein" id="fName" value="${esc(f.name)}" aria-label="Nom du dossier">
+    <div class="hint">${rs.length} ranges · ${full} remplies</div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="fNewR">+ Nouvelle situation</button><button class="ghost" id="fNewF">+ Sous-dossier</button><button class="ghost" id="fShare">Partager ce dossier</button><button class="ghost" id="fUp">↑</button><button class="ghost" id="fDown">↓</button><button class="ghost danger" id="fDel">${S.delArm === f.id ? 'Confirmer : tout supprimer' : 'Supprimer'}</button></div>
+    <div class="newr" id="newR" ${S.newOpen ? '' : 'hidden'}>
+      <div class="row"><label for="nrName">Nom</label><input class="inp" id="nrName" placeholder="Ex. : BTN open vs fish" style="flex:1;min-width:180px"></div>
+      <div class="row"><label>Type</label><div class="chips" id="nrKind"><button data-k="a" class="on">Actions + fréquences</button><button data-k="b">Seuils en BB (push/fold)</button></div></div>
+      <div class="row" id="nrPresetRow"><label for="nrPreset">Situation</label><select class="inp" id="nrPreset">${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}">${esc(p.label)} : ${p.acts.map(a => a[0]).join(', ')}</option>`).join('')}</select></div>
+      <div class="row" id="nrDepthRow"><label for="nrDepths">Profondeurs</label><input class="inp" id="nrDepths" value="${DEPTHS.join(', ')}" style="flex:1;min-width:200px"></div>
+      <div class="row"><button class="btn" id="nrGo">Créer</button><button class="ghost" id="nrCancel">Annuler</button></div>
+    </div>
+    <div class="folderlist">${f.kids.map(id => N(id)).filter(Boolean).map(n => `<button class="ghost" data-go="${n.id}" style="display:flex"><span>${n.t === 'f' ? '📁 ' : ''}${esc(n.name)}</span><span class="hint">${n.t === 'f' ? rangesUnder(n.id).length + ' ranges' : rangeFull(n) ? '✓ remplie' : 'vide'}</span></button>`).join('') || '<div class="hint">Dossier vide.</div>'}</div></section>`;
+  $('#right').innerHTML = `<section class="card"><h3>Créer tes situations</h3><p class="hint" style="margin-top:6px">Une <b>situation</b> = une range avec ses actions (ex. Limp, Minraise, Jam) et un onglet par profondeur. Tu peux aussi créer une range en <b>seuils BB</b> : chaque main indique jusqu’à combien de BB tu la joues, comme un tableau Nash.</p><p class="hint">Partage un dossier entier avec tes élèves : ils reçoivent un lien qui l’ajoute à leur bibliothèque.</p></section>`;
+  $('#fName').oninput = (e) => { f.name = e.target.value || 'Dossier'; save(); renderTree(); };
+  $('#fNewR').onclick = () => { S.newOpen = true; $('#newR').hidden = false; $('#nrName').focus(); };
+  let kind = 'a';
+  $$('#nrKind [data-k]').forEach(b => b.onclick = () => { kind = b.dataset.k; $$('#nrKind button').forEach(x => x.classList.toggle('on', x === b)); $('#nrPresetRow').hidden = $('#nrDepthRow').hidden = kind === 'b'; });
+  $('#nrCancel').onclick = () => { S.newOpen = false; $('#newR').hidden = true; };
+  $('#nrGo').onclick = () => { const name = $('#nrName').value.trim() || 'Nouvelle situation', d = $('#nrDepths').value.split(',').map(x => x.trim()).filter(Boolean); const r = newRange(name, $('#nrPreset').value, kind, d.length ? d : ['Toutes']); LIB.nodes[r.id] = r; f.kids.push(r.id); f.open = true; S.newOpen = false; save(); select(r.id); toast('Situation créée : peins tes mains'); };
+  $('#fNewF').onclick = () => { const n = { id: uid(), t: 'f', name: 'Nouveau dossier', kids: [], open: true }; LIB.nodes[n.id] = n; f.kids.push(n.id); f.open = true; save(); select(n.id); setTimeout(() => $('#fName').select(), 0); };
+  $('#fShare').onclick = () => shareNode(f.id);
+  $('#fUp').onclick = () => moveNode(f.id, -1); $('#fDown').onclick = () => moveNode(f.id, 1);
+  $('#fDel').onclick = () => { if (S.delArm !== f.id) { S.delArm = f.id; renderFolder(f); return; } removeNode(f.id); toast('Dossier supprimé'); };
+  $$('[data-go]').forEach(b => b.onclick = () => select(b.dataset.go));
+}
+
+// =================== partage par lien ===================
+const B32 = 'abcdefghijklmnopqrstuvwxyz234567';
+function b32enc(bytes) { let out = '', buf = 0, bits = 0; for (const b of bytes) { buf = (buf << 8) | b; bits += 8; while (bits >= 5) { out += B32[(buf >>> (bits - 5)) & 31]; bits -= 5; } buf &= 255; } if (bits) out += B32[(buf << (5 - bits)) & 31]; return out; }
+function b32dec(s) { const out = []; let buf = 0, bits = 0; for (const ch of s) { const v = B32.indexOf(ch); if (v < 0) continue; buf = (buf << 5) | v; bits += 5; if (bits >= 8) { out.push((buf >>> (bits - 8)) & 255); bits -= 8; buf &= 255; } } return new Uint8Array(out); }
+async function deflate(bytes, inv) { if (typeof CompressionStream === 'undefined') return null; const cs = inv ? new DecompressionStream('deflate-raw') : new CompressionStream('deflate-raw'); const st = new Blob([bytes]).stream().pipeThrough(cs); return new Uint8Array(await new Response(st).arrayBuffer()); }
+function packNode(id) { const n = clone(N(id)); if (n.t === 'f') n.kids = n.kids.map(packNode); return n; }
+async function shareNode(id) {
+  const json = new TextEncoder().encode(JSON.stringify(packNode(id)));
+  let data = null, flag = 'n'; try { data = await deflate(json); if (data) flag = 'z'; } catch (e) { data = null; }
+  const code = 's-' + flag + b32enc(data || json);
+  const base = /github\.io$/.test(location.hostname) ? location.href.split('#')[0] : 'https://matdps.github.io/replayer/index-ranges.html';
+  const url = base + '#' + code; copyText(url, 'Lien copié : envoie-le à tes élèves');
+  const n = N(id); $('#shareIn').hidden = false; $('#shareIn').innerHTML = `<div><b>Lien de partage de « ${esc(n.name)} »</b><div class="hint">La personne qui l’ouvre peut ajouter ${n.t === 'f' ? 'ce dossier' : 'cette range'} à sa bibliothèque.</div></div><input class="inp" readonly value="${esc(url)}" style="flex:1;min-width:220px;font:12px var(--f-num)" onclick="this.select()"><button class="ghost sm" id="shClose">Fermer</button>`;
+  $('#shClose').onclick = () => $('#shareIn').hidden = true;
+}
+async function receiveShare(code) {
+  try {
+    const flag = code[2], bytes = b32dec(code.slice(3)), raw = flag === 'z' ? await deflate(bytes, true) : bytes, obj = JSON.parse(new TextDecoder().decode(raw));
+    const count = obj.t === 'f' ? JSON.stringify(obj).split('"t":"r"').length - 1 : 1;
+    $('#shareIn').hidden = false;
+    $('#shareIn').innerHTML = `<div><b>On t’a partagé ${obj.t === 'f' ? 'le dossier' : 'la range'} « ${esc(obj.name)} »</b><div class="hint">${count} range${count > 1 ? 's' : ''}. Elle${count > 1 ? 's' : ''} s’ajoute${count > 1 ? 'nt' : ''} à ta bibliothèque, sans rien effacer.</div></div><div class="row"><button class="btn" id="shAdd">Ajouter à ma bibliothèque</button><button class="ghost" id="shNo">Non merci</button></div>`;
+    $('#shNo').onclick = () => { $('#shareIn').hidden = true; history.replaceState(null, '', location.pathname + '#editeur'); };
+    $('#shAdd').onclick = () => { const add = (n) => { n.id = uid(); if (n.t === 'f') { n.kids = n.kids.map(add); n.open = true; } else if (n.tabs) n.tabs.forEach(t => t.id = uid()); LIB.nodes[n.id] = n; return n.id; }; const nid = add(obj); LIB.root.unshift(nid); save(); $('#shareIn').hidden = true; try { history.replaceState(null, '', location.pathname + '#editeur'); } catch (e) { /* lien non modifiable */ } select(nid); toast('Ajouté à ta bibliothèque'); };
+  } catch (e) { console.error(e); toast('Ce lien de partage est abîmé ou incomplet'); }
+}
+
+// =================== sauvegarde fichier ===================
+function bindLib() {
+  $('#search').oninput = (e) => { S.search = e.target.value; renderTree(); };
+  $('#addFolderRoot').onclick = () => { const n = { id: uid(), t: 'f', name: 'Nouveau dossier', kids: [], open: true }; LIB.nodes[n.id] = n; LIB.root.push(n.id); save(); select(n.id); setTimeout(() => $('#fName') && $('#fName').select(), 0); };
+  $('#libExport').onclick = () => { $('#libBox').hidden = false; $('#libText').value = JSON.stringify(LIB); $('#libLoad').hidden = true; $('#libCopy').hidden = $('#libDl').hidden = false; };
+  $('#libCopy').onclick = () => copyText($('#libText').value, 'Sauvegarde copiée');
+  $('#libDl').onclick = () => { try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([$('#libText').value], { type: 'application/json' })); a.download = 'spinscope-ranges.json'; document.body.appendChild(a); a.click(); a.remove(); } catch (e) { toast('Téléchargement bloqué ici : utilise « Copier »'); } };
+  $('#libClose').onclick = () => $('#libBox').hidden = true;
+  $('#libImport').onclick = () => { $('#libBox').hidden = false; $('#libText').value = ''; $('#libText').placeholder = 'Colle ta sauvegarde ici, ou choisis le fichier…'; $('#libLoad').hidden = false; $('#libCopy').hidden = $('#libDl').hidden = true; $('#libFile').click(); };
+  $('#libFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { $('#libText').value = rd.result; }; rd.readAsText(f); };
+  $('#libLoad').onclick = () => { try { const o = JSON.parse($('#libText').value); if (!o.nodes || !o.root) throw 0; LIB = o; save(); S.sel = null; renderTree(); renderEditor(); $('#libBox').hidden = true; toast('Bibliothèque restaurée'); } catch (e) { toast('Ce texte n’est pas une sauvegarde valide'); } };
+}
+
+// =================== comparer ===================
+function rangeOptions(onlyA) { const o = []; const walk = (ids, d) => { for (const id of ids) { const n = N(id); if (!n) continue; if (n.t === 'f') { o.push(`<optgroup label="${'· '.repeat(d)}${esc(n.name)}">`); walk(n.kids, d + 1); o.push('</optgroup>'); } else if (!onlyA || n.kind === 'a') { if (n.kind === 'a') n.tabs.forEach((t, i) => o.push(`<option value="${n.id}|${i}">${esc(n.name)} · ${esc(t.name)}${tabFull(t) ? '' : ' (vide)'}</option>`)); else o.push(`<option value="${n.id}|b">${esc(n.name)}</option>`); } } }; walk(LIB.root, 0); return o.join(''); }
+function playedOf(val, stack) { // fréquence jouée (hors action par défaut) pour chaque main
+  const [id, t] = val.split('|'), r = N(id), out = {}; if (!r) return { r: null, out };
+  if (r.kind === 'b') { for (const [h, v] of Object.entries(r.bb)) if (v >= stack) out[h] = 100; return { r, out, name: `${r.name} à ${stack} BB` }; }
+  const cells = r.tabs[+t].cells; for (const [h, c] of Object.entries(cells)) out[h] = Object.values(c).reduce((a, x) => a + x, 0); return { r, out, name: `${r.name} · ${r.tabs[+t].name}` };
+}
+function renderCompare() {
+  const v = $('#cmpView'); const opts = rangeOptions(false);
+  if (!v.dataset.built) {
+    v.innerHTML = `<section class="card"><h3>Comparer deux ranges</h3><div class="hint" style="margin:4px 0 12px">Ex. : la même situation à 15 BB et à 12 BB, ou contre un reg et contre un fish. Les mains en plus ou en moins ressortent tout de suite.</div>
+      <div class="cmpsel"><div><span class="lbl"><i class="sw" style="background:var(--onlyA)"></i>Range A</span><select class="inp" id="cmpA"></select></div><div><span class="lbl"><i class="sw" style="background:var(--onlyB)"></i>Range B</span><select class="inp" id="cmpB"></select></div></div>
+      <div class="row hint" style="margin-top:8px">Pour les ranges en seuils BB, profondeur : <input class="inp" id="cmpStack" type="number" min="1" max="25" value="10" style="width:70px"> BB</div></section>
+      <section class="card gwrap" style="margin-top:14px"><div class="rgrid" id="cmpGrid"></div><div class="gstats" id="cmpStats"></div>
+      <div class="gstats"><span><i class="sw" style="background:var(--both)"></i>dans les deux</span><span><i class="sw" style="background:var(--onlyA)"></i>seulement A</span><span><i class="sw" style="background:var(--onlyB)"></i>seulement B</span><span>chiffre = écart de fréquence (A − B)</span></div></section>`;
+    v.dataset.built = 1;
+    ['#cmpA', '#cmpB', '#cmpStack'].forEach(id => $(id).addEventListener('input', drawCompare));
+  }
+  const a = $('#cmpA').value, b = $('#cmpB').value; $('#cmpA').innerHTML = opts; $('#cmpB').innerHTML = opts;
+  const vals = $$('#cmpA option').map(o => o.value);
+  if (a && vals.includes(a)) $('#cmpA').value = a; else if (S.sel && N(S.sel)?.t === 'r') $('#cmpA').value = N(S.sel).kind === 'a' ? `${S.sel}|${S.tab}` : `${S.sel}|b`;
+  if (b && vals.includes(b)) $('#cmpB').value = b; else { const i = vals.indexOf($('#cmpA').value); $('#cmpB').value = vals[Math.min(vals.length - 1, i + 1)] || vals[0]; }
+  drawCompare();
+}
+function drawCompare() {
+  const st = +$('#cmpStack').value || 10, A = playedOf($('#cmpA').value, st), B = playedOf($('#cmpB').value, st);
+  let cA = 0, cB = 0, both = 0, oA = 0, oB = 0;
+  $('#cmpGrid').innerHTML = HANDS.map(h => { const x = A.out[h] || 0, y = B.out[h] || 0, k = combos(h); cA += k * x / 100; cB += k * y / 100; both += k * Math.min(x, y) / 100; oA += k * Math.max(0, x - y) / 100; oB += k * Math.max(0, y - x) / 100;
+    let bg = ''; if (x && y) bg = x === y ? 'var(--both)' : `linear-gradient(to right, var(--both) 0 ${Math.min(x, y)}%, ${x > y ? 'var(--onlyA)' : 'var(--onlyB)'} ${Math.min(x, y)}% ${Math.max(x, y)}%, var(--fold) ${Math.max(x, y)}%)`; else if (x) bg = `linear-gradient(to right, var(--onlyA) 0 ${x}%, var(--fold) ${x}%)`; else if (y) bg = `linear-gradient(to right, var(--onlyB) 0 ${y}%, var(--fold) ${y}%)`;
+    const d = x - y; return `<div class="c ${bg ? 'has' : ''}" style="${bg ? 'background:' + bg : ''};cursor:default"><span>${h}</span>${d ? `<small>${d > 0 ? '+' : '−'}${nf(Math.abs(d))}</small>` : ''}</div>`; }).join('');
+  $('#cmpStats').innerHTML = `<span>A <b>${nf(cA / TOTAL * 100, 1)} %</b></span><span>B <b>${nf(cB / TOTAL * 100, 1)} %</b></span><span>Communes <b>${nf(both, 0)}</b> combos</span><span style="color:var(--onlyA)">Seulement A <b>${nf(oA, 0)}</b></span><span style="color:var(--onlyB)">Seulement B <b>${nf(oB, 0)}</b></span>`;
+}
+
+// =================== trainer préflop ===================
+const T = { pool: [], q: null, n: 0, ok: 0, streak: 0, best: 0, errs: [], answered: false };
+function trainerScopes() { const o = ['<option value="all">Toutes mes ranges remplies</option>']; const walk = (ids, d) => { for (const id of ids) { const n = N(id); if (!n) continue; const rs = rangesUnder(id).filter(rangeFull); if (!rs.length) continue; o.push(`<option value="${id}">${'  '.repeat(d)}${n.t === 'f' ? '📁 ' : ''}${esc(n.name)} (${rs.length})</option>`); if (n.t === 'f') walk(n.kids, d + 1); } }; walk(LIB.root, 0); return o.join(''); }
+function buildPool() {
+  const scope = $('#tScope').value, depth = $('#tDepth').value, rs = (scope === 'all' ? LIB.root.flatMap(rangesUnder) : rangesUnder(scope)).filter(rangeFull), pool = [];
+  for (const r of rs) { if (r.kind === 'b') pool.push({ r, tab: null }); else r.tabs.forEach((t, i) => { if (tabFull(t) && (depth === 'all' || t.name === depth)) pool.push({ r, tab: i }); }); }
+  T.pool = pool; return pool;
+}
+function borderHands(spot) { // mains à la frontière : mixtes ou voisines d'une main jouée différemment
+  const main = (h) => { if (spot.tab === null) return null; const c = spot.r.tabs[spot.tab].cells[h]; if (!c) return 'rest'; let best = 'rest', bf = 100 - Object.values(c).reduce((a, x) => a + x, 0); for (const [a, f] of Object.entries(c)) if (f > bf) { best = a; bf = f; } return best; };
+  const out = [];
+  for (const h of HANDS) { const [i, j] = POS[h]; if (spot.tab === null) { const v = spot.r.bb[h] || 0; out.push(h); continue; }
+    const c = spot.r.tabs[spot.tab].cells[h], mixed = c && (Object.keys(c).length > 1 || Object.values(c)[0] < 100), m = main(h);
+    const nb = [[i - 1, j], [i + 1, j], [i, j - 1], [i, j + 1]].filter(([a, b]) => a >= 0 && b >= 0 && a < 13 && b < 13).some(([a, b]) => main(CELL[a][b]) !== m);
+    if (mixed || nb) out.push(h); }
+  return out;
+}
+function dealHand(h) { const S4 = ['s', 'h', 'd', 'c'], sh = () => S4.slice().sort(() => Math.random() - 0.5); const s = sh(); if (h.length === 2) return [[h[0], s[0]], [h[1], s[1]]]; if (h[2] === 's') return [[h[0], s[0]], [h[1], s[0]]]; return [[h[0], s[0]], [h[1], s[1]]]; }
+const SUIT = { s: '♠', h: '♥', d: '♦', c: '♣' };
+function nextQ() {
+  if (!T.pool.length && !buildPool().length) return;
+  const spot = T.pool[Math.floor(Math.random() * T.pool.length)], focus = $('#tFocus').checked;
+  let cand = focus ? borderHands(spot) : HANDS; if (!cand.length) cand = HANDS;
+  // tirage pondéré par les combos (une paire sort moins souvent qu'une main offsuit, comme à la table)
+  const wsum = cand.reduce((a, h) => a + combos(h), 0); let x = Math.random() * wsum, h = cand[0]; for (const c of cand) { x -= combos(c); if (x <= 0) { h = c; break; } }
+  let stack = null; if (spot.tab === null) { const vals = [20, 18, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2]; const v = spot.r.bb[h] || 0; const near = vals.filter(s => Math.abs(s - v) <= 3); stack = focus && v && near.length && Math.random() < 0.7 ? near[Math.floor(Math.random() * near.length)] : vals[Math.floor(Math.random() * vals.length)]; }
+  T.q = { spot, h, cards: dealHand(h), rng: Math.floor(Math.random() * 100) + 1, stack }; T.answered = false; drawQ();
+}
+function answerSet(q) { // [{id,name,color,f}] y compris l'action par défaut
+  const r = q.spot.r;
+  if (r.kind === 'b') { const v = r.bb[q.h] || 0, push = v >= q.stack; const isCall = /call/i.test(r.name); return [{ id: 'play', name: isCall ? 'Call' : 'Push', color: '#e5484d', f: push ? 100 : 0 }, { id: 'rest', name: 'Fold', color: '#94a3b8', f: push ? 0 : 100 }]; }
+  const c = r.tabs[q.spot.tab].cells[q.h] || {}, tot = Object.values(c).reduce((a, x) => a + x, 0);
+  return [...r.acts.map(a => ({ id: a.id, name: a.name, color: a.color, f: c[a.id] || 0 })), { id: 'rest', name: r.rest, color: '#94a3b8', f: Math.max(0, 100 - tot) }];
+}
+function drawQ() {
+  const q = T.q, r = q.spot.r, useRng = $('#tRng').checked && r.kind === 'a', set = answerSet(q);
+  const sit = pathOf(r.id).concat(r.name).join(' › '), depth = r.kind === 'b' ? null : r.tabs[q.spot.tab].name;
+  $('#tFelt').innerHTML = `<div class="sub">${esc(sit)}</div><div class="sit">${esc(r.name)}</div>
+    <div class="stack">${r.kind === 'b' ? `Stack effectif <b>${q.stack} BB</b>` : `Profondeur <b>${esc(depth)}</b>`}</div>
+    <div class="cards">${q.cards.map(([rk, s]) => `<div class="pc2 ${s}"><b>${rk === 'T' ? '10' : rk}</b><i>${SUIT[s]}</i></div>`).join('')}</div>
+    ${useRng ? `<div class="rng" title="Pour les mains mixtes : joue l’action dont la tranche contient ce nombre">RNG <b>${q.rng}</b></div>` : ''}
+    <div class="answers">${set.map((a, i) => `<button data-a="${a.id}" style="background:${a.color}">${esc(a.name)}<small>touche ${i + 1}</small></button>`).join('')}</div>
+    <div id="tRes"></div>`;
+  $$('#tFelt [data-a]').forEach(b => b.onclick = () => answer(b.dataset.a));
+}
+function answer(aid) {
+  if (T.answered) return nextQ(); T.answered = true;
+  const q = T.q, r = q.spot.r, set = answerSet(q), useRng = $('#tRng').checked && r.kind === 'a', chosen = set.find(a => a.id === aid), best = set.reduce((a, b) => b.f > a.f ? b : a);
+  let cls = 'ko', title, why;
+  if (useRng) { let acc = 0, target = set[set.length - 1]; for (const a of set) { if (a.f > 0 && q.rng <= acc + a.f) { target = a; break; } acc += a.f; }
+    if (chosen.id === target.id) { cls = 'ok'; title = 'Bien joué'; } else if (chosen.f > 0) { cls = 'mid'; title = 'Bonne action, mauvaise fréquence'; } else { title = 'Erreur'; }
+    why = `Avec un RNG de ${q.rng}, il fallait <b>${esc(target.name)}</b>.`; }
+  else { if (chosen.f >= best.f - 0.01) { cls = 'ok'; title = chosen.f < 100 ? 'Bien joué (main mixte)' : 'Bien joué'; } else if (chosen.f > 0) { cls = 'mid'; title = 'Possible, mais pas l’action principale'; } else title = 'Erreur';
+    why = best.f >= 100 ? `Cette main se joue <b>${esc(best.name)}</b> à 100 %.` : 'Main mixte : ' + set.filter(a => a.f > 0).map(a => `${esc(a.name)} ${nf(a.f)} %`).join(', ') + '.'; }
+  T.n++; if (cls === 'ok') { T.ok++; T.streak++; T.best = Math.max(T.best, T.streak); } else { T.streak = 0; T.errs.unshift({ q, chosen: chosen.name, cls }); T.errs = T.errs.slice(0, 40); }
+  $$('#tFelt [data-a]').forEach(b => { const a = set.find(x => x.id === b.dataset.a); b.style.opacity = a.f > 0 ? 1 : .45; b.style.outline = b.dataset.a === aid ? '3px solid #fff' : ''; });
+  $('#tRes').innerHTML = `<div class="verdict ${cls}"><span class="vt">${title}</span><span>${why}</span>
+    <div class="bk">${set.filter(a => a.f > 0).map(a => `<i style="width:${a.f}%;background:${a.color}" title="${esc(a.name)} ${nf(a.f)} %"></i>`).join('')}</div>
+    <span style="font-size:12px;opacity:.8">Espace ou clic pour la main suivante</span></div>`;
+  drawScore(); drawMini(q);
+}
+function drawMini(q) { const r = q.spot.r; const keep = S.tab; if (r.kind === 'a') S.tab = q.spot.tab; $('#tMini').innerHTML = `<div class="lbl" style="margin-bottom:6px">Ta range · ${r.kind === 'a' ? esc(r.tabs[q.spot.tab].name) : q.stack + ' BB'}</div><div class="rgrid small">${HANDS.map(h => cellHTML(r, h, r.kind === 'a' ? r.tabs[q.spot.tab].cells : null, (h === q.h ? 'mark ' : '') + (r.kind === 'b' && !((r.bb[h] || 0) >= q.stack) ? 'dim' : ''))).join('')}</div>`; S.tab = keep; }
+function drawScore() {
+  $('#tScore').innerHTML = `<div><b>${T.n ? nf(T.ok / T.n * 100) : 0} %</b><span>réussite (${T.ok}/${T.n})</span></div><div><b>${T.streak}</b><span>série</span></div><div><b>${T.best}</b><span>record</span></div>`;
+  $('#tErrs').innerHTML = T.errs.length ? T.errs.map((e, i) => `<button data-e="${i}"><span><b>${e.q.h}</b> · ${esc(e.q.spot.r.name)}${e.q.spot.tab !== null ? ' · ' + esc(e.q.spot.r.tabs[e.q.spot.tab].name) : ' · ' + e.q.stack + ' BB'}</span><span style="color:${e.cls === 'mid' ? 'var(--warn)' : 'var(--bad)'}">${esc(e.chosen)}</span></button>`).join('') : '<div class="hint">Aucune erreur pour l’instant.</div>';
+  $$('#tErrs [data-e]').forEach(b => b.onclick = () => drawMini(T.errs[+b.dataset.e].q));
+}
+function renderTrainer() {
+  const v = $('#trnView');
+  v.innerHTML = `<div class="trn"><div class="col"><section class="card"><div class="row" style="gap:10px">
+      <label class="hint" for="tScope">Ranges</label><select class="inp" id="tScope" style="min-width:200px">${trainerScopes()}</select>
+      <label class="hint" for="tDepth">Profondeur</label><select class="inp" id="tDepth"><option value="all">Toutes</option>${[...new Set(Object.values(LIB.nodes).filter(n => n.t === 'r' && n.kind === 'a').flatMap(n => n.tabs.filter(tabFull).map(t => t.name)))].map(d => `<option>${esc(d)}</option>`).join('')}</select>
+      <label class="chk"><input type="checkbox" id="tFocus" checked> Surtout les mains limites</label>
+      <label class="chk" title="Pour les mains mixtes : un nombre de 1 à 100 décide de l’action"><input type="checkbox" id="tRng"> Mode RNG</label></div>
+      <div class="hint" style="margin-top:6px">Le trainer prend une situation et une main au hasard dans <b>tes</b> ranges. Choisis l’action. En mode RNG, les fréquences comptent : avec Jam 30 % puis Limp 70 %, un RNG de 1 à 30 = Jam, de 31 à 100 = Limp.</div></section>
+      <section class="felt" id="tFelt"></section></div>
+    <div class="col"><section class="card"><h3>Ta session</h3><div class="score" id="tScore" style="margin-top:8px"></div><button class="ghost sm" id="tReset" style="margin-top:8px">Remettre à zéro</button></section>
+      <section class="card" id="tMini"><div class="hint">Après chaque réponse, ta range s’affiche ici avec la main entourée.</div></section>
+      <section class="card"><h3>Tes erreurs</h3><div class="hint" style="margin:4px 0 8px">Clique pour revoir la range.</div><div class="errs" id="tErrs"></div></section></div></div>`;
+  const restart = () => { T.pool = []; if (!buildPool().length) { $('#tFelt').innerHTML = `<div class="sit">Aucune range remplie ici</div><div class="sub">Remplis d’abord une situation dans l’éditeur (par ex. Spin HU › SB › Open), puis reviens t’entraîner.</div>`; return; } nextQ(); };
+  ['#tScope', '#tDepth'].forEach(id => $(id).onchange = restart); $('#tFocus').onchange = () => { if (!T.answered) nextQ(); }; $('#tRng').onchange = () => { if (T.q && !T.answered) drawQ(); };
+  $('#tReset').onclick = () => { Object.assign(T, { n: 0, ok: 0, streak: 0, best: 0, errs: [] }); drawScore(); };
+  drawScore(); restart();
+}
+
+// =================== vues et clavier ===================
+const VIEWS = ['editeur', 'comparer', 'entrainement'];
+function showView(v, push) {
+  if (!VIEWS.includes(v)) v = 'editeur'; S.view = v;
+  $$('.modes [data-v]').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('#layout').hidden = v !== 'editeur'; $('#cmpView').hidden = v !== 'comparer'; $('#trnView').hidden = v !== 'entrainement';
+  if (push && location.hash.slice(1) !== v) { try { location.hash = v; } catch (e) { /* lien non modifiable */ } }
+  if (v === 'comparer') renderCompare(); if (v === 'entrainement') renderTrainer(); if (v === 'editeur') { renderTree(); renderEditor(); }
+}
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea, select')) return;
+  if (S.view === 'entrainement') { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (T.answered) nextQ(); return; } const k = parseInt(e.key, 10); if (k >= 1 && T.q) { const b = $$('#tFelt [data-a]')[k - 1]; if (b) answer(b.dataset.a); } return; }
+  if (S.view !== 'editeur') return; const r = N(S.sel); if (!r || r.t !== 'r') return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+  if (r.kind !== 'a') return;
+  if (e.key === '0' || e.key.toLowerCase() === 'f') { S.act = 'fold'; renderLegend(r); return; }
+  const k = parseInt(e.key, 10); if (k >= 1 && r.acts[k - 1]) { S.act = r.acts[k - 1].id; renderLegend(r); }
+});
+$$('.modes [data-v]').forEach(b => b.onclick = () => showView(b.dataset.v, true));
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h.startsWith('s-')) receiveShare(h); else if (VIEWS.includes(h) && h !== S.view) showView(h); });
+bindLib();
+const h0 = location.hash.slice(1);
+// ouvrir par défaut la première situation du 3 joueurs
+(function firstSel() { const s3 = N(LIB.root[0]); if (s3 && s3.t === 'f') { const btn = N(s3.kids[0]); if (btn && btn.t === 'f' && btn.kids[0]) S.sel = btn.kids[0]; } })();
+showView(VIEWS.includes(h0) ? h0 : 'editeur');
+if (h0.startsWith('s-')) receiveShare(h0);
+</script>
+</body></html>
