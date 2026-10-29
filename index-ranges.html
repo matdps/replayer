@@ -221,7 +221,7 @@ textarea.inp { width: 100%; min-height: 76px; resize: vertical; font: 12.5px/1.4
   <section id="cmpView" hidden></section>
   <section id="trnView" hidden></section>
 
-  <p class="foot">Raccourcis : <b>1 à 9</b> pour choisir l’action, <b>reclic</b> sur une main déjà peinte pour la remettre en fold, <b>0</b> ou <b>F</b> pour la gomme (fold), <b>Ctrl+Z</b> pour annuler. Clic droit sur une case = la vider. Le classement « Top % » vient de l’équité de chaque main contre une main au hasard (tête-à-tête) ou contre deux mains (3 joueurs).</p>
+  <p class="foot">Raccourcis : <b>1 à 9</b> pour choisir l’action, <b>reclic</b> sur une main déjà peinte pour la remettre en fold, <b>0</b> ou <b>F</b> pour la gomme (fold), <b>Ctrl+Z</b> pour annuler, <b>Ctrl+Y</b> pour rétablir. Clic droit sur une case = la vider. Le classement « Top % » vient de l’équité de chaque main contre une main au hasard (tête-à-tête) ou contre deux mains (3 joueurs).</p>
 </div>
 <div class="tip" id="tip" hidden></div>
 <div class="toast" id="toast" hidden></div>
@@ -289,7 +289,7 @@ const KEY = 'spinscope-ranges-v1';
 let LIB;
 try { LIB = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { LIB = null; }
 if (!LIB || !LIB.nodes || !Array.isArray(LIB.root)) LIB = defaultLib();
-const S = { smMode: 'eq', smTh: 50, sel: null, tab: 0, act: null, freq: 100, bbv: 20, view: 'editeur', undo: [], clip: null, stack: null, top: 0, newOpen: false, delArm: null, search: '' };
+const S = { redo: [], smMode: 'eq', smTh: 50, sel: null, tab: 0, act: null, freq: 100, bbv: 20, view: 'editeur', undo: [], clip: null, stack: null, top: 0, newOpen: false, delArm: null, search: '' };
 let saveT;
 function save() { clearTimeout(saveT); $('#saveState').textContent = '…'; saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(LIB)); $('#saveState').textContent = 'Enregistré'; } catch (e) { $('#saveState').textContent = 'Non enregistré : fais « Sauvegarder »'; } }, 300); }
 const N = (id) => LIB.nodes[id];
@@ -312,7 +312,7 @@ function renderTree() {
   $('#tree').innerHTML = out.join('') || '<div class="hint">Rien trouvé.</div>';
   $$('#tree .node').forEach(b => b.onclick = () => { const n = N(b.dataset.id); if (n.t === 'f') { if (S.sel === n.id || !n.open) n.open = !n.open; save(); } select(n.id); });
 }
-function select(id) { if (S.sel !== id) { S.tab = 0; S.act = null; S.undo = []; S.newOpen = false; S.delArm = null; S.stack = null; } S.sel = id; renderTree(); renderEditor(); }
+function select(id) { if (S.sel !== id) { S.onAct = null; S.tab = 0; S.act = null; S.newOpen = false; S.delArm = null; S.stack = null; } S.sel = id; renderTree(); renderEditor(); }
 
 // =================== éditeur ===================
 const cellsOf = (r) => r.tabs[Math.min(S.tab, r.tabs.length - 1)].cells;
@@ -348,10 +348,11 @@ function renderEditor() {
   $('#center').innerHTML = `<section class="card ehead">
       <div><div class="path">${esc(path) || 'Bibliothèque'}</div><input class="namein" id="rName" value="${esc(r.name)}" aria-label="Nom de la range"></div>
       ${r.kind === 'a' ? `<div class="tabs" id="tabs">${r.tabs.map((t, i) => `<button class="tb ${i === S.tab ? 'on' : ''}" data-i="${i}"><i class="${tabFull(t) ? 'full' : ''}"></i>${esc(t.name)}</button>`).join('')}<button class="ghost sm" id="tabAdd" title="Ajouter une profondeur">+</button></div>
-      <div class="row hint" style="gap:6px"><span>Onglet :</span><input class="inp" id="tabName" value="${esc(r.tabs[S.tab].name)}" style="width:110px;padding:3px 8px" aria-label="Nom de l’onglet"><button class="ghost sm" id="tabDup">Dupliquer</button><button class="ghost sm" id="tabCopy">Copier</button><button class="ghost sm" id="tabPaste" ${S.clip ? '' : 'disabled'}>Coller</button><button class="ghost sm" id="tabClear">Vider</button>${r.tabs.length > 1 ? '<button class="ghost sm danger" id="tabDel">Supprimer l’onglet</button>' : ''}</div>`
+      <div class="row hint" style="gap:6px"><span>Onglet :</span><input class="inp" id="tabName" value="${esc(r.tabs[S.tab].name)}" style="width:110px;padding:3px 8px" aria-label="Nom de l’onglet"><button class="ghost sm" id="tabDup">Dupliquer</button><button class="ghost sm" id="tabCopy">Copier</button><button class="ghost sm" id="tabPaste" ${S.clip ? '' : 'disabled'}>Coller</button>${r.tabs.length > 1 ? '<button class="ghost sm danger" id="tabDel">Supprimer l’onglet</button>' : ''}</div>`
       : `<div class="row"><span class="lbl">Voir la range à</span><div class="chips" id="stackChips">${[null, 20, 15, 12, 10, 8, 6, 4, 2].map(v => `<button data-s="${v ?? ''}" class="${S.stack === v ? 'on' : ''}">${v === null ? 'Tout' : v + ' BB'}</button>`).join('')}</div></div>`}
     </section>
     <section class="card gwrap">
+      <div class="row" style="justify-content:center;gap:6px"><button class="ghost sm" id="gUndo" title="Ctrl+Z">↶ Annuler</button><button class="ghost sm" id="gRedo" title="Ctrl+Y">Rétablir ↷</button>${r.kind === 'a' ? `<button class="ghost sm" id="gClrAct"></button><button class="ghost sm" id="gClrTab">Effacer l’onglet</button>` : ''}<button class="ghost sm danger" id="gClrAll">${S.delArm === 'all' + r.id ? 'Confirmer : tout effacer' : r.kind === 'a' ? 'Effacer toute la range' : 'Tout effacer'}</button></div>
       <div class="rgrid" id="grid" role="grid" aria-label="Grille des mains">${HANDS.map(h => cellHTML(r, h, null, r.kind === 'b' && S.stack !== null && !((r.bb[h] || 0) >= S.stack) ? 'dim' : '')).join('')}</div>
       <div class="gstats" id="gstats"></div>
     </section>
@@ -371,8 +372,11 @@ function renderGstats(r) {
 function updateCells(r, hs) { const g = $('#grid'); if (!g) return; for (const h of hs) { const el = g.querySelector(`[data-h="${h}"]`); if (el) el.outerHTML = cellHTML(r, h, null, r.kind === 'b' && S.stack !== null && !((r.bb[h] || 0) >= S.stack) ? 'dim' : ''); } renderGstats(r); refreshLegendPct(r); if (r.kind === 'a' && $('#txtOut')) $('#txtOut').value = exportText(r); }
 
 // peinture
-function pushUndo(r) { S.undo.push({ id: r.id, tab: S.tab, data: clone(r.kind === 'b' ? r.bb : cellsOf(r)) }); if (S.undo.length > 60) S.undo.shift(); }
-function undo() { const u = S.undo.pop(); if (!u) return toast('Rien à annuler'); const r = N(u.id); if (!r) return; if (u.all) u.all.forEach((c, i) => { if (r.tabs[i]) r.tabs[i].cells = c; }); else if (r.kind === 'b') r.bb = u.data; else { S.tab = u.tab; r.tabs[u.tab].cells = u.data; } save(); renderEditor(); renderTree(); }
+function pushUndo(r) { S.redo = []; setTimeout(() => { const u = $('#gUndo'), v = $('#gRedo'); if (u) u.disabled = false; if (v) v.disabled = true; }, 0); S.undo.push({ id: r.id, tab: S.tab, data: clone(r.kind === 'b' ? r.bb : cellsOf(r)) }); if (S.undo.length > 60) S.undo.shift(); }
+function snapLike(u) { const r = N(u.id); if (!r) return null; if (u.all) return { id: u.id, all: r.tabs.map(t => clone(t.cells)) }; if (r.kind === 'b') return { id: u.id, data: clone(r.bb) }; return { id: u.id, tab: u.tab, data: clone(r.tabs[u.tab] ? r.tabs[u.tab].cells : {}) }; }
+function restore(u) { const r = N(u.id); if (!r) return; if (u.all) u.all.forEach((c, i) => { if (r.tabs[i]) r.tabs[i].cells = c; }); else if (r.kind === 'b') r.bb = u.data; else if (r.tabs[u.tab]) { S.tab = u.tab; r.tabs[u.tab].cells = u.data; } if (S.sel !== u.id) select(u.id); save(); renderEditor(); renderTree(); }
+function undo() { const u = S.undo.pop(); if (!u) return toast('Rien à annuler'); const cur = snapLike(u); if (cur) S.redo.push(cur); restore(u); }
+function redo() { const u = S.redo.pop(); if (!u) return toast('Rien à rétablir'); const cur = snapLike(u); if (cur) S.undo.push(cur); restore(u); }
 function paintCell(r, h, erase) {
   if (r.kind === 'b') { if (erase || S.bbv <= 0) delete r.bb[h]; else r.bb[h] = S.bbv; return; }
   const cells = cellsOf(r);
@@ -401,6 +405,10 @@ function bindEditor(r) {
   $('#rDup').onclick = () => { const c = clone(r); c.id = uid(); c.name = r.name + ' (copie)'; if (c.tabs) c.tabs.forEach(t => t.id = uid()); LIB.nodes[c.id] = c; const p = parentOf(r.id), arr = p ? p.kids : LIB.root; arr.splice(arr.indexOf(r.id) + 1, 0, c.id); save(); select(c.id); toast('Range dupliquée'); };
   $('#rDel').onclick = () => { if (S.delArm !== r.id) { S.delArm = r.id; renderEditor(); return; } removeNode(r.id); toast('Range supprimée'); };
   $('#rShare').onclick = () => shareNode(r.id);
+  $('#gUndo').onclick = undo; $('#gUndo').disabled = !S.undo.length; $('#gRedo').onclick = redo; $('#gRedo').disabled = !S.redo.length;
+  $('#gClrAll').onclick = () => { if (S.delArm !== 'all' + r.id) { S.delArm = 'all' + r.id; $('#gClrAll').textContent = 'Confirmer : tout effacer'; return; } S.delArm = null;
+    if (r.kind === 'b') { pushUndo(r); r.bb = {}; } else { S.redo = []; S.undo.push({ id: r.id, all: r.tabs.map(t => clone(t.cells)) }); r.tabs.forEach(t => t.cells = {}); }
+    save(); renderEditor(); renderTree(); toast('Range effacée (Annuler pour revenir)'); };
   if (r.kind === 'a') {
     $$('#tabs .tb').forEach(b => b.onclick = () => { S.tab = +b.dataset.i; renderEditor(); });
     $('#tabAdd').onclick = () => { r.tabs.push({ id: uid(), name: 'Nouvelle', cells: {} }); S.tab = r.tabs.length - 1; save(); renderEditor(); $('#tabName').select(); };
@@ -411,7 +419,10 @@ function bindEditor(r) {
       const nameOf = {}; // ancien id -> nom via l'ordre du presse-papier
       for (const [h, c] of Object.entries(S.clip.cells)) { const nc = {}; Object.entries(c).forEach(([aid, f]) => { const k = S.clip.idx ? S.clip.idx[aid] : null; const tgt = k !== null && k !== undefined ? map[k] : null; if (tgt) nc[tgt] = f; }); if (Object.keys(nc).length) out[h] = nc; }
       r.tabs[S.tab].cells = out; save(); renderEditor(); renderTree(); toast('Collé'); };
-    $('#tabClear').onclick = () => { pushUndo(r); r.tabs[S.tab].cells = {}; save(); renderEditor(); renderTree(); toast('Onglet vidé (Ctrl+Z pour annuler)'); };
+    const actLbl = () => { const a = r.acts.find(x => x.id === S.act); $('#gClrAct').textContent = a ? `Effacer « ${a.name} »` : 'Effacer l’action'; $('#gClrAct').disabled = !a; };
+    actLbl(); S.onAct = actLbl;
+    $('#gClrAct').onclick = () => { const a = r.acts.find(x => x.id === S.act); if (!a) return; pushUndo(r); const cells = cellsOf(r); for (const [h, c] of Object.entries(cells)) { delete c[a.id]; if (!Object.keys(c).length) delete cells[h]; } save(); renderEditor(); renderTree(); toast(`« ${a.name} » effacé de cet onglet (Annuler pour revenir)`); };
+    $('#gClrTab').onclick = () => { pushUndo(r); r.tabs[S.tab].cells = {}; save(); renderEditor(); renderTree(); toast('Onglet effacé (Annuler pour revenir)'); };
     if ($('#tabDel')) $('#tabDel').onclick = () => { r.tabs.splice(S.tab, 1); S.tab = Math.max(0, S.tab - 1); save(); renderEditor(); renderTree(); };
   } else {
     $$('#stackChips [data-s]').forEach(b => b.onclick = () => { S.stack = b.dataset.s === '' ? null : +b.dataset.s; renderEditor(); });
@@ -464,7 +475,8 @@ function renderLegend(r) {
   const s = stats(r);
   $('#legend').innerHTML = r.acts.map((a, i) => `<div class="act ${S.act === a.id ? 'on' : ''}" data-a="${a.id}"><span class="key">${i + 1}</span><input type="color" value="${a.color}" data-c="${a.id}" aria-label="Couleur"><input class="an" value="${esc(a.name)}" data-n="${a.id}" aria-label="Nom de l’action"><span class="pc" data-p="${a.id}">${nf(s.by[a.id] / TOTAL * 100, 1)} %</span><button class="x" data-x="${a.id}" aria-label="Supprimer l’action">×</button></div>`).join('')
     + `<div class="act ${S.act === 'fold' ? 'on' : ''}" data-a="fold"><span class="key">0</span><span class="swatch"></span><input class="an" value="${esc(r.rest)}" data-rest="1" aria-label="Nom de l’action par défaut"><span class="pc">${nf((TOTAL - s.tot) / TOTAL * 100, 1)} %</span><span></span></div>`;
-  $$('#legend .act').forEach(el => el.onclick = (e) => { if (e.target.matches('input, button')) { if (e.target.matches('input.an')) { S.act = el.dataset.a; $$('#legend .act').forEach(x => x.classList.toggle('on', x === el)); } return; } S.act = el.dataset.a; $$('#legend .act').forEach(x => x.classList.toggle('on', x === el)); });
+  const afterSel = () => S.onAct && S.onAct();
+  $$('#legend .act').forEach(el => el.onclick = (e) => { if (e.target.matches('input, button')) { if (e.target.matches('input.an')) { S.act = el.dataset.a; $$('#legend .act').forEach(x => x.classList.toggle('on', x === el)); } return; } S.act = el.dataset.a; $$('#legend .act').forEach(x => x.classList.toggle('on', x === el)); afterSel(); });
   $$('#legend [data-c]').forEach(el => el.oninput = () => { r.acts.find(a => a.id === el.dataset.c).color = el.value; save(); $('#grid').innerHTML = HANDS.map(h => cellHTML(r, h)).join(''); renderGstats(r); });
   $$('#legend [data-n]').forEach(el => el.oninput = () => { r.acts.find(a => a.id === el.dataset.n).name = el.value; save(); renderGstats(r); });
   $$('#legend [data-rest]').forEach(el => el.oninput = () => { r.rest = el.value || 'Fold'; save(); });
@@ -495,7 +507,7 @@ function bindRight(r) {
   $('#smTh').oninput = (e) => { S.smTh = +e.target.value; $('#smThV').textContent = S.smTh + ' %'; };
   $('#smGo').onclick = () => {
     const all = $('#smAll').checked, idx = all ? r.tabs.map((_, i) => i) : [S.tab];
-    const before = r.tabs.map(t => stats(r, t.cells)); S.undo.push({ id: r.id, all: r.tabs.map(t => clone(t.cells)) });
+    const before = r.tabs.map(t => stats(r, t.cells)); S.redo = []; S.undo.push({ id: r.id, all: r.tabs.map(t => clone(t.cells)) });
     let changed = 0; for (const i of idx) { const old = r.tabs[i].cells, nw = simplifyCells(r, old, S.smMode, S.smTh); for (const h of HANDS) if (JSON.stringify(old[h] || null) !== JSON.stringify(nw[h] || null)) changed++; r.tabs[i].cells = nw; }
     save(); renderEditor(); renderTree();
     const b = before[S.tab], a = stats(r, cellsOf(r));
@@ -920,10 +932,11 @@ document.addEventListener('keydown', (e) => {
   if (e.target.matches('input, textarea, select')) return;
   if (S.view === 'entrainement') { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (T.answered) nextQ(); return; } const k = parseInt(e.key, 10); if (k >= 1 && T.q) { const b = $$('#tFelt [data-a]')[k - 1]; if (b) answer(b.dataset.a); } return; }
   if (S.view !== 'editeur') return; const r = N(S.sel); if (!r || r.t !== 'r') return;
+  if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z'))) { e.preventDefault(); redo(); return; }
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
   if (r.kind !== 'a') return;
-  if (e.key === '0' || e.key.toLowerCase() === 'f') { S.act = 'fold'; renderLegend(r); return; }
-  const k = parseInt(e.key, 10); if (k >= 1 && r.acts[k - 1]) { S.act = r.acts[k - 1].id; renderLegend(r); }
+  if (e.key === '0' || e.key.toLowerCase() === 'f') { S.act = 'fold'; renderLegend(r); S.onAct && S.onAct(); return; }
+  const k = parseInt(e.key, 10); if (k >= 1 && r.acts[k - 1]) { S.act = r.acts[k - 1].id; renderLegend(r); S.onAct && S.onAct(); }
 });
 $$('.modes [data-v]').forEach(b => b.onclick = () => showView(b.dataset.v, true));
 window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h.startsWith('s-')) receiveShare(h); else if (VIEWS.includes(h) && h !== S.view) showView(h); });
