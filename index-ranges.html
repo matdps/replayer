@@ -438,7 +438,7 @@ function renderRight(r) {
     <div class="freq" style="margin-top:12px"><div class="row" style="justify-content:space-between"><span class="lbl">Top <b id="topV">${S.top}</b> % des mains</span><select class="inp" id="rankSel" style="padding:2px 6px;font-size:12px"><option value="hu" ${r.rank !== '3w' ? 'selected' : ''}>classement tête-à-tête</option><option value="3w" ${r.rank === '3w' ? 'selected' : ''}>classement 3 joueurs</option></select></div>
       <input type="range" class="range" id="topR" min="0" max="100" step="0.5" value="${S.top}" aria-label="Top % des mains"><div class="row"><button class="ghost sm" id="topApply">Appliquer au top ${S.top} %</button><span class="hint">Les mains concernées sont entourées.</span></div></div></section>`;
   const text = r.kind === 'a' ? `<section class="card"><details class="box"><summary>Texte : exporter / importer</summary><div class="in">
-      <div class="hint">Format compatible avec la plupart des outils : <b>AA,AKs,A5s:50,KQo:25</b> ou <b>77+, A2s+, KTo+</b>.</div>
+      <div class="hint">Compatible GTO Wizard, PioSolver, GTO+, FreeBetRange : <b>AsKh: 1</b>, <b>AKs:0.5</b>, <b>77+, A2s+, KTo+</b>.</div>
       <textarea class="inp" id="txtOut" readonly aria-label="Export texte">${esc(exportText(r))}</textarea><div class="row"><button class="ghost sm" id="txtCopy">Copier</button></div>
       <div class="lbl" style="margin-top:6px">Importer dans l’action</div><div class="row"><select class="inp" id="txtAct">${r.acts.map(a => `<option value="${a.id}" ${a.id === S.act ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select><label class="chk"><input type="checkbox" id="txtRepl" checked> remplacer l’action</label></div>
       <textarea class="inp" id="txtIn" placeholder="Colle ta range ici (FreeBetRange, Flopzilla, GTO Wizard…)" aria-label="Import texte"></textarea><div class="row"><button class="ghost sm" id="txtApply">Importer</button><span class="hint" id="txtMsg"></span></div>
@@ -517,11 +517,16 @@ function expandTok(tok) {
   return null;
 }
 function parseRange(txt) {
-  const ok = [], bad = [];
+  const ok = [], bad = [], combo = {}; // combo : somme des fréquences des combos précis (AsKh) par main
   txt = txt.replace(/\[(\d+(?:\.\d+)?)\]([^\[]*)\[\/\1\]/g, (_, w, body) => body.split(/[,\s]+/).filter(Boolean).map(t => `${t}:${w}`).join(','));
+  txt = txt.replace(/\s*([:@])\s*/g, '$1'); // « AsJh: 1 » (GTO Wizard) -> « AsJh:1 »
   for (let raw of txt.split(/[,;\n\s]+/)) { raw = raw.trim(); if (!raw || /^[^:]*:$/.test(raw) || /^[A-Za-zÀ-ÿ-]+:$/.test(raw)) continue;
-    let w = 100; const mm = /^(.*?)[:@](\d+(?:[.,]\d+)?)%?$/.exec(raw); let t = raw; if (mm) { t = mm[1]; w = parseFloat(mm[2].replace(',', '.')); if (w <= 1 && !/%/.test(raw)) w *= 100; }
+    let w = 100; const mm = /^(.*?)[:@](\d+(?:[.,]\d+)?)(%?)$/.exec(raw); let t = raw; if (mm) { t = mm[1]; w = parseFloat(mm[2].replace(',', '.')); if (w <= 1 && !mm[3]) w *= 100; }
+    const cm = /^([2-9TJQKA])([shdc])([2-9TJQKA])([shdc])$/i.exec(t);
+    if (cm) { let r1 = cm[1].toUpperCase(), r2 = cm[3].toUpperCase(); const su = cm[2].toLowerCase() === cm[4].toLowerCase(); if (RK.indexOf(r1) > RK.indexOf(r2)) [r1, r2] = [r2, r1];
+      const h = r1 === r2 ? r1 + r2 : r1 + r2 + (su ? 's' : 'o'); if (r1 === r2 && su) { bad.push(raw); continue; } combo[h] = (combo[h] || 0) + w; continue; }
     const hs = expandTok(t); if (hs && hs.length) hs.forEach(h => ok.push([h, w])); else bad.push(raw); }
+  for (const [h, sum] of Object.entries(combo)) ok.push([h, Math.round(sum / combos(h) * 10) / 10]);
   return { ok, bad };
 }
 
