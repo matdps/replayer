@@ -206,9 +206,9 @@ textarea.inp { width: 100%; min-height: 76px; resize: vertical; font: 12.5px/1.4
       <div class="row" style="justify-content:space-between"><h3>Bibliothèque</h3><span class="hint" id="saveState"></span></div>
       <input class="inp" id="search" placeholder="Chercher une range…" aria-label="Chercher">
       <div class="tree" id="tree" role="tree"></div>
-      <div class="libbar"><button class="ghost sm" id="addFolderRoot">+ Dossier</button><button class="ghost sm" id="libExport">Sauvegarder</button><button class="ghost sm" id="libImport">Restaurer</button><input type="file" id="libFile" accept=".json,application/json" hidden></div>
-      <div class="hint">Tes ranges restent dans ce navigateur. Fais « Sauvegarder » de temps en temps pour en garder une copie.</div>
-      <div id="libBox" hidden style="display:grid;gap:6px"><textarea class="inp" id="libText" aria-label="Sauvegarde"></textarea><div class="row"><button class="ghost sm" id="libCopy">Copier</button><button class="ghost sm" id="libDl">Télécharger le fichier</button><button class="ghost sm" id="libLoad" hidden>Restaurer ce texte</button><button class="ghost sm" id="libClose">Fermer</button></div></div>
+      <div class="libbar"><button class="ghost sm" id="addFolderRoot">+ Dossier</button><button class="ghost sm" id="libImport">Importer</button><button class="ghost sm" id="libExport">Sauvegarder tout</button><input type="file" id="libFile" accept=".json,application/json" hidden></div>
+      <div class="hint"><b>Importer</b> : un lien ou un fichier qu’on t’a partagé. Tes ranges restent dans ce navigateur : fais « Sauvegarder tout » de temps en temps.</div>
+      <div id="libBox" hidden style="display:grid;gap:6px"><div class="lbl" id="libTitle"></div><textarea class="inp" id="libText" aria-label="Lien ou fichier"></textarea><div class="row" id="libExpBtns"><button class="ghost sm" id="libCopy">Copier</button><button class="ghost sm" id="libDl">Télécharger le fichier</button></div><div class="row" id="libImpBtns"><button class="ghost sm" id="libPick">Choisir un fichier</button><button class="btn" id="libAdd" style="padding:5px 12px">Ajouter à ma bibliothèque</button><button class="ghost sm danger" id="libRepl" hidden>Remplacer toute ma bibliothèque</button></div><button class="ghost sm" id="libClose" style="justify-self:start">Fermer</button></div>
     </aside>
 
     <!-- ===== centre ===== -->
@@ -221,7 +221,7 @@ textarea.inp { width: 100%; min-height: 76px; resize: vertical; font: 12.5px/1.4
   <section id="cmpView" hidden></section>
   <section id="trnView" hidden></section>
 
-  <p class="foot">Raccourcis : <b>1 à 9</b> pour choisir l’action, <b>0</b> ou <b>F</b> pour la gomme (fold), <b>Ctrl+Z</b> pour annuler. Clic droit sur une case = la vider. Le classement « Top % » vient de l’équité de chaque main contre une main au hasard (tête-à-tête) ou contre deux mains (3 joueurs).</p>
+  <p class="foot">Raccourcis : <b>1 à 9</b> pour choisir l’action, <b>reclic</b> sur une main déjà peinte pour la remettre en fold, <b>0</b> ou <b>F</b> pour la gomme (fold), <b>Ctrl+Z</b> pour annuler. Clic droit sur une case = la vider. Le classement « Top % » vient de l’équité de chaque main contre une main au hasard (tête-à-tête) ou contre deux mains (3 joueurs).</p>
 </div>
 <div class="tip" id="tip" hidden></div>
 <div class="toast" id="toast" hidden></div>
@@ -358,7 +358,7 @@ function renderEditor() {
 `;
   renderGstats(r); renderRight(r); $('#right').insertAdjacentHTML('beforeend', notesHTML(r)); bindEditor(r);
 }
-function notesHTML(r) { return `<section class="card"><div class="row" style="justify-content:space-between"><span class="lbl">Notes</span><span class="row"><button class="ghost sm" id="rUp" title="Monter">↑</button><button class="ghost sm" id="rDown" title="Descendre">↓</button><button class="ghost sm" id="rDup">Dupliquer</button><button class="ghost sm" id="rShare">Partager</button><button class="ghost sm danger" id="rDel">${S.delArm === r.id ? 'Confirmer la suppression' : 'Supprimer'}</button></span></div>
+function notesHTML(r) { return `<section class="card"><div class="row" style="justify-content:space-between"><span class="lbl">Notes</span><span class="row"><button class="ghost sm" id="rUp" title="Monter">↑</button><button class="ghost sm" id="rDown" title="Descendre">↓</button><button class="ghost sm" id="rDup">Dupliquer</button><button class="ghost sm" id="rShare">Partager</button><button class="ghost sm danger" id="rDel">${S.delArm === r.id ? 'Confirmer la suppression' : 'Supprimer'}</button></span></div>${exportBar(r.id)}
       <textarea class="inp" id="rNote" placeholder="Ex. : contre un reg, pas de limp en dessous de 12 BB…" style="margin-top:8px;min-height:54px;font-family:var(--f-body)">${esc(r.note || '')}</textarea>
       <div class="row hint" style="margin-top:6px">Déplacer dans : <select class="inp" id="rMove" style="padding:3px 6px">${folderOptions(parentOf(r.id)?.id)}</select></div></section>`; }
 function folderOptions(cur) { const o = ['<option value="">(racine)</option>']; const walk = (ids, d) => { for (const id of ids) { const n = N(id); if (n && n.t === 'f') { o.push(`<option value="${id}" ${id === cur ? 'selected' : ''}>${'  '.repeat(d)}${esc(n.name)}</option>`); walk(n.kids, d + 1); } } }; walk(LIB.root, 0); return o.join(''); }
@@ -387,7 +387,9 @@ function bindEditor(r) {
   const g = $('#grid'); let painting = false, erase = false, done = new Set();
   const at = (e) => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.closest ? el.closest('#grid .c') : null; };
   const doCell = (el) => { if (!el) return; const h = el.dataset.h; if (done.has(h)) return; done.add(h); paintCell(r, h, erase); updateCells(r, [h]); };
-  g.addEventListener('pointerdown', (e) => { if (e.button > 2) return; e.preventDefault(); painting = true; erase = e.button === 2; done = new Set(); pushUndo(r); doCell(at(e)); hideTip(); });
+  g.addEventListener('pointerdown', (e) => { if (e.button > 2) return; e.preventDefault(); painting = true; erase = e.button === 2; done = new Set(); const el0 = at(e);
+    if (el0 && !erase) { const h0 = el0.dataset.h; if (r.kind === 'b' ? r.bb[h0] === S.bbv && S.bbv > 0 : S.act !== 'fold' && (cellsOf(r)[h0] || {})[S.act] === S.freq) erase = true; } // reclic sur une main déjà peinte = retour en fold
+    pushUndo(r); doCell(el0); hideTip(); });
   g.addEventListener('pointermove', (e) => { if (painting) doCell(at(e)); else showTip(r, at(e), e); });
   g.addEventListener('pointerleave', hideTip);
   const end = () => { if (!painting) return; painting = false; if (!done.size) S.undo.pop(); save(); renderTree(); refreshTabs(r); };
@@ -528,7 +530,7 @@ function renderFolder(f) {
   const rs = rangesUnder(f.id), full = rs.filter(rangeFull).length;
   $('#center').innerHTML = `<section class="card"><div class="path">${esc(pathOf(f.id).join(' › ') || 'Bibliothèque')}</div><input class="namein" id="fName" value="${esc(f.name)}" aria-label="Nom du dossier">
     <div class="hint">${rs.length} ranges · ${full} remplies</div>
-    <div class="row" style="margin-top:10px"><button class="btn" id="fNewR">+ Nouvelle situation</button><button class="ghost" id="fNewF">+ Sous-dossier</button><button class="ghost" id="fShare">Partager ce dossier</button><button class="ghost" id="fUp">↑</button><button class="ghost" id="fDown">↓</button><button class="ghost danger" id="fDel">${S.delArm === f.id ? 'Confirmer : tout supprimer' : 'Supprimer'}</button></div>
+    <div class="row" style="margin-top:10px"><button class="btn" id="fNewR">+ Nouvelle situation</button><button class="ghost" id="fNewF">+ Sous-dossier</button><button class="ghost" id="fShare">Partager ce dossier</button><button class="ghost" id="fUp">↑</button><button class="ghost" id="fDown">↓</button><button class="ghost danger" id="fDel">${S.delArm === f.id ? 'Confirmer : tout supprimer' : 'Supprimer'}</button></div>${exportBar(f.id)}
     <div class="newr" id="newR" ${S.newOpen ? '' : 'hidden'}>
       <div class="row"><label for="nrName">Nom</label><input class="inp" id="nrName" placeholder="Ex. : BTN open vs fish" style="flex:1;min-width:180px"></div>
       <div class="row"><label>Type</label><div class="chips" id="nrKind"><button data-k="a" class="on">Actions + fréquences</button><button data-k="b">Seuils en BB (push/fold)</button></div></div>
@@ -563,17 +565,17 @@ async function shareNode(id) {
   const code = 's-' + flag + b32enc(data || json);
   const base = /github\.io$/.test(location.hostname) ? location.href.split('#')[0] : 'https://matdps.github.io/replayer/index-ranges.html';
   const url = base + '#' + code; copyText(url, 'Lien copié : envoie-le à tes élèves');
-  const n = N(id); $('#shareIn').hidden = false; $('#shareIn').innerHTML = `<div><b>Lien de partage de « ${esc(n.name)} »</b><div class="hint">La personne qui l’ouvre peut ajouter ${n.t === 'f' ? 'ce dossier' : 'cette range'} à sa bibliothèque.</div></div><input class="inp" readonly value="${esc(url)}" style="flex:1;min-width:220px;font:12px var(--f-num)" onclick="this.select()"><button class="ghost sm" id="shClose">Fermer</button>`;
+  const n = N(id); $('#shareIn').hidden = false; $('#shareIn').innerHTML = `<div><b>Lien de partage de « ${esc(n.name)} »</b><div class="hint">La personne qui l’ouvre peut ajouter ${n.t === 'f' ? 'ce dossier' : 'cette range'} à sa bibliothèque.</div></div><input class="inp" readonly value="${esc(url)}" style="flex:1;min-width:220px;font:12px var(--f-num)" onclick="this.select()"><button class="ghost sm" data-ex="json" data-id="${id}">Ou en fichier</button><button class="ghost sm" id="shClose">Fermer</button>`;
   $('#shClose').onclick = () => $('#shareIn').hidden = true;
 }
 async function receiveShare(code) {
   try {
-    const flag = code[2], bytes = b32dec(code.slice(3)), raw = flag === 'z' ? await deflate(bytes, true) : bytes, obj = JSON.parse(new TextDecoder().decode(raw));
+    const obj = await decodeShare(code);
     const count = obj.t === 'f' ? JSON.stringify(obj).split('"t":"r"').length - 1 : 1;
     $('#shareIn').hidden = false;
     $('#shareIn').innerHTML = `<div><b>On t’a partagé ${obj.t === 'f' ? 'le dossier' : 'la range'} « ${esc(obj.name)} »</b><div class="hint">${count} range${count > 1 ? 's' : ''}. Elle${count > 1 ? 's' : ''} s’ajoute${count > 1 ? 'nt' : ''} à ta bibliothèque, sans rien effacer.</div></div><div class="row"><button class="btn" id="shAdd">Ajouter à ma bibliothèque</button><button class="ghost" id="shNo">Non merci</button></div>`;
     $('#shNo').onclick = () => { $('#shareIn').hidden = true; history.replaceState(null, '', location.pathname + '#editeur'); };
-    $('#shAdd').onclick = () => { const add = (n) => { n.id = uid(); if (n.t === 'f') { n.kids = n.kids.map(add); n.open = true; } else if (n.tabs) n.tabs.forEach(t => t.id = uid()); LIB.nodes[n.id] = n; return n.id; }; const nid = add(obj); LIB.root.unshift(nid); save(); $('#shareIn').hidden = true; try { history.replaceState(null, '', location.pathname + '#editeur'); } catch (e) { /* lien non modifiable */ } select(nid); toast('Ajouté à ta bibliothèque'); };
+    $('#shAdd').onclick = () => { const nid = addPacked(obj); $('#shareIn').hidden = true; try { history.replaceState(null, '', location.pathname + '#editeur'); } catch (e) { /* lien non modifiable */ } select(nid); toast('Ajouté à ta bibliothèque'); };
   } catch (e) { console.error(e); toast('Ce lien de partage est abîmé ou incomplet'); }
 }
 
@@ -581,13 +583,18 @@ async function receiveShare(code) {
 function bindLib() {
   $('#search').oninput = (e) => { S.search = e.target.value; renderTree(); };
   $('#addFolderRoot').onclick = () => { const n = { id: uid(), t: 'f', name: 'Nouveau dossier', kids: [], open: true }; LIB.nodes[n.id] = n; LIB.root.push(n.id); save(); select(n.id); setTimeout(() => $('#fName') && $('#fName').select(), 0); };
-  $('#libExport').onclick = () => { $('#libBox').hidden = false; $('#libText').value = JSON.stringify(LIB); $('#libLoad').hidden = true; $('#libCopy').hidden = $('#libDl').hidden = false; };
+  const mode = (imp) => { $('#libBox').hidden = false; $('#libExpBtns').hidden = imp; $('#libImpBtns').hidden = !imp; $('#libRepl').hidden = true; };
+  $('#libExport').onclick = () => { mode(false); $('#libTitle').textContent = 'Sauvegarde de toute ta bibliothèque'; $('#libText').value = JSON.stringify(LIB); };
   $('#libCopy').onclick = () => copyText($('#libText').value, 'Sauvegarde copiée');
-  $('#libDl').onclick = () => { try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([$('#libText').value], { type: 'application/json' })); a.download = 'spinscope-ranges.json'; document.body.appendChild(a); a.click(); a.remove(); } catch (e) { toast('Téléchargement bloqué ici : utilise « Copier »'); } };
+  $('#libDl').onclick = () => saveFile($('#libText').value, 'spinscope-ranges-sauvegarde.json', 'application/json');
   $('#libClose').onclick = () => $('#libBox').hidden = true;
-  $('#libImport').onclick = () => { $('#libBox').hidden = false; $('#libText').value = ''; $('#libText').placeholder = 'Colle ta sauvegarde ici, ou choisis le fichier…'; $('#libLoad').hidden = false; $('#libCopy').hidden = $('#libDl').hidden = true; $('#libFile').click(); };
-  $('#libFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { $('#libText').value = rd.result; }; rd.readAsText(f); };
-  $('#libLoad').onclick = () => { try { const o = JSON.parse($('#libText').value); if (!o.nodes || !o.root) throw 0; LIB = o; save(); S.sel = null; renderTree(); renderEditor(); $('#libBox').hidden = true; toast('Bibliothèque restaurée'); } catch (e) { toast('Ce texte n’est pas une sauvegarde valide'); } };
+  $('#libImport').onclick = () => { mode(true); $('#libTitle').textContent = 'Importer des ranges'; $('#libText').value = ''; $('#libText').placeholder = 'Colle ici un lien de partage, ou choisis un fichier .json (range, dossier ou sauvegarde)'; $('#libText').focus(); };
+  $('#libPick').onclick = () => $('#libFile').click();
+  const checkBackup = () => { let full = false; try { const o = JSON.parse($('#libText').value); full = !!(o.nodes && o.root); } catch (e) { /* pas du JSON */ } $('#libRepl').hidden = !full; };
+  $('#libText').oninput = checkBackup;
+  $('#libFile').onchange = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { $('#libText').value = rd.result; checkBackup(); toast('Fichier chargé : clique sur « Ajouter »'); }; rd.readAsText(f); e.target.value = ''; };
+  $('#libAdd').onclick = async () => { await importAny($('#libText').value, false); $('#libBox').hidden = true; };
+  $('#libRepl').onclick = async () => { if ($('#libRepl').dataset.arm !== '1') { $('#libRepl').dataset.arm = '1'; $('#libRepl').textContent = 'Confirmer : tout remplacer'; return; } $('#libRepl').dataset.arm = ''; $('#libRepl').textContent = 'Remplacer toute ma bibliothèque'; await importAny($('#libText').value, true); $('#libBox').hidden = true; };
 }
 
 // =================== comparer ===================
@@ -706,6 +713,153 @@ function renderTrainer() {
   ['#tScope', '#tDepth'].forEach(id => $(id).onchange = restart); $('#tFocus').onchange = () => { if (!T.answered) nextQ(); }; $('#tRng').onchange = () => { if (T.q && !T.answered) drawQ(); };
   $('#tReset').onclick = () => { Object.assign(T, { n: 0, ok: 0, streak: 0, best: 0, errs: [] }); drawScore(); };
   drawScore(); restart();
+}
+
+// =================== export fichiers (PDF, Excel, SpinScope) sans bibliothèque externe ===================
+function saveFile(bytes, name, type) {
+  try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([bytes], { type })); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast('Fichier créé : ' + name); }
+  catch (e) { toast('Téléchargement impossible ici : utilise la version en ligne'); }
+}
+const safeName = (s) => String(s).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 60) || 'ranges';
+// pages à exporter : une par onglet rempli (ou par range en seuils BB)
+function exportPages(id) {
+  const pages = [];
+  for (const r of rangesUnder(id)) {
+    const path = pathOf(r.id).join(' > ');
+    if (r.kind === 'b') { if (rangeFull(r)) pages.push({ r, tab: null, title: r.name, sub: path, cells: null }); continue; }
+    const tabs = r.tabs.filter(tabFull);
+    for (const t of tabs) pages.push({ r, tab: t, title: r.name, sub: (path ? path + ' · ' : '') + t.name, cells: t.cells });
+  }
+  return pages;
+}
+function cellParts(p, h) { // segments [couleur, %] d'une case
+  const r = p.r;
+  if (r.kind === 'b') { const v = r.bb[h]; if (!v) return []; const b = r.bands.find(x => v >= x.min) || r.bands[r.bands.length - 1]; return [[b.color, 100]]; }
+  const c = p.cells[h]; if (!c) return []; return r.acts.filter(a => c[a.id] > 0).map(a => [a.color, c[a.id]]);
+}
+function pageLegend(p) {
+  const r = p.r;
+  if (r.kind === 'b') { const s = stats(r); return r.bands.map(b => [b.color, `${b.label} BB`, s.by[b.label] / TOTAL * 100]); }
+  const s = stats(r, p.cells); return [...r.acts.map(a => [a.color, a.name, s.by[a.id] / TOTAL * 100]), [null, r.rest, (TOTAL - s.tot) / TOTAL * 100]];
+}
+const hexRgb = (hx) => { const m = /^#?([0-9a-f]{6})$/i.exec(hx || ''); const n = m ? parseInt(m[1], 16) : 0xe9e5dc; return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+
+// ----- PDF -----
+function pdfText(s) { return String(s).replace(/›/g, '>').replace(/[−–—]/g, '-').replace(/[’‘]/g, "'").replace(/[“”«»]/g, '"').replace(/…/g, '...').replace(/≥/g, '>=').replace(/[^\x20-\xff]/g, '?').replace(/([()\\])/g, '\\$1'); }
+function buildPDF(pages, docTitle) {
+  const W = 595, H = 842, objs = [];
+  const col = (hx, op) => { const [r, g, b] = hexRgb(hx); return `${(r / 255).toFixed(3)} ${(g / 255).toFixed(3)} ${(b / 255).toFixed(3)} ${op}`; };
+  const txt = (x, y, size, s, bold, color = '#1c1a15') => `BT ${col(color, 'rg')} /${bold ? 'F2' : 'F1'} ${size} Tf ${x.toFixed(1)} ${y.toFixed(1)} Td (${pdfText(s)}) Tj ET`;
+  const tw = (s, size) => String(s).length * size * 0.56;
+  const contents = pages.map((p) => {
+    const out = [], cs = 37, x0 = (W - cs * 13) / 2, y0 = H - 120;
+    out.push(txt(x0, H - 60, 18, p.title, true));
+    out.push(txt(x0, H - 80, 10, p.sub || (p.r.kind === 'b' ? 'Seuils en BB' : ''), false, '#69645a'));
+    for (let i = 0; i < 13; i++) for (let j = 0; j < 13; j++) {
+      const h = CELL[i][j], x = x0 + j * cs, y = y0 - (i + 1) * cs, parts = cellParts(p, h), w = cs - 1.5;
+      out.push(`${col('#e9e5dc', 'rg')} ${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${w.toFixed(1)} re f`);
+      let acc = 0; for (const [c, f] of parts) { const sw = w * Math.min(f, 100 - acc) / 100; if (sw > 0) out.push(`${col(c, 'rg')} ${(x + w * acc / 100).toFixed(2)} ${y.toFixed(1)} ${sw.toFixed(2)} ${w.toFixed(1)} re f`); acc += f; }
+      out.push(txt(x + (w - tw(h, 8.5)) / 2, y + w / 2 - 1, 8.5, h, true, parts.length ? '#111111' : '#8d877a'));
+      if (p.r.kind === 'b' && p.r.bb[h]) { const v = p.r.bb[h], s = v >= 20 ? '20+' : String(Math.round(v * 10) / 10).replace('.', ','); out.push(txt(x + w - tw(s, 6) - 2, y + 2.5, 6, s, false, '#111111')); }
+      else if (parts.length && (parts.length > 1 || parts[0][1] < 100)) { const s = String(Math.round(parts.reduce((a, q) => a + q[1], 0))); out.push(txt(x + w - tw(s, 6) - 2, y + 2.5, 6, s, false, '#111111')); }
+    }
+    let ly = y0 - 13 * cs - 30; out.push(txt(x0, ly, 11, 'Légende', true)); ly -= 18;
+    for (const [c, name, pc] of pageLegend(p)) { out.push(`${col(c || '#e9e5dc', 'rg')} ${x0} ${ly - 2} 12 12 re f`); out.push(txt(x0 + 18, ly + 1, 10, `${name}  ${pc.toFixed(1).replace('.', ',')} %`, false)); ly -= 17; }
+    if (p.r.note) { ly -= 6; out.push(txt(x0, ly, 10, 'Notes : ' + p.r.note.replace(/\s+/g, ' ').slice(0, 110), false, '#69645a')); }
+    out.push(txt(x0, 30, 8, `SpinScope Ranges · ${docTitle}`, false, '#9a9485'));
+    return out.join('\n');
+  });
+  // assemblage : 1 catalogue, 2 pages, 3-4 polices, puis page + contenu
+  const n = pages.length, kids = [];
+  objs[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+  objs[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+  contents.forEach((c, k) => { const po = 5 + k * 2, co = po + 1; kids.push(`${po} 0 R`);
+    objs[po] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${co} 0 R >>`;
+    objs[co] = `<< /Length ${c.length} >>\nstream\n${c}\nendstream`; });
+  objs[2] = `<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${n} >>`;
+  let pdf = '%PDF-1.4\n%\xe2\xe3\xcf\xd3\n'; const offs = [];
+  for (let i = 1; i < objs.length; i++) { offs[i] = pdf.length; pdf += `${i} 0 obj\n${objs[i]}\nendobj\n`; }
+  const xref = pdf.length; pdf += `xref\n0 ${objs.length}\n0000000000 65535 f \n` + offs.slice(1).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join('');
+  pdf += `trailer\n<< /Size ${objs.length} /Root 1 0 R /Info << /Title (${pdfText(docTitle)}) /Producer (SpinScope Ranges) >> >>\nstartxref\n${xref}\n%%EOF`;
+  const bytes = new Uint8Array(pdf.length); for (let i = 0; i < pdf.length; i++) bytes[i] = pdf.charCodeAt(i) & 255; return bytes;
+}
+// pdfText laisse passer les caractères latin-1 (é, è, à…) qui s'écrivent sur un octet en WinAnsi
+
+// ----- Excel (.xlsx = zip de fichiers XML) -----
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b) { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+function zip(files) { // fichiers stockés sans compression : simple et lisible par Excel
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+  for (const f of files) { const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    central.push(new Uint8Array(c.buffer), name); off += 30 + name.length + data.length; }
+  const csize = central.reduce((a, x) => a + x.length, 0), e = new DataView(new ArrayBuffer(22)); e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  const all = [...parts, ...central, new Uint8Array(e.buffer)], out = new Uint8Array(all.reduce((a, x) => a + x.length, 0)); let p = 0; for (const x of all) { out.set(x, p); p += x.length; } return out;
+}
+const xesc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '');
+function colName(n) { let s = ''; n++; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; }
+function buildXLSX(pages, docTitle) {
+  // styles : 0 normal, 1 titre, 2 gras, 3 case vide, puis une case colorée par couleur
+  const colors = [], xfOf = {};
+  const fillXf = (hx) => { const k = (hx || '#e9e5dc').toUpperCase(); if (xfOf[k] === undefined) { colors.push(k); xfOf[k] = 3 + colors.length; } return xfOf[k]; };
+  const used = new Set(); const sheets = pages.map((p, k) => {
+    let nm = safeName(`${p.title}${p.tab ? ' ' + p.tab.name : ''}`).replace(/[\[\]]/g, '').slice(0, 28) || 'Range'; let base = nm, i = 2; while (used.has(nm.toLowerCase())) nm = base.slice(0, 26) + ' ' + i++; used.add(nm.toLowerCase());
+    const rows = {}; const put = (r, c, v, s) => { (rows[r] = rows[r] || []).push({ c, v, s }); };
+    put(1, 0, p.title, 1); put(2, 0, p.sub || 'Seuils en BB', 0);
+    for (let a = 0; a < 13; a++) for (let b = 0; b < 13; b++) { const h = CELL[a][b], parts = cellParts(p, h); const main = parts.slice().sort((x, y) => y[1] - x[1])[0];
+      let label = h; if (p.r.kind === 'b' && p.r.bb[h]) label = `${h} ${p.r.bb[h] >= 20 ? '20+' : p.r.bb[h]}`; else if (parts.length && (parts.length > 1 || parts[0][1] < 100)) label = `${h} ${Math.round(parts.reduce((s, q) => s + q[1], 0))}%`;
+      put(4 + a, b, label, main ? fillXf(main[0]) : 3); }
+    let rr = 19; put(rr++, 0, 'Légende', 2);
+    for (const [c, name, pc] of pageLegend(p)) { put(rr, 0, '', c ? fillXf(c) : 3); put(rr, 1, name, 0); put(rr, 4, Math.round(pc * 10) / 10, 0); put(rr, 5, '% des mains', 0); rr++; }
+    if (p.r.note) { rr++; put(rr, 0, 'Notes : ' + p.r.note, 0); }
+    // tableau détaillé, à droite
+    const head = p.r.kind === 'b' ? ['Main', 'Combos', 'Jouée jusqu’à (BB)'] : ['Main', 'Combos', ...p.r.acts.map(a => a.name + ' %'), p.r.rest + ' %'];
+    head.forEach((t, j) => put(4, 15 + j, t, 2)); let dr = 5;
+    for (const h of HANDS) { if (p.r.kind === 'b') { const v = p.r.bb[h]; if (!v) continue; put(dr, 15, h, 0); put(dr, 16, combos(h), 0); put(dr, 17, v, 0); dr++; continue; }
+      const c = p.cells[h]; if (!c) continue; put(dr, 15, h, 0); put(dr, 16, combos(h), 0); let tot = 0; p.r.acts.forEach((a, j) => { const f = c[a.id] || 0; tot += f; put(dr, 17 + j, f, 0); }); put(dr, 17 + p.r.acts.length, Math.max(0, 100 - tot), 0); dr++; }
+    const xml = Object.keys(rows).map(Number).sort((a, b) => a - b).map(r => `<row r="${r}">${rows[r].sort((a, b) => a.c - b.c).map(({ c, v, s }) => { const ref = colName(c) + r; return typeof v === 'number' ? `<c r="${ref}" s="${s}"><v>${v}</v></c>` : `<c r="${ref}" s="${s}" t="inlineStr"><is><t>${xesc(v)}</t></is></c>`; }).join('')}</row>`).join('');
+    return { nm, xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0" showGridLines="0"/></sheetViews><sheetFormatPr defaultRowHeight="24" customHeight="1"/><cols><col min="1" max="13" width="8.5" customWidth="1"/><col min="14" max="15" width="3" customWidth="1"/><col min="16" max="30" width="12" customWidth="1"/></cols><sheetData>${xml}</sheetData><pageSetup orientation="landscape" fitToWidth="1"/></worksheet>` };
+  });
+  const fills = colors.map(c => `<fill><patternFill patternType="solid"><fgColor rgb="FF${c.slice(1)}"/><bgColor indexed="64"/></patternFill></fill>`).join('');
+  const xfs = ['<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>', '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" applyFont="1"/>', '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" applyFont="1"/>', '<xf numFmtId="0" fontId="3" fillId="2" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>',
+    ...colors.map((c, i) => `<xf numFmtId="0" fontId="1" fillId="${3 + i}" borderId="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>`)];
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="4"><font><sz val="10"/><name val="Calibri"/></font><font><b/><sz val="10"/><name val="Calibri"/></font><font><b/><sz val="16"/><name val="Calibri"/></font><font><sz val="10"/><color rgb="FF8D877A"/><name val="Calibri"/></font></fonts><fills count="${3 + colors.length}"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE9E5DC"/><bgColor indexed="64"/></patternFill></fill>${fills}</fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFFFFFFF"/></left><right style="thin"><color rgb="FFFFFFFF"/></right><top style="thin"><color rgb="FFFFFFFF"/></top><bottom style="thin"><color rgb="FFFFFFFF"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const files = [
+    { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
+    { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+    { name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s, i) => `<sheet name="${xesc(s.nm)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>` },
+    { name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+    { name: 'xl/styles.xml', data: styles },
+    ...sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: s.xml })),
+  ];
+  return zip(files);
+}
+function exportNode(id, fmt) {
+  const n = N(id); if (!n) return;
+  if (fmt === 'json') return saveFile(JSON.stringify({ spinscope: 'ranges', v: 1, node: packNode(id) }), safeName(n.name) + '.spinscope.json', 'application/json');
+  const pages = exportPages(id);
+  if (!pages.length) return toast('Rien à exporter : ces ranges sont vides');
+  if (fmt === 'pdf') saveFile(buildPDF(pages, n.name), safeName(n.name) + '.pdf', 'application/pdf');
+  else saveFile(buildXLSX(pages, n.name), safeName(n.name) + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+}
+const exportBar = (id) => `<div class="row hint" style="margin-top:8px;gap:6px">Exporter : <button class="ghost sm" data-ex="pdf" data-id="${id}">PDF</button><button class="ghost sm" data-ex="xlsx" data-id="${id}">Excel</button><button class="ghost sm" data-ex="json" data-id="${id}">Fichier SpinScope</button></div>`;
+document.addEventListener('click', (e) => { const b = e.target.closest('[data-ex]'); if (b) exportNode(b.dataset.id, b.dataset.ex); });
+
+// =================== importer (lien, fichier de range, sauvegarde) ===================
+function addPacked(obj) { const add = (n) => { n.id = uid(); if (n.t === 'f') { n.kids = (n.kids || []).map(add); n.open = true; } else if (n.tabs) n.tabs.forEach(t => t.id = uid()); LIB.nodes[n.id] = n; return n.id; }; const nid = add(obj); LIB.root.unshift(nid); save(); return nid; }
+async function decodeShare(code) { const flag = code[2], bytes = b32dec(code.slice(3)), raw = flag === 'z' ? await deflate(bytes, true) : bytes; return JSON.parse(new TextDecoder().decode(raw)); }
+async function importAny(text, replace) {
+  text = (text || '').trim(); if (!text) return toast('Colle un lien ou choisis un fichier');
+  try {
+    const k = text.search(/(^|#)s-[nz]/); if (k >= 0) { const code = text.slice(text.indexOf('s-', k)).split(/[\s"'&?]/)[0]; const obj = await decodeShare(code); select(addPacked(obj)); return toast(`« ${obj.name} » ajouté à ta bibliothèque`); }
+    const o = JSON.parse(text);
+    if (o.nodes && o.root) { if (replace) { LIB = o; save(); S.sel = null; renderTree(); renderEditor(); return toast('Bibliothèque remplacée'); }
+      const f = { t: 'f', name: 'Importé', kids: o.root.map(id => { const pk = (x) => { const n = clone(o.nodes[x]); if (n.t === 'f') n.kids = n.kids.filter(y => o.nodes[y]).map(pk); return n; }; return pk(id); }) }; select(addPacked(f)); return toast('Sauvegarde ajoutée dans le dossier « Importé »'); }
+    const node = o.spinscope === 'ranges' ? o.node : o; if (!node || !node.t) throw 0; select(addPacked(node)); toast(`« ${node.name} » ajouté à ta bibliothèque`);
+  } catch (e) { console.error(e); toast('Je ne reconnais pas ce lien ou ce fichier'); }
 }
 
 // =================== vues et clavier ===================
